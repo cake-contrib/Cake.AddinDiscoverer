@@ -34,7 +34,7 @@ You can invoke this tool with the following arguments:
 -u            Github username.
 -v            Required. The recommended Cake version. e.g.: 0.26.0
 --excel       (Default: false) Generate the Excel report.
---markdown    (Default: false) Generate the Excel report.
+--markdown    (Default: false) Generate the Markdown report.
 ```
 
 ## Important note
