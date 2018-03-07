@@ -83,7 +83,7 @@ namespace Cake.AddinDiscoverer
 						progressBar.Tick();
 
 						// Step 2 - Discover Cake addins by looking at the "Recipe", "Modules" and "Addins" section in 'https://raw.githubusercontent.com/cake-contrib/Home/master/Status.md'
-						var addinsDiscoveredByGep13List = await DiscoverCakeAddinsByGep13List(progressBar).ConfigureAwait(false);
+						var addinsDiscoveredByGep13List = await DiscoverCakeAddinsByWebsiteList(progressBar).ConfigureAwait(false);
 						progressBar.Tick();
 
 						// Combine all the discovered addins
@@ -214,7 +214,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task<AddinMetadata[]> DiscoverCakeAddinsByGep13List(IProgressBar parentProgressBar)
+		private async Task<AddinMetadata[]> DiscoverCakeAddinsByWebsiteList(IProgressBar parentProgressBar)
 		{
 			// Get the content of the 'Status.md' file
 			var statusFile = await _githubClient.Repository.Content.GetAllContents("cake-contrib", "home", "Status.md").ConfigureAwait(false);
