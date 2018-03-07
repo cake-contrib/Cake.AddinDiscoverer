@@ -15,7 +15,9 @@ This console application performs the following steps:
 
 4. Searches the GitHub repo for a .SLN file.
 
-    **PLEASE NOTE**: if more than one solution file is discovered, we pick one at random. **HINT**: Keep only one solution in your repo in order to allow us to predictably analyze your addin.
+    **PLEASE NOTE**: if more than one solution file is discovered, we pick one at random.
+    
+    **HINT**: Keep only one solution in your repo in order to allow us to predictably analyze your addin.
 
 5. Parse the solution file and discover the projects.
 
@@ -25,7 +27,7 @@ This console application performs the following steps:
 
 6. Parse the `csproj` to discover that reference to `Cake.Core` and `Cake.Common`
 7. Parse the `csproj` to discover the framework(s) targeted by your addin
-8. Analyze the information discovered and determine if the plugins meet the agred upon "best practice".
+8. Analyze the information discovered and determine if the plugins meet the agreed upon "best practice".
 9. Output this information in an Excel spreadsheet and/or a markdown file.
 
 ## Best practices
@@ -41,14 +43,16 @@ The best practice this tool inspects for are:
 You can invoke this tool with the following arguments:
 
 ```csharp
--c            (Default: false) Clear the list of addins that was previously cached.
--i            (Default: false) Create issue in Github repositories that do not meet recommendations.
--p            Github password.
--t            Folder where temporary files (including reports) are saved.
--u            Github username.
--v            Required. The recommended Cake version. e.g.: 0.26.0
---excel       (Default: false) Generate the Excel report.
---markdown    (Default: false) Generate the Markdown report.
+-c, --clearcache     (Default: false) Clear the list of addins that was previously cached.
+-e, --excel          (Default: false) Generate the Excel report.
+-i, --issue          (Default: false) Create issue in Github repositories that do not meet recommendations.
+-m, --markdown       (Default: false) Generate the Markdown report.
+-p, --password       Github password.
+-t, --tempfolder     Folder where temporary files (including reports) are saved.
+-u, --user           Github username.
+-v, --cakeversion    Required. The recommended Cake version. e.g.: 0.26.0
+--help               Display this help screen.
+--version            Display version information.
 ```
 
 ## Important note
