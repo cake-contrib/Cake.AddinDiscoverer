@@ -25,7 +25,7 @@ namespace Cake.AddinDiscoverer
 		[Option("excel", Default = false, HelpText = "Generate the Excel report.")]
 		public bool GenerateExcelReport { get; set; }
 
-		[Option("markdown", Default = false, HelpText = "Generate the Excel report.")]
+		[Option("markdown", Default = false, HelpText = "Generate the Markdown report.")]
 		public bool GenerateMarkdownReport { get; set; }
 	}
 }
