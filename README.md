@@ -59,6 +59,4 @@ You can invoke this tool with the following arguments:
 
 This tool caches certain information such as the list of discovered addins, the content of `.sln` and `.csproj` file for performance reasons and also to ensure invoking this tool repeatedly does not cause you to exceed the number of GitHub API calls you are allowed to make in an hour. Make sure you add `-c` when invoking this tool when you want the previously cached information to be deleted and re-discover the list of plugins and re-download their solution and project files.
 
-## Todo
-
-I intend to add a feature to this tool which will create an issue in the addin repo to encourage the author to fix their addin.
+If you specify `-i` to create a new issue in the addin Github repo, this tool will attempt to detect if an opened issue already exist to avoid creating duplicate issues.

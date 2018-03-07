@@ -20,8 +20,9 @@ namespace Cake.AddinDiscoverer
 {
 	public class AddinDiscoverer
 	{
-		private const int NUMBER_OF_STEPS = 12;
+		private const int NUMBER_OF_STEPS = 14;
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
+		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
@@ -145,16 +146,29 @@ namespace Cake.AddinDiscoverer
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
-					// Step 10 - analyze
+					// Step 10 - determine if an issue already exists in the Github repo
+					normalizedAddins = await FindGithubIssueAsync(normalizedAddins, progressBar).ConfigureAwait(false);
+					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+					progressBar.Tick();
+
+					// Step 11 - analyze
 					normalizedAddins = AnalyzeAddinAsync(normalizedAddins, progressBar);
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
-					// Step 11 - generate the excel report
+					// Step 12 - create an issue in the Github repo
+					if (_options.CreateGithubIssue)
+					{
+						normalizedAddins = await CreateGithubIssueAsync(normalizedAddins, progressBar).ConfigureAwait(false);
+						File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+					}
+					progressBar.Tick();
+
+					// Step 13 - generate the excel report
 					if (_options.GenerateExcelReport) GenerateExcelReport(normalizedAddins, progressBar);
 					progressBar.Tick();
 
-					// Step 12 - generate the markdown report
+					// Step 14 - generate the markdown report
 					if (_options.GenerateMarkdownReport) GenerateMarkdownReport(normalizedAddins, progressBar);
 					progressBar.Tick();
 				}
@@ -549,6 +563,58 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
+		private async Task<AddinMetadata[]> FindGithubIssueAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
+		{
+			// Spawn a progressbar to display progress
+			var childOptions = new ProgressBarOptions
+			{
+				CollapseWhenFinished = false,
+				ForegroundColor = ConsoleColor.Green,
+				BackgroundColor = ConsoleColor.DarkGreen,
+				ProgressCharacter = '─',
+				ProgressBarOnBottom = true
+			};
+			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Find Github issue", childOptions))
+			{
+				var tasks = addins
+					.Select(async addin =>
+					{
+						if (addin.GithubIssueUrl == null && addin.IsValid())
+						{
+							var request = new RepositoryIssueRequest()
+							{
+								Creator = _options.GithubUsername,
+								State = ItemStateFilter.Open,
+								SortProperty = IssueSort.Created,
+								SortDirection = SortDirection.Descending
+							};
+
+							try
+							{
+								var issues = await _githubClient.Issue.GetAllForRepository(addin.GithubRepoOwner, addin.GithubRepoName, request).ConfigureAwait(false);
+								var issue = issues.FirstOrDefault(i => i.Title == ISSUE_TITLE);
+
+								if (issue != null)
+								{
+									addin.GithubIssueUrl = new Uri(issue.Url);
+									addin.GithubIssueId = issue.Number;
+								}
+							}
+							catch (Exception e)
+							{
+								addin.AnalysisResult.Notes += $"FindGithubIssueAsync: {e.GetBaseException().Message}\r\n";
+							}
+						}
+
+						progressBar.Tick();
+						return addin;
+					});
+
+				var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+				return results.ToArray();
+			}
+		}
+
 		private AddinMetadata[] AnalyzeAddinAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
 		{
 			// Spawn a progressbar to display progress
@@ -585,10 +651,62 @@ namespace Cake.AddinDiscoverer
 							addin.AnalysisResult.CakeCoreIsPrivate = cakeCoreIsPrivate;
 							addin.AnalysisResult.CakeCoreIsUpToDate = IsUpToDate(cakeCoreVersion, _options.RecommendedCakeVersion);
 						}
+
 						progressBar.Tick();
 						return addin;
 					});
 
+				return results.ToArray();
+			}
+		}
+
+		private async Task<AddinMetadata[]> CreateGithubIssueAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
+		{
+			// Spawn a progressbar to display progress
+			var childOptions = new ProgressBarOptions
+			{
+				CollapseWhenFinished = false,
+				ForegroundColor = ConsoleColor.Green,
+				BackgroundColor = ConsoleColor.DarkGreen,
+				ProgressCharacter = '─',
+				ProgressBarOnBottom = true
+			};
+			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Analyze addins", childOptions))
+			{
+				var tasks = addins
+					.Select(async addin =>
+					{
+						if (addin.GithubIssueUrl == null)
+						{
+							var issueBody = new StringBuilder();
+							issueBody.Append("We performed an automated audit of your Cake addin and found that it does not follow all the best practices.\r\n\r\n");
+							issueBody.Append("We encourage you to make the following modifications:\r\n\r\n");
+							if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) && !addin.AnalysisResult.CakeCoreIsUpToDate)
+							{
+								issueBody.Append($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
+							}
+							if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) && !addin.AnalysisResult.CakeCommonIsUpToDate)
+							{
+								issueBody.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
+							}
+							if (!addin.AnalysisResult.CakeCoreIsPrivate) issueBody.Append("- [ ] The Cake.Core reference should be private\r\n");
+							if (!addin.AnalysisResult.CakeCommonIsPrivate) issueBody.Append("- [ ] The Cake.Common reference should be private\r\n");
+							if (!addin.AnalysisResult.TargetsExpectedFramework) issueBody.Append("- [ ] Your addin should target netstandard2.0\r\n(Please note: there is no need to multi-target. As of Cake 0.26.0, netstandard2.0 is sufficient)\r\n");
+
+							var newIssue = new NewIssue(ISSUE_TITLE)
+							{
+								Body = issueBody.ToString()
+							};
+							var issue = await _githubClient.Issue.Create(addin.GithubRepoOwner, addin.GithubRepoName, newIssue).ConfigureAwait(false);
+							addin.GithubIssueUrl = new Uri(issue.Url);
+							addin.GithubIssueId = issue.Number;
+						}
+
+						progressBar.Tick();
+						return addin;
+					});
+
+				var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 				return results.ToArray();
 			}
 		}
