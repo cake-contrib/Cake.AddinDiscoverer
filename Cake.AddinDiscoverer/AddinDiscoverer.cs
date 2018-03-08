@@ -20,9 +20,10 @@ namespace Cake.AddinDiscoverer
 {
 	public class AddinDiscoverer
 	{
-		private const int NUMBER_OF_STEPS = 14;
+		private const int NUMBER_OF_STEPS = 15;
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
+		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
@@ -151,12 +152,17 @@ namespace Cake.AddinDiscoverer
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
-					// Step 11 - analyze
+					// Step 11 - find the addin icon
+					normalizedAddins = await FindIconAsync(normalizedAddins, progressBar).ConfigureAwait(false);
+					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+					progressBar.Tick();
+
+					// Step 12 - analyze
 					normalizedAddins = AnalyzeAddinAsync(normalizedAddins, progressBar);
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
-					// Step 12 - create an issue in the Github repo
+					// Step 13 - create an issue in the Github repo
 					if (_options.CreateGithubIssue)
 					{
 						normalizedAddins = await CreateGithubIssueAsync(normalizedAddins, progressBar).ConfigureAwait(false);
@@ -164,11 +170,11 @@ namespace Cake.AddinDiscoverer
 					}
 					progressBar.Tick();
 
-					// Step 13 - generate the excel report
+					// Step 14 - generate the excel report
 					if (_options.GenerateExcelReport) GenerateExcelReport(normalizedAddins, progressBar);
 					progressBar.Tick();
 
-					// Step 14 - generate the markdown report
+					// Step 15 - generate the markdown report
 					if (_options.GenerateMarkdownReport) GenerateMarkdownReport(normalizedAddins, progressBar);
 					progressBar.Tick();
 				}
@@ -615,6 +621,53 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
+		private async Task<AddinMetadata[]> FindIconAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
+		{
+			// Spawn a progressbar to display progress
+			var childOptions = new ProgressBarOptions
+			{
+				CollapseWhenFinished = false,
+				ForegroundColor = ConsoleColor.Green,
+				BackgroundColor = ConsoleColor.DarkGreen,
+				ProgressCharacter = '─',
+				ProgressBarOnBottom = true
+			};
+			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Finding icon", childOptions))
+			{
+				var tasks = addins
+					.Select(async addin =>
+					{
+						var folderName = Path.Combine(_tempFolder, addin.Name);
+
+						if (Directory.Exists(folderName))
+						{
+							foreach (var projectPath in Directory.EnumerateFiles(folderName))
+							{
+								try
+								{
+									using (var stream = File.OpenText(projectPath))
+									{
+										var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None).ConfigureAwait(false);
+										var icon = document.Descendants("PackageIconUrl").FirstOrDefault();
+										if (icon != null && !string.IsNullOrEmpty(icon.Value)) addin.IconUrl = new Uri(icon.Value);
+									}
+								}
+								catch (Exception e)
+								{
+									addin.AnalysisResult.Notes += $"FindIconAsync: {e.GetBaseException().Message}\r\n";
+								}
+							}
+						}
+
+						progressBar.Tick();
+						return addin;
+					});
+
+				var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+				return results.ToArray();
+			}
+		}
+
 		private AddinMetadata[] AnalyzeAddinAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
 		{
 			// Spawn a progressbar to display progress
@@ -650,6 +703,8 @@ namespace Cake.AddinDiscoverer
 							addin.AnalysisResult.CakeCoreVersion = cakeCoreVersion;
 							addin.AnalysisResult.CakeCoreIsPrivate = cakeCoreIsPrivate;
 							addin.AnalysisResult.CakeCoreIsUpToDate = IsUpToDate(cakeCoreVersion, _options.RecommendedCakeVersion);
+
+							addin.AnalysisResult.UsingCakeContribIcon = (addin.IconUrl != null && addin.IconUrl.AbsoluteUri == CAKECONTRIB_ICON_URL);
 						}
 
 						progressBar.Tick();
@@ -754,6 +809,8 @@ namespace Cake.AddinDiscoverer
 					worksheet.Cells[2, 4].Value = "Version";
 					worksheet.Cells[2, 5].Value = "IsPrivate";
 					worksheet.Cells[2, 6].Value = "Framework";
+					worksheet.Cells[2, 7].Value = "Icon";
+					worksheet.Cells[2, 8].Value = "Notes";
 
 					var row = 2;
 					foreach (var addin in addins.OrderBy(p => p.Name))
@@ -780,12 +837,16 @@ namespace Cake.AddinDiscoverer
 							DisplayValueWithExpectation(worksheet.Cells[row, 6], string.Join(", ", addin.Frameworks), addin.AnalysisResult.TargetsExpectedFramework);
 						}
 
+						DisplayValueWithExpectation(worksheet.Cells[row, 7], addin.AnalysisResult.UsingCakeContridIcon);
+
+						worksheet.Cells[row, 8].Value = addin.AnalysisResult.Notes;
+
 						progressBar.Tick();
 					}
 
 					// Freeze the top two rows and setup auto-filter
 					worksheet.View.FreezePanes(3, 1);
-					worksheet.Cells[2, 1, 2, 6].AutoFilter = true;
+					worksheet.Cells[2, 1, 2, 8].AutoFilter = true;
 
 					// Format the worksheet
 					worksheet.Row(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
@@ -794,16 +855,20 @@ namespace Cake.AddinDiscoverer
 					worksheet.Column(3).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 					worksheet.Column(4).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 					worksheet.Column(5).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+					worksheet.Column(6).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+					worksheet.Column(7).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 
 					// Resize columns
-					worksheet.Cells[2, 1, row, 6].AutoFitColumns();
+					worksheet.Cells[2, 1, row, 8].AutoFitColumns();
 
 					// Make columns a little bit wider to account for the filter "drop-down arrow" button
 					worksheet.Column(1).Width = worksheet.Column(1).Width + 1;
-					for (int i = 2; i <= 5; i++)
-					{
-						worksheet.Column(i).Width = worksheet.Column(i).Width + 2.14;
-					}
+					worksheet.Column(2).Width = worksheet.Column(2).Width + 2.14;
+					worksheet.Column(3).Width = worksheet.Column(3).Width + 2.14;
+					worksheet.Column(4).Width = worksheet.Column(4).Width + 2.14;
+					worksheet.Column(5).Width = worksheet.Column(5).Width + 2.14;
+					worksheet.Column(6).Width = worksheet.Column(6).Width + 1;
+					worksheet.Column(7).Width = worksheet.Column(7).Width + 2.14;
 
 					// Save the Excel file
 					package.Save();
@@ -832,7 +897,8 @@ namespace Cake.AddinDiscoverer
 					("Cake Core IsPrivate", addins.Max(a => a.AnalysisResult.CakeCoreIsPrivate.ToString().Length), "Center"),
 					("Cake Common Version", addins.Max(a => a.AnalysisResult.CakeCommonVersion.Length), "Center"),
 					("Cake Common IsPrivate", addins.Max(a => a.AnalysisResult.CakeCommonIsPrivate.ToString().Length), "Center"),
-					("Framework", addins.Max(a => string.Join(", ", a.Frameworks).Length), "Left")
+					("Framework", addins.Max(a => string.Join(", ", a.Frameworks).Length), "Center"),
+					("Icon", addins.Max(a => a.AnalysisResult.UsingCakeContridIcon.ToString().Length), "Center"),
 				};
 
 				for (int i = 0; i < columns.Length; i++)
@@ -885,6 +951,7 @@ namespace Cake.AddinDiscoverer
 						markdown.Append(WithRightPadding($"|{addin.AnalysisResult.CakeCommonIsPrivate.ToString().ToLower()}", columns[4].Width));
 					}
 					markdown.Append(WithRightPadding($"|{string.Join(", ", addin.Frameworks)}", columns[5].Width));
+					markdown.Append(WithRightPadding($"|{addin.AnalysisResult.UsingCakeContridIcon.ToString().ToLower()}", columns[6].Width));
 					markdown.AppendLine("|");
 
 					progressBar.Tick();

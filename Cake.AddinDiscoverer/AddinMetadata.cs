@@ -15,6 +15,7 @@ namespace Cake.AddinDiscoverer
 		public (string Id, string Version, bool IsPrivate)[] References { get; set; }
 		public AddinAnalysisResult AnalysisResult { get; set; }
 		public AddinMetadataSource Source { get; set; }
+		public Uri IconUrl { get; set; }
 		public Uri RepositoryUrl
 		{
 			get

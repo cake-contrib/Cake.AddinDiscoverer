@@ -10,6 +10,7 @@ namespace Cake.AddinDiscoverer
 		public bool CakeCoreIsPrivate { get; set; }
 		public bool CakeCommonIsPrivate { get; set; }
 		public bool TargetsExpectedFramework { get; set; }
+		public bool UsingCakeContribIcon { get; set; }
 		public string Notes { get; set; }
 	}
 }
