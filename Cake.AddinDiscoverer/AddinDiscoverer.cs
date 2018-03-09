@@ -28,6 +28,63 @@ namespace Cake.AddinDiscoverer
 		private readonly Options _options;
 		private readonly string _tempFolder;
 		private readonly IGitHubClient _githubClient;
+		private readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor)[] _reportColumns = new(string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor)[]
+		{
+			(
+				"Name",
+				ExcelHorizontalAlignment.Left,
+				(addin) => $"[{addin.Name}]({addin.RepositoryUrl.AbsoluteUri})",
+				(addin) => Color.Empty
+			),
+			(
+				"Maintainer",
+				ExcelHorizontalAlignment.Left,
+				(addin) => addin.Maintainer ?? string.Empty,
+				(addin) => Color.Empty
+			),
+			(
+				"Cake Core Version",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.CakeCoreVersion,
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsUpToDate ? Color.LightGreen : Color.Red)
+			),
+			(
+				"Cake Core IsPrivate",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? string.Empty : addin.AnalysisResult.CakeCoreIsPrivate.ToString().ToLower(),
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red)
+			),
+			(
+				"Cake Common Version",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.CakeCommonVersion,
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsUpToDate ? Color.LightGreen : Color.Red)
+			),
+			(
+				"Cake Common IsPrivate",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? string.Empty : addin.AnalysisResult.CakeCommonIsPrivate.ToString().ToLower(),
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red)
+			),
+			(
+				"Framework",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.Join(", ", addin.Frameworks),
+				(addin) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (addin.AnalysisResult.TargetsExpectedFramework ? Color.LightGreen : Color.Red)
+			),
+			(
+				"Icon",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.UsingCakeContribIcon.ToString().ToLower(),
+				(addin) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red
+			),
+			(
+				"Notes",
+				ExcelHorizontalAlignment.Left,
+				(addin) => addin.AnalysisResult.Notes ?? string.Empty,
+				(addin) => Color.Empty
+			)
+		};
 
 		public AddinDiscoverer(Options options)
 		{
@@ -221,7 +278,8 @@ namespace Cake.AddinDiscoverer
 						{
 							Source = AddinMetadataSource.Yaml,
 							Name = yamlRootNode["Name"].ToString(),
-							RepositoryUrl = new Uri(yamlRootNode["Repository"].ToString())
+							RepositoryUrl = new Uri(yamlRootNode["Repository"].ToString()),
+							Maintainer = yamlRootNode["Author"].ToString()
 						};
 
 						progressBar.Tick();
@@ -797,22 +855,14 @@ namespace Cake.AddinDiscoverer
 
 					var worksheet = package.Workbook.Worksheets.Add("Addins");
 
-					worksheet.Cells[1, 2].Value = "Cake Core";
-					worksheet.Cells[1, 2, 1, 3].Merge = true;
+					// Header row
+					for (int i = 0; i < _reportColumns.Length; i++)
+					{
+						worksheet.Cells[1, i + 1].Value = _reportColumns[i].Header;
+					}
 
-					worksheet.Cells[1, 4].Value = "Cake Common";
-					worksheet.Cells[1, 4, 1, 5].Merge = true;
-
-					worksheet.Cells[2, 1].Value = "Addin";
-					worksheet.Cells[2, 2].Value = "Version";
-					worksheet.Cells[2, 3].Value = "IsPrivate";
-					worksheet.Cells[2, 4].Value = "Version";
-					worksheet.Cells[2, 5].Value = "IsPrivate";
-					worksheet.Cells[2, 6].Value = "Framework";
-					worksheet.Cells[2, 7].Value = "Icon";
-					worksheet.Cells[2, 8].Value = "Notes";
-
-					var row = 2;
+					// One row per addin
+					var row = 1;
 					foreach (var addin in addins.OrderBy(p => p.Name))
 					{
 						row++;
@@ -820,55 +870,41 @@ namespace Cake.AddinDiscoverer
 						worksheet.Cells[row, 1].Hyperlink = addin.RepositoryUrl;
 						worksheet.Cells[row, 1].StyleName = "HyperLink";
 
-						if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion))
+						for (int i = 1; i < _reportColumns.Length; i++)
 						{
-							DisplayValueWithExpectation(worksheet.Cells[row, 2], FormatVersion(addin.AnalysisResult.CakeCoreVersion), addin.AnalysisResult.CakeCoreIsUpToDate);
-							DisplayValueWithExpectation(worksheet.Cells[row, 3], addin.AnalysisResult.CakeCoreIsPrivate);
+							var cell = worksheet.Cells[row, i + 1];
+							cell.Value = _reportColumns[i].GetContent(addin); ;
+
+							var color = _reportColumns[i].GetCellColor(addin);
+							if (color != Color.Empty)
+							{
+								cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+								cell.Style.Fill.BackgroundColor.SetColor(color);
+							}
 						}
-
-						if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion))
-						{
-							DisplayValueWithExpectation(worksheet.Cells[row, 4], FormatVersion(addin.AnalysisResult.CakeCommonVersion), addin.AnalysisResult.CakeCommonIsUpToDate);
-							DisplayValueWithExpectation(worksheet.Cells[row, 5], addin.AnalysisResult.CakeCommonIsPrivate);
-						}
-
-						if ((addin.Frameworks?.Length ?? 0) != 0)
-						{
-							DisplayValueWithExpectation(worksheet.Cells[row, 6], string.Join(", ", addin.Frameworks), addin.AnalysisResult.TargetsExpectedFramework);
-						}
-
-						DisplayValueWithExpectation(worksheet.Cells[row, 7], addin.AnalysisResult.UsingCakeContridIcon);
-
-						worksheet.Cells[row, 8].Value = addin.AnalysisResult.Notes;
 
 						progressBar.Tick();
 					}
 
-					// Freeze the top two rows and setup auto-filter
-					worksheet.View.FreezePanes(3, 1);
-					worksheet.Cells[2, 1, 2, 8].AutoFilter = true;
+					// Freeze the top row and setup auto-filter
+					worksheet.View.FreezePanes(2, 1);
+					worksheet.Cells[1, 1, 1, _reportColumns.Length].AutoFilter = true;
 
 					// Format the worksheet
 					worksheet.Row(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-					worksheet.Row(2).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-					worksheet.Column(2).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-					worksheet.Column(3).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-					worksheet.Column(4).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-					worksheet.Column(5).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-					worksheet.Column(6).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-					worksheet.Column(7).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+					for (int i = 0; i < _reportColumns.Length; i++)
+					{
+						worksheet.Cells[2, i + 1, row, i + 1].Style.HorizontalAlignment = _reportColumns[i].Align;
+					}
 
 					// Resize columns
-					worksheet.Cells[2, 1, row, 8].AutoFitColumns();
+					worksheet.Cells[1, 1, row, _reportColumns.Length].AutoFitColumns();
 
 					// Make columns a little bit wider to account for the filter "drop-down arrow" button
-					worksheet.Column(1).Width = worksheet.Column(1).Width + 1;
-					worksheet.Column(2).Width = worksheet.Column(2).Width + 2.14;
-					worksheet.Column(3).Width = worksheet.Column(3).Width + 2.14;
-					worksheet.Column(4).Width = worksheet.Column(4).Width + 2.14;
-					worksheet.Column(5).Width = worksheet.Column(5).Width + 2.14;
-					worksheet.Column(6).Width = worksheet.Column(6).Width + 1;
-					worksheet.Column(7).Width = worksheet.Column(7).Width + 2.14;
+					for (int i = 0; i < _reportColumns.Length; i++)
+					{
+						worksheet.Column(i + 1).Width = worksheet.Column(i + 1).Width + 2.14;
+					}
 
 					// Save the Excel file
 					package.Save();
@@ -890,68 +926,61 @@ namespace Cake.AddinDiscoverer
 			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Generating markdown", childOptions))
 			{
 				var markdown = new StringBuilder();
-				var columns = new(string Header, int Width, string Align)[]
-				{
-					("Addin", addins.Max(a => a.Name.Length + a.RepositoryUrl.AbsoluteUri.Length + 4), "left"),
-					("Cake Core Version", addins.Max(a => a.AnalysisResult.CakeCoreVersion.Length), "Center"),
-					("Cake Core IsPrivate", addins.Max(a => a.AnalysisResult.CakeCoreIsPrivate.ToString().Length), "Center"),
-					("Cake Common Version", addins.Max(a => a.AnalysisResult.CakeCommonVersion.Length), "Center"),
-					("Cake Common IsPrivate", addins.Max(a => a.AnalysisResult.CakeCommonIsPrivate.ToString().Length), "Center"),
-					("Framework", addins.Max(a => string.Join(", ", a.Frameworks).Length), "Center"),
-					("Icon", addins.Max(a => a.AnalysisResult.UsingCakeContridIcon.ToString().Length), "Center"),
-				};
 
-				for (int i = 0; i < columns.Length; i++)
+				// Calculate the column widths
+				var columnWidths = new int[_reportColumns.Length];
+				for (int i = 0; i < _reportColumns.Length; i++)
 				{
-					// Ensure columns are wide enough to display the header
-					columns[i].Width = Math.Max(columns[i].Header.Length, columns[i].Width);
+					// Column must be wide enough to display the largest content
+					columnWidths[i] = addins.Max(addin => _reportColumns[i].GetContent(addin).Length);
 
-					// Account for the column seperator
-					columns[i].Width++;
+					// Ensure column is wide enough to display the header
+					columnWidths[i] = Math.Max(_reportColumns[i].Header.Length, columnWidths[i]);
+
+					// Account for the column seperator and two spaces
+					columnWidths[i] += 3;
 				}
 
-				foreach (var column in columns)
+				// Header row 1
+				for (int i = 0; i < _reportColumns.Length; i++)
 				{
-					markdown.Append(WithRightPadding($"|{column.Header}", column.Width));
+					markdown.Append(WithRightPadding($"| {_reportColumns[i].Header} ", columnWidths[i]));
 				}
 				markdown.AppendLine("|");
 
-				foreach (var column in columns)
+				// Header row 2
+				for (int i = 0; i < _reportColumns.Length; i++)
 				{
-					var width = column.Width - 1;                    // Minus one for the column seperator
-					if (column.Align == "Right") width = width - 1;  // Minus one for the ":" character
-					if (column.Align == "Center") width = width - 2; // Minus two for the two ":" characters
+					var width = columnWidths[i] - 1;                     // Minus one for the column seperator
+					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Right)
+					{
+						width = width - 1;  // Minus one for the ":" character
+					}
+					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Center)
+					{
+						width = width - 2; // Minus two for the two ":" characters
+					}
 
 					markdown.Append("|");
-					if (column.Align == "Center") markdown.Append(":");
+					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Center)
+					{
+						markdown.Append(":");
+					}
 					markdown.Append(new string('-', width));
-					if (column.Align == "Right" || column.Align == "Center") markdown.Append(":");
+					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Right || _reportColumns[i].Align == ExcelHorizontalAlignment.Center)
+					{
+						markdown.Append(":");
+					}
 				}
 				markdown.AppendLine("|");
 
+				// One row per addin
 				foreach (var addin in addins.OrderBy(p => p.Name))
 				{
-					markdown.Append(WithRightPadding($"|[{addin.Name}]({addin.RepositoryUrl.AbsoluteUri})", columns[0].Width));
-					markdown.Append(WithRightPadding($"|{addin.AnalysisResult.CakeCoreVersion}", columns[1].Width));
-					if (string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion))
+					for (int i = 0; i < _reportColumns.Length; i++)
 					{
-						markdown.Append(WithRightPadding("|", columns[2].Width));
+						markdown.Append(WithRightPadding($"| {_reportColumns[i].GetContent(addin)} ", columnWidths[i]));
 					}
-					else
-					{
-						markdown.Append(WithRightPadding($"|{addin.AnalysisResult.CakeCoreIsPrivate.ToString().ToLower()}", columns[2].Width));
-					}
-					markdown.Append(WithRightPadding($"|{addin.AnalysisResult.CakeCommonVersion}", columns[3].Width));
-					if (string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion))
-					{
-						markdown.Append(WithRightPadding("|", columns[4].Width));
-					}
-					else
-					{
-						markdown.Append(WithRightPadding($"|{addin.AnalysisResult.CakeCommonIsPrivate.ToString().ToLower()}", columns[4].Width));
-					}
-					markdown.Append(WithRightPadding($"|{string.Join(", ", addin.Frameworks)}", columns[5].Width));
-					markdown.Append(WithRightPadding($"|{addin.AnalysisResult.UsingCakeContridIcon.ToString().ToLower()}", columns[6].Width));
 					markdown.AppendLine("|");
 
 					progressBar.Tick();
@@ -962,18 +991,6 @@ namespace Cake.AddinDiscoverer
 				var file = new StreamWriter(reportSaveLocation);
 				file.WriteLine(markdown.ToString());
 			}
-		}
-
-		private static void DisplayValueWithExpectation(ExcelRange cell, string value, bool meetsExpectation)
-		{
-			cell.Value = value;
-			cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
-			cell.Style.Fill.BackgroundColor.SetColor(meetsExpectation ? Color.LightGreen : Color.OrangeRed);
-		}
-
-		private static void DisplayValueWithExpectation(ExcelRange cell, bool value)
-		{
-			DisplayValueWithExpectation(cell, value.ToString().ToLower(), value);
 		}
 
 		private async Task<RepositoryContent> GetSolutionFileAsync(AddinMetadata addin, string folderName = null)
@@ -1040,7 +1057,8 @@ namespace Cake.AddinDiscoverer
 						{
 							Source = AddinMetadataSource.Gep13List,
 							Name = Extract("[", "]", cells[0]),
-							RepositoryUrl = new Uri(Extract("(", ")", cells[0]))
+							RepositoryUrl = new Uri(Extract("(", ")", cells[0])),
+							Maintainer = cells[1]
 						};
 
 						progressBar.Tick();

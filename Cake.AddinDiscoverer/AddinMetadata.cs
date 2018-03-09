@@ -7,6 +7,7 @@ namespace Cake.AddinDiscoverer
 		private Uri repositoryUrl;
 
 		public string Name { get; set; }
+		public string Maintainer { get; set; }
 		public string GithubRepoName { get; private set; }
 		public string GithubRepoOwner { get; private set; }
 		public string SolutionPath { get; set; }
