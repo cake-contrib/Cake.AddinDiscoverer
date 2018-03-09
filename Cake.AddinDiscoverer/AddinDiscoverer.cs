@@ -77,12 +77,6 @@ namespace Cake.AddinDiscoverer
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.UsingCakeContribIcon.ToString().ToLower(),
 				(addin) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red
-			),
-			(
-				"Notes",
-				ExcelHorizontalAlignment.Left,
-				(addin) => addin.AnalysisResult.Notes ?? string.Empty,
-				(addin) => Color.Empty
 			)
 		};
 
@@ -232,7 +226,7 @@ namespace Cake.AddinDiscoverer
 					progressBar.Tick();
 
 					// Step 15 - generate the markdown report
-					if (_options.GenerateMarkdownReport) GenerateMarkdownReport(normalizedAddins, progressBar);
+					if (_options.GenerateMarkdownReport) await GenerateMarkdownReport(normalizedAddins, progressBar).ConfigureAwait(false);
 					progressBar.Tick();
 				}
 			}
@@ -863,7 +857,9 @@ namespace Cake.AddinDiscoverer
 
 					// One row per addin
 					var row = 1;
-					foreach (var addin in addins.OrderBy(p => p.Name))
+					foreach (var addin in addins
+						.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
+						.OrderBy(p => p.Name))
 					{
 						row++;
 						worksheet.Cells[row, 1].Value = addin.Name;
@@ -906,13 +902,33 @@ namespace Cake.AddinDiscoverer
 						worksheet.Column(i + 1).Width = worksheet.Column(i + 1).Width + 2.14;
 					}
 
+					// Exceptions report
+					var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
+					if (exceptionAddins.Any())
+					{
+						worksheet = package.Workbook.Worksheets.Add("Exceptions");
+
+						worksheet.Cells[1, 1].Value = "Addin";
+						worksheet.Cells[1, 2].Value = "Notes";
+
+						row = 1;
+						foreach (var addin in exceptionAddins.OrderBy(p => p.Name))
+						{
+							row++;
+							worksheet.Cells[row, 1].Value = addin.Name;
+							worksheet.Cells[row, 2].Value = addin.AnalysisResult.Notes;
+
+							progressBar.Tick();
+						}
+					}
+
 					// Save the Excel file
 					package.Save();
 				}
 			}
 		}
 
-		private void GenerateMarkdownReport(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
+		private async Task GenerateMarkdownReport(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
 		{
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
@@ -940,6 +956,10 @@ namespace Cake.AddinDiscoverer
 					// Account for the column seperator and two spaces
 					columnWidths[i] += 3;
 				}
+
+				// Title
+				markdown.AppendLine("# Addins");
+				markdown.AppendLine();
 
 				// Header row 1
 				for (int i = 0; i < _reportColumns.Length; i++)
@@ -975,7 +995,9 @@ namespace Cake.AddinDiscoverer
 				markdown.AppendLine("|");
 
 				// One row per addin
-				foreach (var addin in addins.OrderBy(p => p.Name))
+				foreach (var addin in addins
+					.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
+					.OrderBy(p => p.Name))
 				{
 					for (int i = 0; i < _reportColumns.Length; i++)
 					{
@@ -986,10 +1008,24 @@ namespace Cake.AddinDiscoverer
 					progressBar.Tick();
 				}
 
+				// Exceptions report
+				var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
+				if (exceptionAddins.Any())
+				{
+					markdown.AppendLine("# Exceptions");
+					markdown.AppendLine();
+
+					foreach (var addin in exceptionAddins.OrderBy(p => p.Name))
+					{
+						markdown.AppendLine($"**{addin.Name}**: {addin.AnalysisResult.Notes}");
+
+						progressBar.Tick();
+					}
+				}
+
 				// Save the markdown file
 				var reportSaveLocation = Path.Combine(_tempFolder, "AddinDiscoveryReport.md");
-				var file = new StreamWriter(reportSaveLocation);
-				file.WriteLine(markdown.ToString());
+				await File.WriteAllTextAsync(reportSaveLocation, markdown.ToString()).ConfigureAwait(false);
 			}
 		}
 
