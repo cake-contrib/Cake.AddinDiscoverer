@@ -1,8 +1,12 @@
-﻿namespace Cake.AddinDiscoverer
+﻿using System;
+
+namespace Cake.AddinDiscoverer
 {
+	[Flags]
 	public enum AddinMetadataSource
 	{
-		Gep13List = 0,
-		Yaml = 1
+		None = 0,
+		WebsiteList = 1 << 0,
+		Yaml = 1 << 1
 	}
 }

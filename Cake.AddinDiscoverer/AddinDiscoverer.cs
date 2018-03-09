@@ -33,7 +33,7 @@ namespace Cake.AddinDiscoverer
 			(
 				"Name",
 				ExcelHorizontalAlignment.Left,
-				(addin) => $"[{addin.Name}]({addin.RepositoryUrl.AbsoluteUri})",
+				(addin) => $"[{addin.Name}]({addin.GithubRepoUrl.AbsoluteUri})",
 				(addin) => Color.Empty
 			),
 			(
@@ -77,6 +77,12 @@ namespace Cake.AddinDiscoverer
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.UsingCakeContribIcon.ToString().ToLower(),
 				(addin) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red
+			),
+			(
+				"YAML",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite.ToString().ToLower(),
+				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite ? Color.LightGreen : Color.Red
 			)
 		};
 
@@ -136,30 +142,21 @@ namespace Cake.AddinDiscoverer
 						progressBar.Tick();
 
 						// Step 2 - Discover Cake addins by looking at the "Recipe", "Modules" and "Addins" section in 'https://raw.githubusercontent.com/cake-contrib/Home/master/Status.md'
-						var addinsDiscoveredByGep13List = await DiscoverCakeAddinsByWebsiteList(progressBar).ConfigureAwait(false);
+						var addinsDiscoveredByWebsiteList = await DiscoverCakeAddinsByWebsiteList(progressBar).ConfigureAwait(false);
 						progressBar.Tick();
 
 						// Combine all the discovered addins
-						var allDiscoveredAddins = addinsDiscoveredByYaml
-							.Union(addinsDiscoveredByGep13List)
-							.ToArray();
-
-						// Remove duplicates
-						var gitHubAddins = allDiscoveredAddins
-							.GroupBy(p => p.Name.ToLower())
-							.Select(grp => grp.FirstOrDefault(p => p.IsValid()))
-							.Where(p => p != null)
-							.ToArray();
-
-						var nugetAddins = allDiscoveredAddins
-							.Where(p => p.RepositoryUrl != null)
-							.GroupBy(p => p.Name.ToLower())
-							.Where(grp => !grp.Any(p => p.IsValid()))
-							.Select(grp => grp.First())
-							.ToArray();
-
-						normalizedAddins = gitHubAddins
-							.Union(nugetAddins)
+						normalizedAddins = addinsDiscoveredByYaml
+							.Union(addinsDiscoveredByWebsiteList)
+							.GroupBy(a => a.Name)
+							.Select(grp => new AddinMetadata()
+							{
+								Name = grp.Key,
+								Maintainer = grp.Where(a => a.Maintainer != null).Select(a => a.Maintainer).FirstOrDefault(),
+								GithubRepoUrl = grp.Where(a => a.GithubRepoUrl != null).Select(a => a.GithubRepoUrl).FirstOrDefault(),
+								NugetPackageUrl = grp.Where(a => a.NugetPackageUrl != null).Select(a => a.NugetPackageUrl).FirstOrDefault(),
+								Source = grp.Select(a => a.Source).Aggregate((x, y) => x | y)
+							})
 							.ToArray();
 					}
 
@@ -168,8 +165,8 @@ namespace Cake.AddinDiscoverer
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
-					// Step 4 - normalize the addin URL so it points to the github repo (instead of nuget)
-					normalizedAddins = await NormalizeAddinUrlAsync(normalizedAddins, progressBar).ConfigureAwait(false);
+					// Step 4 - get the project URL
+					normalizedAddins = await GetProjectUrlAsync(normalizedAddins, progressBar).ConfigureAwait(false);
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
@@ -268,12 +265,14 @@ namespace Cake.AddinDiscoverer
 
 						// Extract Author, Description, Name and repository URL
 						var yamlRootNode = yaml.Documents[0].RootNode;
+						var url = new Uri(yamlRootNode["Repository"].ToString());
 						var metadata = new AddinMetadata()
 						{
 							Source = AddinMetadataSource.Yaml,
 							Name = yamlRootNode["Name"].ToString(),
-							RepositoryUrl = new Uri(yamlRootNode["Repository"].ToString()),
-							Maintainer = yamlRootNode["Author"].ToString()
+							GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
+							NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
+							Maintainer = yamlRootNode["Author"].ToString().Trim()
 						};
 
 						progressBar.Tick();
@@ -349,7 +348,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task<AddinMetadata[]> NormalizeAddinUrlAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
+		private async Task<AddinMetadata[]> GetProjectUrlAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
 		{
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
@@ -360,20 +359,20 @@ namespace Cake.AddinDiscoverer
 				ProgressCharacter = '─',
 				ProgressBarOnBottom = true
 			};
-			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Normalize addin URL", childOptions))
+			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Get project URL", childOptions))
 			{
 				var tasks = addins
 					.Select(async addin =>
 					{
-						if (!addin.IsValid())
+						if (addin.GithubRepoUrl == null && addin.NugetPackageUrl != null)
 						{
 							try
 							{
-								addin.RepositoryUrl = await GetNormalizedProjectUrl(addin.RepositoryUrl).ConfigureAwait(false);
+								addin.GithubRepoUrl = await GetNormalizedProjectUrl(addin.NugetPackageUrl).ConfigureAwait(false);
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"NormalizeAddinUrlAsync: {e.GetBaseException().Message}\r\n";
+								addin.AnalysisResult.Notes += $"GetProjectUrlAsync: {e.GetBaseException().Message}\r\n";
 							}
 						}
 						progressBar.Tick();
@@ -403,7 +402,7 @@ namespace Cake.AddinDiscoverer
 					{
 						try
 						{
-							if (addin.IsValid() && string.IsNullOrEmpty(addin.SolutionPath))
+							if (addin.GithubRepoUrl != null && string.IsNullOrEmpty(addin.SolutionPath))
 							{
 								var solutionFile = await GetSolutionFileAsync(addin).ConfigureAwait(false);
 								addin.SolutionPath = solutionFile.Path;
@@ -411,7 +410,7 @@ namespace Cake.AddinDiscoverer
 						}
 						catch (NotFoundException)
 						{
-							addin.AnalysisResult.Notes += $"The project does not exist: {addin.RepositoryUrl}\r\n";
+							addin.AnalysisResult.Notes += $"The project does not exist: {addin.GithubRepoUrl}\r\n";
 						}
 						catch (Exception e)
 						{
@@ -637,7 +636,7 @@ namespace Cake.AddinDiscoverer
 				var tasks = addins
 					.Select(async addin =>
 					{
-						if (addin.GithubIssueUrl == null && addin.IsValid())
+						if (addin.GithubIssueUrl == null && addin.GithubRepoUrl != null)
 						{
 							var request = new RepositoryIssueRequest()
 							{
@@ -757,6 +756,7 @@ namespace Cake.AddinDiscoverer
 							addin.AnalysisResult.CakeCoreIsUpToDate = IsUpToDate(cakeCoreVersion, _options.RecommendedCakeVersion);
 
 							addin.AnalysisResult.UsingCakeContribIcon = (addin.IconUrl != null && addin.IconUrl.AbsoluteUri == CAKECONTRIB_ICON_URL);
+							addin.AnalysisResult.HasYamlFileOnWebSite = addin.Source.HasFlag(AddinMetadataSource.Yaml);
 						}
 
 						progressBar.Tick();
@@ -863,7 +863,7 @@ namespace Cake.AddinDiscoverer
 					{
 						row++;
 						worksheet.Cells[row, 1].Value = addin.Name;
-						worksheet.Cells[row, 1].Hyperlink = addin.RepositoryUrl;
+						worksheet.Cells[row, 1].Hyperlink = addin.GithubRepoUrl;
 						worksheet.Cells[row, 1].StyleName = "HyperLink";
 
 						for (int i = 1; i < _reportColumns.Length; i++)
@@ -1088,12 +1088,13 @@ namespace Cake.AddinDiscoverer
 					.Select(line =>
 					{
 						var cells = line.Split('|', StringSplitOptions.RemoveEmptyEntries);
-
+						var url = new Uri(Extract("(", ")", cells[0]));
 						var metadata = new AddinMetadata()
 						{
-							Source = AddinMetadataSource.Gep13List,
+							Source = AddinMetadataSource.WebsiteList,
 							Name = Extract("[", "]", cells[0]),
-							RepositoryUrl = new Uri(Extract("(", ")", cells[0])),
+							GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
+							NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
 							Maintainer = cells[1]
 						};
 

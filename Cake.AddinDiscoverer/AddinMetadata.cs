@@ -17,7 +17,8 @@ namespace Cake.AddinDiscoverer
 		public AddinAnalysisResult AnalysisResult { get; set; }
 		public AddinMetadataSource Source { get; set; }
 		public Uri IconUrl { get; set; }
-		public Uri RepositoryUrl
+		public Uri NugetPackageUrl { get; set; }
+		public Uri GithubRepoUrl
 		{
 			get
 			{
@@ -27,7 +28,7 @@ namespace Cake.AddinDiscoverer
 			{
 				repositoryUrl = value;
 
-				if (value != null && value.Host.Contains("github"))
+				if (value != null)
 				{
 					var parts = value.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
 					if (parts.Length >= 2)
@@ -40,13 +41,5 @@ namespace Cake.AddinDiscoverer
 		}
 		public Uri GithubIssueUrl { get; set; }
 		public int? GithubIssueId { get; set; }
-
-		public bool IsValid()
-		{
-			return this.RepositoryUrl != null &&
-				this.RepositoryUrl.Host.Contains("github") &&
-				!string.IsNullOrEmpty(this.GithubRepoName) &&
-				!string.IsNullOrEmpty(this.GithubRepoOwner);
-		}
 	}
 }

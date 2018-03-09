@@ -11,6 +11,7 @@ namespace Cake.AddinDiscoverer
 		public bool CakeCommonIsPrivate { get; set; }
 		public bool TargetsExpectedFramework { get; set; }
 		public bool UsingCakeContribIcon { get; set; }
+		public bool HasYamlFileOnWebSite { get; set; }
 		public string Notes { get; set; }
 	}
 }
