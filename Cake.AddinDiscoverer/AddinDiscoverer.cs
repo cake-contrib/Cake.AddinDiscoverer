@@ -1095,7 +1095,7 @@ namespace Cake.AddinDiscoverer
 							Name = Extract("[", "]", cells[0]),
 							GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
 							NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
-							Maintainer = cells[1]
+							Maintainer = cells[1].Trim()
 						};
 
 						progressBar.Tick();
