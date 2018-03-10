@@ -37,6 +37,8 @@ The best practice this tool inspects for are:
 1. Your plugin references a given version of the Cake DLLs.
 2. The references to the Cake DLLs are private
 3. Your plugin does not target multiple .NET frameworks and only targets `netstandard2.0`
+4. Your plugin uses the "cake-contrig" icon
+5. There is a YAML file describing your plugin on the Cake website
 
 ## Command Line arguments
 
