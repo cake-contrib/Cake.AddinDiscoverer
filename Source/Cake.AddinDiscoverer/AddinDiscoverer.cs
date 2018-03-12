@@ -41,12 +41,6 @@ namespace Cake.AddinDiscoverer
 				(addin) => Color.Empty
 			),
 			(
-				"Maintainer",
-				ExcelHorizontalAlignment.Left,
-				(addin) => addin.Maintainer ?? string.Empty,
-				(addin) => Color.Empty
-			),
-			(
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCoreVersion,
