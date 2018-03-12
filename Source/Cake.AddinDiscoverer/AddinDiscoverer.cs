@@ -816,9 +816,11 @@ namespace Cake.AddinDiscoverer
 							{
 								issueBody.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
 							}
-							if (!addin.AnalysisResult.CakeCoreIsPrivate) issueBody.Append("- [ ] The Cake.Core reference should be private\r\n");
-							if (!addin.AnalysisResult.CakeCommonIsPrivate) issueBody.Append("- [ ] The Cake.Common reference should be private\r\n");
+							if (!addin.AnalysisResult.CakeCoreIsPrivate) issueBody.Append($"- [ ] The Cake.Core reference should be private\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`    <PackageReference Include=\"Cake.Core\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />");
+							if (!addin.AnalysisResult.CakeCommonIsPrivate) issueBody.Append($"- [ ] The Cake.Common reference should be private\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`    <PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />");
 							if (!addin.AnalysisResult.TargetsExpectedFramework) issueBody.Append("- [ ] Your addin should target netstandard2.0\r\n(Please note: there is no need to multi-target. As of Cake 0.26.0, netstandard2.0 is sufficient)\r\n");
+							if (!addin.AnalysisResult.UsingCakeContribIcon) issueBody.Append($"- [ ] Your addin should use the cake-contrib icon\r\nSpecifically, your addin's `.csproj` should have a line like this:\r\n`    <PackageIconUrl>{ CAKECONTRIB_ICON_URL}</PackageIconUrl>`\r\n");
+							if (!addin.AnalysisResult.CakeCommonIsPrivate) issueBody.Append("- [ ] There should be a YAML file describing your addin on the cake web site\r\nSpecifically, you should add a `.yml` file in this repo: `{https://github.com/cake-build/website/tree/develop/addins}`");
 
 							var newIssue = new NewIssue(ISSUE_TITLE)
 							{
@@ -939,6 +941,10 @@ namespace Cake.AddinDiscoverer
 
 							progressBar.Tick();
 						}
+
+						// Resize columns and freeze the top row
+						worksheet.Cells[1, 1, row, 2].AutoFitColumns();
+						worksheet.View.FreezePanes(2, 1);
 					}
 
 					// Save the Excel file
@@ -1019,6 +1025,7 @@ namespace Cake.AddinDiscoverer
 				var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
 				if (exceptionAddins.Any())
 				{
+					markdown.AppendLine();
 					markdown.AppendLine("# Exceptions");
 					markdown.AppendLine();
 
