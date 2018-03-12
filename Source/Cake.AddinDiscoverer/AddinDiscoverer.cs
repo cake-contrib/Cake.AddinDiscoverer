@@ -270,7 +270,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -320,7 +319,6 @@ namespace Cake.AddinDiscoverer
 			// Get the "recipes", "modules" and "Addins"
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -356,7 +354,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -381,7 +378,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -417,7 +413,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -458,7 +453,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -512,7 +506,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -557,7 +550,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -610,7 +602,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -658,7 +649,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -710,7 +700,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -757,7 +746,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -805,7 +793,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -856,7 +843,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -966,7 +952,6 @@ namespace Cake.AddinDiscoverer
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
@@ -1095,7 +1080,6 @@ namespace Cake.AddinDiscoverer
 
 			var childOptions = new ProgressBarOptions
 			{
-				CollapseWhenFinished = false,
 				ForegroundColor = ConsoleColor.Blue,
 				BackgroundColor = ConsoleColor.DarkBlue,
 				ProgressCharacter = '─',
