@@ -2,7 +2,7 @@
 
 namespace Cake.AddinDiscoverer
 {
-	public class Options
+	internal class Options
 	{
 		[Option('c', "clearcache", Default = false, HelpText = "Clear the list of addins that was previously cached.")]
 		public bool ClearCache { get; set; }

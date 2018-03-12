@@ -18,7 +18,7 @@ using YamlDotNet.RepresentationModel;
 
 namespace Cake.AddinDiscoverer
 {
-	public class AddinDiscoverer
+	internal class AddinDiscoverer
 	{
 		private const int NUMBER_OF_STEPS = 15;
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
@@ -28,6 +28,10 @@ namespace Cake.AddinDiscoverer
 		private readonly Options _options;
 		private readonly string _tempFolder;
 		private readonly IGitHubClient _githubClient;
+
+#pragma warning disable SA1000 // Keywords should be spaced correctly
+#pragma warning disable SA1008 // Opening parenthesis should be spaced correctly
+#pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
 		private readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor)[] _reportColumns = new(string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor)[]
 		{
 			(
@@ -83,8 +87,11 @@ namespace Cake.AddinDiscoverer
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite.ToString().ToLower(),
 				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite ? Color.LightGreen : Color.Red
-			)
+			),
 		};
+#pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
+#pragma warning restore SA1008 // Opening parenthesis should be spaced correctly
+#pragma warning restore SA1000 // Keywords should be spaced correctly
 
 		public AddinDiscoverer(Options options)
 		{
@@ -94,7 +101,7 @@ namespace Cake.AddinDiscoverer
 			var credentials = new Credentials(_options.GithubUsername, _options.GithuPassword);
 			var connection = new Connection(new ProductHeaderValue(PRODUCT_NAME))
 			{
-				Credentials = credentials
+				Credentials = credentials,
 			};
 			_githubClient = new GitHubClient(connection);
 		}
@@ -120,7 +127,7 @@ namespace Cake.AddinDiscoverer
 					ForegroundColor = ConsoleColor.Yellow,
 					BackgroundColor = ConsoleColor.DarkYellow,
 					ProgressCharacter = '─',
-					ProgressBarOnBottom = true
+					ProgressBarOnBottom = true,
 				};
 				using (var progressBar = new ProgressBar(NUMBER_OF_STEPS, "Discovering the Cake Addins", progressBarOptions))
 				{
@@ -155,7 +162,7 @@ namespace Cake.AddinDiscoverer
 								Maintainer = grp.Where(a => a.Maintainer != null).Select(a => a.Maintainer).FirstOrDefault(),
 								GithubRepoUrl = grp.Where(a => a.GithubRepoUrl != null).Select(a => a.GithubRepoUrl).FirstOrDefault(),
 								NugetPackageUrl = grp.Where(a => a.NugetPackageUrl != null).Select(a => a.NugetPackageUrl).FirstOrDefault(),
-								Source = grp.Select(a => a.Source).Aggregate((x, y) => x | y)
+								Source = grp.Select(a => a.Source).Aggregate((x, y) => x | y),
 							})
 							.ToArray();
 					}
@@ -216,6 +223,7 @@ namespace Cake.AddinDiscoverer
 						normalizedAddins = await CreateGithubIssueAsync(normalizedAddins, progressBar).ConfigureAwait(false);
 						File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					}
+
 					progressBar.Tick();
 
 					// Step 14 - generate the excel report
@@ -233,6 +241,30 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
+		private static bool IsUpToDate(string currentVersion, string desiredVersion)
+		{
+			if (string.IsNullOrEmpty(currentVersion)) return true;
+
+			var current = currentVersion.Split('.');
+			var desired = desiredVersion.Split('.');
+
+			if (int.Parse(current[0]) < int.Parse(desired[0])) return false;
+			else if (int.Parse(current[1]) < int.Parse(desired[1])) return false;
+			else if (int.Parse(current[2]) < int.Parse(desired[2])) return false;
+			else return true;
+		}
+
+		/// <summary>
+		/// Sometimes the version has 4 parts (eg: 0.26.0.0) but we only care about the first 3
+		/// </summary>
+		/// <param name="version">The string version</param>
+		/// <returns>The first three parts of a version</returns>
+		private static string FormatVersion(string version)
+		{
+			if (string.IsNullOrEmpty(version)) return string.Empty;
+			return string.Join('.', version.Split('.').Take(3));
+		}
+
 		private async Task<AddinMetadata[]> DiscoverCakeAddinsByYmlAsync(IProgressBar parentProgressBar)
 		{
 			// Get the list of yaml files in the 'addins' folder
@@ -248,7 +280,7 @@ namespace Cake.AddinDiscoverer
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
-				ProgressBarOnBottom = true
+				ProgressBarOnBottom = true,
 			};
 			using (var progressBar = parentProgressBar.Spawn(yamlFiles.Length, "Discovering Cake addins by yml", childOptions))
 			{
@@ -272,7 +304,7 @@ namespace Cake.AddinDiscoverer
 							Name = yamlRootNode["Name"].ToString(),
 							GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
 							NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
-							Maintainer = yamlRootNode["Author"].ToString().Trim()
+							Maintainer = yamlRootNode["Author"].ToString().Trim(),
 						};
 
 						progressBar.Tick();
@@ -298,13 +330,15 @@ namespace Cake.AddinDiscoverer
 				ForegroundColor = ConsoleColor.Green,
 				BackgroundColor = ConsoleColor.DarkGreen,
 				ProgressCharacter = '─',
-				ProgressBarOnBottom = true
+				ProgressBarOnBottom = true,
 			};
 			using (var progressBar = parentProgressBar.Spawn(3, "Discovering Cake addins by parsing the Gep13 list", childOptions))
 			{
-				// The status.md file contains several sections such as "Recipes", "Modules", "Websites", "Addins", 
-				// "Work In Progress", "Needs Investigation" and "Deprecated". I am making the assumption that we
-				// only care about 3 of those sections: "Recipes", "Modules" and "Addins".
+				/*
+					The status.md file contains several sections such as "Recipes", "Modules", "Websites", "Addins",
+					"Work In Progress", "Needs Investigation" and "Deprecated". I am making the assumption that we
+					only care about 3 of those sections: "Recipes", "Modules" and "Addins".
+				*/
 
 				var recipes = GetAddins("Recipes", statusFileContent, progressBar).ToArray();
 				progressBar.Tick();
@@ -560,7 +594,12 @@ namespace Cake.AddinDiscoverer
 
 						addin.References = references
 							.GroupBy(r => r.Id)
-							.Select(grp => (grp.Key, grp.Min(r => r.Version), grp.All(r => r.IsPrivate)))
+							.Select(grp => new DllReference()
+							{
+								Id = grp.Key,
+								Version = grp.Min(r => r.Version),
+								IsPrivate = grp.All(r => r.IsPrivate)
+							})
 							.ToArray();
 
 						progressBar.Tick();
@@ -755,7 +794,7 @@ namespace Cake.AddinDiscoverer
 							addin.AnalysisResult.CakeCoreIsPrivate = cakeCoreIsPrivate;
 							addin.AnalysisResult.CakeCoreIsUpToDate = IsUpToDate(cakeCoreVersion, _options.RecommendedCakeVersion);
 
-							addin.AnalysisResult.UsingCakeContribIcon = (addin.IconUrl != null && addin.IconUrl.AbsoluteUri == CAKECONTRIB_ICON_URL);
+							addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri == CAKECONTRIB_ICON_URL;
 							addin.AnalysisResult.HasYamlFileOnWebSite = addin.Source.HasFlag(AddinMetadataSource.Yaml);
 						}
 
@@ -869,7 +908,7 @@ namespace Cake.AddinDiscoverer
 						for (int i = 1; i < _reportColumns.Length; i++)
 						{
 							var cell = worksheet.Cells[row, i + 1];
-							cell.Value = _reportColumns[i].GetContent(addin); ;
+							cell.Value = _reportColumns[i].GetContent(addin);
 
 							var color = _reportColumns[i].GetCellColor(addin);
 							if (color != Color.Empty)
@@ -964,34 +1003,23 @@ namespace Cake.AddinDiscoverer
 				// Header row 1
 				for (int i = 0; i < _reportColumns.Length; i++)
 				{
-					markdown.Append(WithRightPadding($"| {_reportColumns[i].Header} ", columnWidths[i]));
+					markdown.Append($"| {_reportColumns[i].Header} ".WithRightPadding(columnWidths[i]));
 				}
+
 				markdown.AppendLine("|");
 
 				// Header row 2
 				for (int i = 0; i < _reportColumns.Length; i++)
 				{
 					var width = columnWidths[i] - 1;                     // Minus one for the column seperator
-					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Right)
-					{
-						width = width - 1;  // Minus one for the ":" character
-					}
-					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Center)
-					{
-						width = width - 2; // Minus two for the two ":" characters
-					}
-
+					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Right) width = width - 1;  // Minus one for the ":" character
+					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Center) width = width - 2; // Minus two for the two ":" characters
 					markdown.Append("|");
-					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Center)
-					{
-						markdown.Append(":");
-					}
+					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
 					markdown.Append(new string('-', width));
-					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Right || _reportColumns[i].Align == ExcelHorizontalAlignment.Center)
-					{
-						markdown.Append(":");
-					}
+					if (_reportColumns[i].Align == ExcelHorizontalAlignment.Right || _reportColumns[i].Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
 				}
+
 				markdown.AppendLine("|");
 
 				// One row per addin
@@ -1001,10 +1029,10 @@ namespace Cake.AddinDiscoverer
 				{
 					for (int i = 0; i < _reportColumns.Length; i++)
 					{
-						markdown.Append(WithRightPadding($"| {_reportColumns[i].GetContent(addin)} ", columnWidths[i]));
+						markdown.Append($"| {_reportColumns[i].GetContent(addin)} ".WithRightPadding(columnWidths[i]));
 					}
-					markdown.AppendLine("|");
 
+					markdown.AppendLine("|");
 					progressBar.Tick();
 				}
 
@@ -1018,7 +1046,6 @@ namespace Cake.AddinDiscoverer
 					foreach (var addin in exceptionAddins.OrderBy(p => p.Name))
 					{
 						markdown.AppendLine($"**{addin.Name}**: {addin.AnalysisResult.Notes}");
-
 						progressBar.Tick();
 					}
 				}
@@ -1066,7 +1093,7 @@ namespace Cake.AddinDiscoverer
 		/// <param name="title">The section title</param>
 		/// <param name="content">The markdown content</param>
 		/// <param name="parentProgressBar">The progress bar to update as we loop through the rows in the table</param>
-		/// <returns></returns>
+		/// <returns>An array of addin metadata</returns>
 		private AddinMetadata[] GetAddins(string title, string content, IProgressBar parentProgressBar)
 		{
 			var sectionContent = Extract($"# {title}", "#", content);
@@ -1110,10 +1137,10 @@ namespace Cake.AddinDiscoverer
 		/// <summary>
 		/// Extract a substring between two markers. For example, Extract("[", "]", "Hello [firstname]") returns "firstname".
 		/// </summary>
-		/// <param name="startMark">The marker</param>
-		/// <param name="endMark">The marker</param>
+		/// <param name="startMark">The start marker</param>
+		/// <param name="endMark">The end marker</param>
 		/// <param name="content">The content</param>
-		/// <returns></returns>
+		/// <returns>The substring</returns>
 		private string Extract(string startMark, string endMark, string content)
 		{
 			var start = content.IndexOf(startMark, StringComparison.OrdinalIgnoreCase);
@@ -1139,8 +1166,8 @@ namespace Cake.AddinDiscoverer
 					var id = (string)reference.Attribute("Include");
 					var version = (string)reference.Attribute("Version");
 					var isPrivate = false;
-					if (reference.Attribute("PrivateAssets") != null) isPrivate = (reference.Attribute("PrivateAssets").Value) == "All";
-					if (reference.Element("PrivateAssets") != null) isPrivate = (reference.Element("PrivateAssets").Value) == "All";
+					if (reference.Attribute("PrivateAssets") != null) isPrivate = reference.Attribute("PrivateAssets").Value == "All";
+					if (reference.Element("PrivateAssets") != null) isPrivate = reference.Element("PrivateAssets").Value == "All";
 					references.Add((id, version, isPrivate));
 				}
 
@@ -1160,7 +1187,7 @@ namespace Cake.AddinDiscoverer
 					}
 					else
 					{
-						references.Add((referenceInfo, "", isPrivate));
+						references.Add((referenceInfo, string.Empty, isPrivate));
 					}
 				}
 			}
@@ -1175,7 +1202,6 @@ namespace Cake.AddinDiscoverer
 			using (var stream = File.OpenText(projectPath))
 			{
 				var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None).ConfigureAwait(false);
-
 
 				foreach (var target in document.Descendants("TargetFramework"))
 				{
@@ -1201,8 +1227,10 @@ namespace Cake.AddinDiscoverer
 		{
 			if (projectUri.Host.Contains("nuget.org"))
 			{
-				// Fetch the package page from nuget and look for the "Project Site" link.
-				// Please note that some packages omit this information unfortunately.
+				/*
+					Fetch the package page from nuget and look for the "Project Site" link.
+					Please note that some packages omit this information unfortunately.
+				*/
 
 				var config = Configuration.Default.WithDefaultLoader();
 				var document = await BrowsingContext.New(config).OpenAsync(Url.Convert(projectUri));
@@ -1223,36 +1251,6 @@ namespace Cake.AddinDiscoverer
 			{
 				return projectUri;
 			}
-		}
-
-		private static bool IsUpToDate(string currentVersion, string desiredVersion)
-		{
-			if (string.IsNullOrEmpty(currentVersion)) return true;
-
-			var current = currentVersion.Split('.');
-			var desired = desiredVersion.Split('.');
-
-			if (int.Parse(current[0]) < int.Parse(desired[0])) return false;
-			else if (int.Parse(current[1]) < int.Parse(desired[1])) return false;
-			else if (int.Parse(current[2]) < int.Parse(desired[2])) return false;
-			else return true;
-		}
-
-		/// <summary>
-		/// Sometimes the version has 4 parts (eg: 0.26.0.0) but we only care about the first 3
-		/// </summary>
-		/// <param name="version"></param>
-		/// <returns></returns>
-		private static string FormatVersion(string version)
-		{
-			if (string.IsNullOrEmpty(version)) return string.Empty;
-			return string.Join('.', version.Split('.').Take(3));
-		}
-
-		private static string WithRightPadding(string content, int desiredLength)
-		{
-			var count = Math.Max(0, desiredLength - content.Length);
-			return content + new string(' ', count);
 		}
 	}
 }

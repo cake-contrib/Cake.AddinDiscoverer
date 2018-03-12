@@ -1,12 +1,18 @@
 ﻿using CommandLine;
 using System;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer
 {
-	class Program
+	/// <summary>
+	/// Program entry point
+	/// </summary>
+	public class Program
 	{
+		/// <summary>
+		/// Main method
+		/// </summary>
+		/// <param name="args">Command line arguments</param>
 		public static void Main(string[] args)
 		{
 			// Parse comand line arguments and proceed with analysis if parsing was succesfull
@@ -28,7 +34,7 @@ namespace Cake.AddinDiscoverer
 			Console.ReadKey();
 #endif
 		}
-		
+
 		private static void OnSuccessfulParse(Options options)
 		{
 			var addinDiscoverer = new AddinDiscoverer(options);
