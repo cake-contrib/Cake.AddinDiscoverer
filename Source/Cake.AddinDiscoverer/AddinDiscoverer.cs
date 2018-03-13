@@ -853,10 +853,10 @@ namespace Cake.AddinDiscoverer
 							{
 								issuesDescription.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
 							}
-							if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.Append($"- [ ] The Cake.Core reference should be private\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`    <PackageReference Include=\"Cake.Core\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
-							if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.Append($"- [ ] The Cake.Common reference should be private\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`    <PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
-							if (!addin.AnalysisResult.TargetsExpectedFramework) issuesDescription.Append("- [ ] Your addin should target netstandard2.0\r\n(Please note: there is no need to multi-target. As of Cake 0.26.0, netstandard2.0 is sufficient)\r\n");
-							if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.Append($"- [ ] Your addin should use the cake-contrib icon\r\nSpecifically, your addin's `.csproj` should have a line like this:\r\n`    <PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`\r\n");
+							if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.Append($"- [ ] The Cake.Core reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Core\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
+							if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.Append($"- [ ] The Cake.Common reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
+							if (!addin.AnalysisResult.TargetsExpectedFramework) issuesDescription.Append("- [ ] Your addin should target netstandard2.0\r\nPlease note that there is no need to multi-target: as of Cake 0.26.0, netstandard2.0 is sufficient.\r\n");
+							if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.Append($"- [ ] The nuget package for your addin should use the cake-contrib icon.\r\nSpecifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`.\r\n");
 							if (!addin.AnalysisResult.HasYamlFileOnWebSite) issuesDescription.Append("- [ ] There should be a YAML file describing your addin on the cake web site\r\nSpecifically, you should add a `.yml` file in this [repo](https://github.com/cake-build/website/tree/develop/addins)");
 
 							if (issuesDescription.Length > 0)
@@ -1010,6 +1010,17 @@ namespace Cake.AddinDiscoverer
 			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Generating markdown", childOptions))
 			{
 				var markdown = new StringBuilder();
+
+				markdown.AppendLine("# Information");
+				markdown.AppendLine();
+				markdown.AppendLine($"- This report was generated on {DateTime.UtcNow.ToLongDateString()} at {DateTime.UtcNow.ToLongTimeString()} GMT");
+				markdown.AppendLine($"- The desired Cake version is `{_options.RecommendedCakeVersion}`");
+				markdown.AppendLine($"- The `Cake Core Version` and `Cake Common Version` columns  show the version referenced by a given addin");
+				markdown.AppendLine($"- The `Cake Core IsPrivate` and `Cake Common IsPrivate` columns indicate whether the references are marked as private. In other words, we are looking for references with the `PrivateAssets=All` attribute like in this example: `<PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
+				markdown.AppendLine($"- The `Framework` column shows the .NET framework(s) targeted by a given addin. As of Cake 0.26.0, addins should target netstandard2.0 only (there is no need to multi-target)");
+				markdown.AppendLine($"- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon. The automated tool that generates this report looks for the following line in the addin's `csproj`: `<PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`");
+				markdown.AppendLine($"- The `YAML` column indicates if there is a `.yml` file describing the addin in this [repo](https://github.com/cake-build/website/tree/develop/addins).");
+				markdown.AppendLine();
 
 				// Calculate the column widths
 				var columnWidths = new int[_reportColumns.Length];
@@ -1190,6 +1201,7 @@ namespace Cake.AddinDiscoverer
 			{
 				var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None).ConfigureAwait(false);
 
+				// This is for VS.NET 2017 project files
 				foreach (var reference in document.Descendants("PackageReference"))
 				{
 					var id = (string)reference.Attribute("Include");
@@ -1200,6 +1212,7 @@ namespace Cake.AddinDiscoverer
 					references.Add((id, version, isPrivate));
 				}
 
+				// This is for older projects files
 				var xmlns = XNamespace.Get("http://schemas.microsoft.com/developer/msbuild/2003");
 				foreach (var reference in document.Descendants(xmlns + "Reference"))
 				{
