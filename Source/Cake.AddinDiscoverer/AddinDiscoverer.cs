@@ -24,6 +24,7 @@ namespace Cake.AddinDiscoverer
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
+		private const string UNKNOWN_VERSION = "Unknown";
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
@@ -37,7 +38,7 @@ namespace Cake.AddinDiscoverer
 			(
 				"Name",
 				ExcelHorizontalAlignment.Left,
-				(addin) => $"[{addin.Name}]({addin.GithubRepoUrl.AbsoluteUri})",
+				(addin) => $"[{addin.Name}]({addin.GithubRepoUrl?.AbsoluteUri ?? addin.NugetPackageUrl?.AbsoluteUri ?? string.Empty})",
 				(addin) => Color.Empty
 			),
 			(
@@ -237,15 +238,19 @@ namespace Cake.AddinDiscoverer
 
 		private static bool IsUpToDate(string currentVersion, string desiredVersion)
 		{
-			if (string.IsNullOrEmpty(currentVersion)) return true;
+			if (string.IsNullOrEmpty(currentVersion)) return false;
 
 			var current = currentVersion.Split('.');
 			var desired = desiredVersion.Split('.');
 
-			if (int.Parse(current[0]) < int.Parse(desired[0])) return false;
-			else if (int.Parse(current[1]) < int.Parse(desired[1])) return false;
-			else if (int.Parse(current[2]) < int.Parse(desired[2])) return false;
-			else return true;
+			if (current.Length < desired.Length) return false;
+
+			for (int i = 0; i < desired.Length; i++)
+			{
+				if (int.Parse(current[i]) < int.Parse(desired[i])) return false;
+			}
+
+			return true;
 		}
 
 		/// <summary>
@@ -255,7 +260,7 @@ namespace Cake.AddinDiscoverer
 		/// <returns>The first three parts of a version</returns>
 		private static string FormatVersion(string version)
 		{
-			if (string.IsNullOrEmpty(version)) return string.Empty;
+			if (string.IsNullOrEmpty(version)) return UNKNOWN_VERSION;
 			return string.Join('.', version.Split('.').Take(3));
 		}
 
@@ -756,28 +761,54 @@ namespace Cake.AddinDiscoverer
 				var results = addins
 					.Select(addin =>
 					{
+						addin.AnalysisResult.TargetsExpectedFramework =
+							(addin.Frameworks ?? Array.Empty<string>()).Length == 1 &&
+							addin.Frameworks[0] == "netstandard2.0";
+
 						if (addin.References != null)
 						{
-							addin.AnalysisResult.TargetsExpectedFramework =
-								(addin.Frameworks ?? Array.Empty<string>()).Length == 1 &&
-								addin.Frameworks[0] == "netstandard2.0";
-
 							var cakeCommonReference = addin.References.Where(r => r.Id == "Cake.Common");
-							var cakeCommonVersion = FormatVersion(cakeCommonReference.Min(r => r.Version));
-							var cakeCommonIsPrivate = cakeCommonReference.All(r => r.IsPrivate);
-							addin.AnalysisResult.CakeCommonVersion = cakeCommonVersion;
-							addin.AnalysisResult.CakeCommonIsPrivate = cakeCommonIsPrivate;
-							addin.AnalysisResult.CakeCommonIsUpToDate = IsUpToDate(cakeCommonVersion, _options.RecommendedCakeVersion);
-
+							if (cakeCommonReference.Any())
+							{
+								var cakeCommonVersion = FormatVersion(cakeCommonReference.Min(r => r.Version));
+								var cakeCommonIsPrivate = cakeCommonReference.All(r => r.IsPrivate);
+								addin.AnalysisResult.CakeCommonVersion = FormatVersion(cakeCommonReference.Min(r => r.Version));
+								addin.AnalysisResult.CakeCommonIsPrivate = cakeCommonReference.All(r => r.IsPrivate);
+								addin.AnalysisResult.CakeCommonIsUpToDate = IsUpToDate(cakeCommonVersion, _options.RecommendedCakeVersion);
+							}
+							else
+							{
+								addin.AnalysisResult.CakeCommonVersion = string.Empty;
+								addin.AnalysisResult.CakeCommonIsPrivate = true;
+								addin.AnalysisResult.CakeCommonIsUpToDate = true;
+							}
 							var cakeCoreReference = addin.References.Where(r => r.Id == "Cake.Core");
-							var cakeCoreVersion = FormatVersion(cakeCoreReference.Min(r => r.Version));
-							var cakeCoreIsPrivate = cakeCoreReference.All(r => r.IsPrivate);
-							addin.AnalysisResult.CakeCoreVersion = cakeCoreVersion;
-							addin.AnalysisResult.CakeCoreIsPrivate = cakeCoreIsPrivate;
-							addin.AnalysisResult.CakeCoreIsUpToDate = IsUpToDate(cakeCoreVersion, _options.RecommendedCakeVersion);
+							if (cakeCoreReference.Any())
+							{
+								var cakeCoreVersion = FormatVersion(cakeCoreReference.Min(r => r.Version));
+								var cakeCoreIsPrivate = cakeCoreReference.All(r => r.IsPrivate);
+								addin.AnalysisResult.CakeCoreVersion = cakeCoreVersion;
+								addin.AnalysisResult.CakeCoreIsPrivate = cakeCoreIsPrivate;
+								addin.AnalysisResult.CakeCoreIsUpToDate = IsUpToDate(cakeCoreVersion, _options.RecommendedCakeVersion);
+							}
+							else
+							{
+								addin.AnalysisResult.CakeCoreVersion = string.Empty;
+								addin.AnalysisResult.CakeCoreIsPrivate = true;
+								addin.AnalysisResult.CakeCoreIsUpToDate = true;
+							}
 
 							addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri == CAKECONTRIB_ICON_URL;
 							addin.AnalysisResult.HasYamlFileOnWebSite = addin.Source.HasFlag(AddinMetadataSource.Yaml);
+						}
+
+						if (addin.GithubRepoUrl == null)
+						{
+							addin.AnalysisResult.Notes += "We were unable to determine the Github repo URL. Most likely this means that the PackageProjectUrl is missing from the csproj.\r\n";
+						}
+						else if (string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) && string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion))
+						{
+							addin.AnalysisResult.Notes += "This addin seem to be referencing neither Cake.Core nor Cake.Common.\r\n";
 						}
 
 						progressBar.Tick();
@@ -884,7 +915,7 @@ namespace Cake.AddinDiscoverer
 					{
 						row++;
 						worksheet.Cells[row, 1].Value = addin.Name;
-						worksheet.Cells[row, 1].Hyperlink = addin.GithubRepoUrl;
+						worksheet.Cells[row, 1].Hyperlink = addin.GithubRepoUrl ?? addin.NugetPackageUrl;
 						worksheet.Cells[row, 1].StyleName = "HyperLink";
 
 						for (int i = 1; i < _reportColumns.Length; i++)
@@ -1228,7 +1259,7 @@ namespace Cake.AddinDiscoverer
 						if (dataTrackAttrib == null) return false;
 						return dataTrackAttrib.Value == "outbound-project-url";
 					});
-				if (!outboundProjectUrl.Any()) return projectUri;
+				if (!outboundProjectUrl.Any()) return null;
 
 				return new Uri(outboundProjectUrl.First().Attributes["href"].Value);
 			}
