@@ -198,8 +198,12 @@ namespace Cake.AddinDiscoverer
 					progressBar.Tick();
 
 					// Step 10 - determine if an issue already exists in the Github repo
-					normalizedAddins = await FindGithubIssueAsync(normalizedAddins, progressBar).ConfigureAwait(false);
-					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+					if (_options.CreateGithubIssue)
+					{
+						normalizedAddins = await FindGithubIssueAsync(normalizedAddins, progressBar).ConfigureAwait(false);
+						File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+					}
+
 					progressBar.Tick();
 
 					// Step 11 - find the addin icon
@@ -829,23 +833,25 @@ namespace Cake.AddinDiscoverer
 				ProgressCharacter = '─',
 				ProgressBarOnBottom = true
 			};
-			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Analyze addins", childOptions))
+			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Create Github issue", childOptions))
 			{
 				var tasks = addins
 					.Select(async addin =>
 					{
-						if (addin.GithubIssueUrl == null)
+						if (addin.GithubRepoUrl != null && addin.GithubIssueUrl == null)
 						{
-							var issueBody = new StringBuilder();
-							issueBody.Append("We performed an automated audit of your Cake addin and found that it does not follow all the best practices.\r\n\r\n");
-							issueBody.Append("We encourage you to make the following modifications:\r\n\r\n");
-							if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) && !addin.AnalysisResult.CakeCoreIsUpToDate)
+							var issuesDescription = new StringBuilder();
+							if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) &&
+								addin.AnalysisResult.CakeCoreVersion != UNKNOWN_VERSION &&
+								!addin.AnalysisResult.CakeCoreIsUpToDate)
 							{
-								issueBody.Append($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
+								issuesDescription.Append($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
 							}
-							if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) && !addin.AnalysisResult.CakeCommonIsUpToDate)
+							if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) &&
+								addin.AnalysisResult.CakeCommonVersion != UNKNOWN_VERSION &&
+								!addin.AnalysisResult.CakeCommonIsUpToDate)
 							{
-								issueBody.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
+								issuesDescription.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
 							}
 							if (!addin.AnalysisResult.CakeCoreIsPrivate) issueBody.Append($"- [ ] The Cake.Core reference should be private\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`    <PackageReference Include=\"Cake.Core\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />");
 							if (!addin.AnalysisResult.CakeCommonIsPrivate) issueBody.Append($"- [ ] The Cake.Common reference should be private\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`    <PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />");
@@ -853,13 +859,20 @@ namespace Cake.AddinDiscoverer
 							if (!addin.AnalysisResult.UsingCakeContribIcon) issueBody.Append($"- [ ] Your addin should use the cake-contrib icon\r\nSpecifically, your addin's `.csproj` should have a line like this:\r\n`    <PackageIconUrl>{ CAKECONTRIB_ICON_URL}</PackageIconUrl>`\r\n");
 							if (!addin.AnalysisResult.CakeCommonIsPrivate) issueBody.Append("- [ ] There should be a YAML file describing your addin on the cake web site\r\nSpecifically, you should add a `.yml` file in this repo: `{https://github.com/cake-build/website/tree/develop/addins}`");
 
-							var newIssue = new NewIssue(ISSUE_TITLE)
+							if (issuesDescription.Length > 0)
 							{
-								Body = issueBody.ToString()
-							};
-							var issue = await _githubClient.Issue.Create(addin.GithubRepoOwner, addin.GithubRepoName, newIssue).ConfigureAwait(false);
-							addin.GithubIssueUrl = new Uri(issue.Url);
-							addin.GithubIssueId = issue.Number;
+								var issueBody = "We performed an automated audit of your Cake addin and found that it does not follow all the best practices.\r\n\r\n";
+								issueBody += "We encourage you to make the following modifications:\r\n\r\n";
+								issueBody += issuesDescription.ToString();
+
+								var newIssue = new NewIssue(ISSUE_TITLE)
+								{
+									Body = issueBody.ToString()
+								};
+								var issue = await _githubClient.Issue.Create(addin.GithubRepoOwner, addin.GithubRepoName, newIssue).ConfigureAwait(false);
+								addin.GithubIssueUrl = new Uri(issue.Url);
+								addin.GithubIssueId = issue.Number;
+							}
 						}
 
 						progressBar.Tick();
