@@ -1,0 +1,18 @@
+# Before Build
+init:
+  - git config --global core.autocrlf true
+
+# Tests
+test: off
+
+# Branches to build
+branches:
+  # Whitelist
+  only:
+    - develop
+    - master
+    - /release/.*/
+    - /hotfix/.*/
+
+# Environment configuration
+image: Visual Studio 2017
