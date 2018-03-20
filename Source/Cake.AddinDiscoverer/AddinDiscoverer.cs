@@ -1,6 +1,9 @@
 ﻿using AngleSharp;
 using net.r_eg.MvsSln;
 using Newtonsoft.Json;
+using NuGet.Configuration;
+using NuGet.Protocol;
+using NuGet.Protocol.Core.Types;
 using Octokit;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
@@ -20,7 +23,7 @@ namespace Cake.AddinDiscoverer
 {
 	internal class AddinDiscoverer
 	{
-		private const int NUMBER_OF_STEPS = 15;
+		private const int NUMBER_OF_STEPS = 16;
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
@@ -29,6 +32,7 @@ namespace Cake.AddinDiscoverer
 		private readonly Options _options;
 		private readonly string _tempFolder;
 		private readonly IGitHubClient _githubClient;
+		private readonly PackageMetadataResource _nugetPackageMetadataClient;
 
 #pragma warning disable SA1000 // Keywords should be spaced correctly
 #pragma warning disable SA1008 // Opening parenthesis should be spaced correctly
@@ -93,12 +97,20 @@ namespace Cake.AddinDiscoverer
 			_options = options;
 			_tempFolder = Path.Combine(_options.TemporaryFolder, PRODUCT_NAME);
 
+			// Setup the Github client
 			var credentials = new Credentials(_options.GithubUsername, _options.GithuPassword);
 			var connection = new Connection(new ProductHeaderValue(PRODUCT_NAME))
 			{
 				Credentials = credentials,
 			};
 			_githubClient = new GitHubClient(connection);
+
+			// Setup the Nuget client
+			var providers = new List<Lazy<INuGetResourceProvider>>();
+			providers.AddRange(NuGet.Protocol.Core.Types.Repository.Provider.GetCoreV3());  // Add v3 API support
+			var packageSource = new PackageSource("https://api.nuget.org/v3/index.json");
+			var sourceRepository = new SourceRepository(packageSource, providers);
+			_nugetPackageMetadataClient = sourceRepository.GetResource<PackageMetadataResource>();
 		}
 
 		public async Task LaunchDiscoveryAsync()
@@ -187,17 +199,21 @@ namespace Cake.AddinDiscoverer
 					await DownloadProjectFilesAsync(normalizedAddins, progressBar).ConfigureAwait(false);
 					progressBar.Tick();
 
-					// Step 8 - parse the csproj and find all references
+					// Step 8 - download package metadata from Nuget.org
+					await DownloadNugetMetadataAsync(normalizedAddins, progressBar).ConfigureAwait(false);
+					progressBar.Tick();
+
+					// Step 9 - parse the csproj and find all references
 					normalizedAddins = await FindReferencesAsync(normalizedAddins, progressBar).ConfigureAwait(false);
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
-					// Step 9 - parse the csproj and find targeted framework(s)
+					// Step 10 - parse the csproj and find targeted framework(s)
 					normalizedAddins = await FindFrameworksAsync(normalizedAddins, progressBar).ConfigureAwait(false);
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
-					// Step 10 - determine if an issue already exists in the Github repo
+					// Step 11 - determine if an issue already exists in the Github repo
 					if (_options.CreateGithubIssue)
 					{
 						normalizedAddins = await FindGithubIssueAsync(normalizedAddins, progressBar).ConfigureAwait(false);
@@ -206,17 +222,17 @@ namespace Cake.AddinDiscoverer
 
 					progressBar.Tick();
 
-					// Step 11 - find the addin icon
-					normalizedAddins = await FindIconAsync(normalizedAddins, progressBar).ConfigureAwait(false);
+					// Step 12 - find the addin icon
+					normalizedAddins = FindIconAsync(normalizedAddins, progressBar);
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
-					// Step 12 - analyze
+					// Step 13 - analyze
 					normalizedAddins = AnalyzeAddinAsync(normalizedAddins, progressBar);
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 					progressBar.Tick();
 
-					// Step 13 - create an issue in the Github repo
+					// Step 14 - create an issue in the Github repo
 					if (_options.CreateGithubIssue)
 					{
 						normalizedAddins = await CreateGithubIssueAsync(normalizedAddins, progressBar).ConfigureAwait(false);
@@ -225,11 +241,11 @@ namespace Cake.AddinDiscoverer
 
 					progressBar.Tick();
 
-					// Step 14 - generate the excel report
+					// Step 15 - generate the excel report
 					if (_options.GenerateExcelReport) GenerateExcelReport(normalizedAddins, progressBar);
 					progressBar.Tick();
 
-					// Step 15 - generate the markdown report
+					// Step 16 - generate the markdown report
 					if (_options.GenerateMarkdownReport) await GenerateMarkdownReport(normalizedAddins, progressBar).ConfigureAwait(false);
 					progressBar.Tick();
 				}
@@ -554,6 +570,50 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
+		private async Task DownloadNugetMetadataAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
+		{
+			// Spawn a progressbar to display progress
+			var childOptions = new ProgressBarOptions
+			{
+				ForegroundColor = ConsoleColor.Green,
+				BackgroundColor = ConsoleColor.DarkGreen,
+				ProgressCharacter = '─',
+				ProgressBarOnBottom = true
+			};
+			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Download Nuget Metadata", childOptions))
+			{
+				var tasks = addins
+					.Select(async addin =>
+					{
+						var folderLocation = Path.Combine(_tempFolder, addin.Name);
+						Directory.CreateDirectory(folderLocation);
+
+						try
+						{
+							var fileName = Path.Combine(folderLocation, "nuget.json");
+							if (!File.Exists(fileName))
+							{
+								var searchMetadata = await _nugetPackageMetadataClient.GetMetadataAsync(addin.Name, true, true, new NoopLogger(), CancellationToken.None);
+								var mostRecentPackage = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
+								if (mostRecentPackage != null)
+								{
+									var jsonContent = JsonConvert.SerializeObject(mostRecentPackage, Formatting.Indented, new[] { new NuGetVersionConverter() });
+									File.WriteAllText(fileName, jsonContent);
+								}
+							}
+						}
+						catch (Exception e)
+						{
+							addin.AnalysisResult.Notes += $"DownloadNugetMetadataAsync: {e.GetBaseException().Message}\r\n";
+						}
+
+						progressBar.Tick();
+					});
+
+				await Task.WhenAll(tasks).ConfigureAwait(false);
+			}
+		}
+
 		private async Task<AddinMetadata[]> FindReferencesAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
 		{
 			// Spawn a progressbar to display progress
@@ -574,7 +634,7 @@ namespace Cake.AddinDiscoverer
 
 						if (Directory.Exists(folderName))
 						{
-							foreach (var projectPath in Directory.EnumerateFiles(folderName))
+							foreach (var projectPath in Directory.EnumerateFiles(folderName, "*.csproj"))
 							{
 								try
 								{
@@ -626,7 +686,7 @@ namespace Cake.AddinDiscoverer
 
 						if (Directory.Exists(folderName))
 						{
-							foreach (var projectPath in Directory.EnumerateFiles(Path.Combine(_tempFolder, addin.Name)))
+							foreach (var projectPath in Directory.EnumerateFiles(folderName, "*.csproj"))
 							{
 								try
 								{
@@ -704,7 +764,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task<AddinMetadata[]> FindIconAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
+		private AddinMetadata[] FindIconAsync(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
 		{
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
@@ -716,36 +776,28 @@ namespace Cake.AddinDiscoverer
 			};
 			using (var progressBar = parentProgressBar.Spawn(addins.Count(), "Finding icon", childOptions))
 			{
-				var tasks = addins
-					.Select(async addin =>
+				var results = addins
+					.Select(addin =>
 					{
-						var folderName = Path.Combine(_tempFolder, addin.Name);
+						var fileName = Path.Combine(_tempFolder, addin.Name, "nuget.json");
 
-						if (Directory.Exists(folderName))
+						try
 						{
-							foreach (var projectPath in Directory.EnumerateFiles(folderName))
+							if (File.Exists(fileName))
 							{
-								try
-								{
-									using (var stream = File.OpenText(projectPath))
-									{
-										var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None).ConfigureAwait(false);
-										var icon = document.Descendants("PackageIconUrl").FirstOrDefault();
-										if (icon != null && !string.IsNullOrEmpty(icon.Value)) addin.IconUrl = new Uri(icon.Value);
-									}
-								}
-								catch (Exception e)
-								{
-									addin.AnalysisResult.Notes += $"FindIconAsync: {e.GetBaseException().Message}\r\n";
-								}
+								var nugetMetadata = JsonConvert.DeserializeObject<PackageSearchMetadata>(File.ReadAllText(fileName), new[] { new NugetVersionConverter() });
+								addin.IconUrl = nugetMetadata.IconUrl;
 							}
+						}
+						catch (Exception e)
+						{
+							addin.AnalysisResult.Notes += $"FindIconAsync: {e.GetBaseException().Message}\r\n";
 						}
 
 						progressBar.Tick();
 						return addin;
 					});
 
-				var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 				return results.ToArray();
 			}
 		}
