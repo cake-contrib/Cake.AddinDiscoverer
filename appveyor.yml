@@ -2,6 +2,10 @@
 init:
   - git config --global core.autocrlf true
 
+# Build script
+build_script:
+  - ps: .\build.ps1 -Target "AppVeyor"
+
 # Tests
 test: off
 
@@ -13,6 +17,10 @@ branches:
     - master
     - /release/.*/
     - /hotfix/.*/
+
+# Build cache
+cache:
+  - tools -> build.cake, tools\packages.config
 
 # Environment configuration
 image: Visual Studio 2017
