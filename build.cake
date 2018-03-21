@@ -9,11 +9,14 @@
 
 var target = Argument<string>("target", "Default");
 var configuration = Argument<string>("configuration", "Release");
+var clearCache = Argument<bool>("clearcache", false);
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // GLOBAL VARIABLES
 ///////////////////////////////////////////////////////////////////////////////
+
+var framework = "netcoreapp2.0";
 
 var appName = "Cake.AddinDiscoverer";
 var gitHubRepo = "Cake.AddinDiscoverer";
@@ -49,12 +52,13 @@ Setup(context =>
 		context.Log.Verbosity = Verbosity.Diagnostic;
 	}
 
-	Information("Building version {0} of {1} ({2}, {3}) using version {4} of Cake",
+	Information("Building version {0} of {1} ({2}, {3}) using version {4} of Cake {5}",
 		versionInfo.LegacySemVerPadded,
 		appName,
 		configuration,
 		target,
-		cakeVersion
+		cakeVersion,
+		clearCache
 	);
 
 	Information("Variables:\r\n\tLocalBuild: {0}\r\n\tIsMainBranch: {1}\r\n\tIsMainRepo: {2}\r\n\tIsPullRequest: {3}\r\n\tIsTagged: {4}",
@@ -104,16 +108,16 @@ Task("Clean")
 	CleanDirectories(sourceFolder + "*/obj/" + configuration);
 
 	// Clean previous artifacts
-	Information("Cleaning {0}", outputDir);
-	if (DirectoryExists(outputDir)) CleanDirectories(MakeAbsolute(Directory(outputDir)).FullPath);
-	else CreateDirectory(outputDir);
+	Information("Making sure {0} exists", outputDir);
+	if (DirectoryExists(outputDir) && clearCache) CleanDirectories(MakeAbsolute(Directory(outputDir)).FullPath);
+	else if (!DirectoryExists(outputDir)) CreateDirectory(outputDir);
 });
 
 Task("Restore-NuGet-Packages")
 	.IsDependentOn("Clean")
 	.Does(() =>
 {
-	DotNetCoreRestore("./Source/", new DotNetCoreRestoreSettings
+	DotNetCoreRestore(sourceFolder, new DotNetCoreRestoreSettings
 	{
 		Sources = new [] {
 			"https://dotnet.myget.org/F/dotnet-core/api/v3/index.json",
@@ -130,7 +134,8 @@ Task("Build")
 	DotNetCoreBuild(sourceFolder + appName + ".sln", new DotNetCoreBuildSettings
 	{
 		Configuration = configuration,
-		NoRestore = true
+		NoRestore = true,
+		ArgumentCustomization = args => args.Append("/p:SemVer=" + versionInfo.LegacySemVerPadded)
 	});
 });
 
@@ -138,6 +143,25 @@ Task("Execute")
 	.IsDependentOn("Build")
 	.Does(() =>
 {
+	var appArgs = $"-v 0.26.0 -m -e -t \"{outputDir}\"";
+	if (clearCache) appArgs += " -c";
+
+	DotNetCoreRun(sourceFolder + appName, appArgs, new DotNetCoreRunSettings
+	{
+		Framework = framework,
+		Configuration = configuration,
+		//NoRestore = true,		<-- Submitted a PR to add these two new settings
+		//NoBuild = true		<-- Submitted a PR to add these two new settings
+	});
+});
+
+Task("Upload-Artifacts")  
+	.IsDependentOn("Execute")
+	.WithCriteria(() => AppVeyor.IsRunningOnAppVeyor)
+	.Does(() => 
+{
+	AppVeyor.UploadArtifact(outputDir + "AddinDiscoveryReport.md");
+	AppVeyor.UploadArtifact(outputDir + "AddinDiscoveryReport.xlsx");
 });
 
 
@@ -146,7 +170,7 @@ Task("Execute")
 ///////////////////////////////////////////////////////////////////////////////
 
 Task("AppVeyor")
-	.IsDependentOn("Execute");
+	.IsDependentOn("Upload-Artifacts");
 
 Task("Default")
 	.IsDependentOn("Build");
