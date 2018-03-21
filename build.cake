@@ -26,6 +26,7 @@ var gitHubPassword = EnvironmentVariable("GITHUB_PASSWORD");
 
 var sourceFolder = "./Source/";
 var outputDir = "./artifacts/";
+var publishDir = $"{outputDir}Publish/";
 
 var versionInfo = GitVersion(new GitVersionSettings() { OutputType = GitVersionOutput.Json });
 var milestone = string.Concat("v", versionInfo.MajorMinorPatch);
@@ -103,13 +104,13 @@ Task("Clean")
 {
 	// Clean solution directories.
 	Information("Cleaning {0}", sourceFolder);
-	CleanDirectories(sourceFolder + "*/bin/" + configuration);
-	CleanDirectories(sourceFolder + "*/obj/" + configuration);
+	CleanDirectories($"{sourceFolder}*/bin/{configuration}");
+	CleanDirectories($"{sourceFolder}*/obj/{configuration}");
 
 	// Clean previous artifacts
-	Information("Making sure {0} exists", outputDir);
-	if (DirectoryExists(outputDir) && clearCache) CleanDirectories(MakeAbsolute(Directory(outputDir)).FullPath);
-	else if (!DirectoryExists(outputDir)) CreateDirectory(outputDir);
+	Information("Cleaning {0}", outputDir);
+	if (!DirectoryExists(outputDir)) CreateDirectory(outputDir);
+	if (DirectoryExists(publishDir)) CleanDirectories(MakeAbsolute(Directory(publishDir)).FullPath);
 });
 
 Task("Restore-NuGet-Packages")
@@ -130,37 +131,50 @@ Task("Build")
 	.IsDependentOn("Restore-NuGet-Packages")
 	.Does(() =>
 {
-	DotNetCoreBuild(sourceFolder + appName + ".sln", new DotNetCoreBuildSettings
+	DotNetCoreBuild($"{sourceFolder}{appName}.sln", new DotNetCoreBuildSettings
 	{
 		Configuration = configuration,
 		NoRestore = true,
-		ArgumentCustomization = args => args.Append("/p:SemVer=" + versionInfo.LegacySemVerPadded)
+		ArgumentCustomization = args => args.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
 	});
 });
 
-Task("Execute")
+Task("Publish")
 	.IsDependentOn("Build")
+	.Does(() =>
+{
+	DotNetCorePublish($"{sourceFolder}{appName}.sln", new DotNetCorePublishSettings
+	{
+		Framework = framework,
+		Runtime = "win10-x64",
+		Configuration = configuration,
+		NoRestore = true,
+		OutputDirectory = publishDir
+	});
+});
+
+Task("Run")
+	.IsDependentOn("Publish")
 	.Does(() =>
 {
 	var appArgs = $"-v 0.26.0 -m -e -t \"{outputDir}\"";
 	if (clearCache) appArgs += " -c";
 
-	DotNetCoreRun(sourceFolder + appName, appArgs, new DotNetCoreRunSettings
-	{
-		Framework = framework,
-		Configuration = configuration,
-		//NoRestore = true,		<-- Submitted a PR to add these two new settings
-		//NoBuild = true		<-- Submitted a PR to add these two new settings
-	});
+	StartProcess(
+		new FilePath($"{publishDir}{appName}.exe"),
+		new ProcessSettings()
+		{
+			Arguments = appArgs
+		});
 });
 
 Task("Upload-Artifacts")  
-	.IsDependentOn("Execute")
+	.IsDependentOn("Run")
 	.WithCriteria(() => AppVeyor.IsRunningOnAppVeyor)
 	.Does(() => 
 {
-	AppVeyor.UploadArtifact(outputDir + "AddinDiscoveryReport.md");
-	AppVeyor.UploadArtifact(outputDir + "AddinDiscoveryReport.xlsx");
+	AppVeyor.UploadArtifact($"{outputDir}{appName}/AddinDiscoveryReport.md");
+	AppVeyor.UploadArtifact($"{outputDir}{appName}/AddinDiscoveryReport.xlsx");
 });
 
 
@@ -172,7 +186,7 @@ Task("AppVeyor")
 	.IsDependentOn("Upload-Artifacts");
 
 Task("Default")
-	.IsDependentOn("Build");
+	.IsDependentOn("Run");
 
 
 ///////////////////////////////////////////////////////////////////////////////
