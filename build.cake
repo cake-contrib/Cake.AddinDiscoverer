@@ -173,8 +173,17 @@ Task("Upload-Artifacts")
 	.WithCriteria(() => AppVeyor.IsRunningOnAppVeyor)
 	.Does(() => 
 {
-	AppVeyor.UploadArtifact($"{outputDir}{appName}/AddinDiscoveryReport.md");
-	AppVeyor.UploadArtifact($"{outputDir}{appName}/AddinDiscoveryReport.xlsx");
+	var markdownReport = $"{outputDir}{appName}/AddinDiscoveryReport.md";
+	if (FileExists(markdownReport))
+	{
+		AppVeyor.UploadArtifact(markdownReport);
+	}
+
+	var excelReport = $"{outputDir}{appName}/AddinDiscoveryReport.xlsx";
+	if (FileExists(excelReport))
+	{
+		AppVeyor.UploadArtifact(excelReport);
+	}
 });
 
 
