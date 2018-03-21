@@ -164,7 +164,10 @@ Task("Run")
 		new FilePath($"{publishDir}{appName}.exe"),
 		new ProcessSettings()
 		{
-			Arguments = appArgs
+			Arguments = appArgs,
+			RedirectStandardError = true,
+			RedirectStandardOutput = true,
+			Silent = false
 		});
 });
 
