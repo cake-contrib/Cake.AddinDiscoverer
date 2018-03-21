@@ -157,7 +157,7 @@ Task("Run")
 	.IsDependentOn("Publish")
 	.Does(() =>
 {
-	var appArgs = $"-v 0.26.0 -m -e -t \"{outputDir}\"";
+	var appArgs = $"-v 0.26.0 -m -e -t \"{outputDir}\" -u \"{gitHubUserName}\" -p \"{gitHubPassword}\"";
 	if (clearCache) appArgs += " -c";
 
 	StartProcess(
