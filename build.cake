@@ -157,14 +157,28 @@ Task("Run")
 	.IsDependentOn("Publish")
 	.Does(() =>
 {
-	var appArgs = $"-v 0.26.0 -m -e -t \"{outputDir}\" -u \"{gitHubUserName}\" -p \"{gitHubPassword}\"";
-	if (clearCache) appArgs += " -c";
+	var args = new Dictionary<string, string>()
+	{
+		{ "-v", "0.26.0" },
+		{ "-m", null },
+		{ "-e", null },
+		{ "-t", $"\"{outputDir}\"" },
+		{ "-u", $"\"{gitHubUserName}\"" },
+		{ "-p", $"\"{gitHubPassword}\"" },
+	};
+	if (clearCache) args.Add("-c", null);
+
+	var safeArgs = args
+		.Where(arg => arg.Key != "-p")
+		.Union(new[] { new KeyValuePair<string, string>("-p", new string('*', gitHubPassword.Length)) });
+	var displayArgs = string.Join(' ', safeArgs.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim());
+	Information($"Executing: {publishDir}{appName}.exe {displayArgs}";
 
 	StartProcess(
 		new FilePath($"{publishDir}{appName}.exe"),
 		new ProcessSettings()
 		{
-			Arguments = appArgs,
+			Arguments = string.Join(' ', args.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim())),
 			RedirectStandardError = true,
 			RedirectStandardOutput = true,
 			Silent = false
