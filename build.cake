@@ -52,13 +52,12 @@ Setup(context =>
 		context.Log.Verbosity = Verbosity.Diagnostic;
 	}
 
-	Information("Building version {0} of {1} ({2}, {3}) using version {4} of Cake {5}",
+	Information("Building version {0} of {1} ({2}, {3}) using version {4} of Cake",
 		versionInfo.LegacySemVerPadded,
 		appName,
 		configuration,
 		target,
-		cakeVersion,
-		clearCache
+		cakeVersion
 	);
 
 	Information("Variables:\r\n\tLocalBuild: {0}\r\n\tIsMainBranch: {1}\r\n\tIsMainRepo: {2}\r\n\tIsPullRequest: {3}\r\n\tIsTagged: {4}",
