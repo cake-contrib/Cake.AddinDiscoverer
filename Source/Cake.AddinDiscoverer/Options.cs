@@ -13,11 +13,14 @@ namespace Cake.AddinDiscoverer
 		[Option('i', "issue", Default = false, HelpText = "Create issue in Github repositories that do not meet recommendations.")]
 		public bool CreateGithubIssue { get; set; }
 
-		[Option('m', "markdown", Default = false, HelpText = "Generate the Markdown report.")]
-		public bool GenerateMarkdownReport { get; set; }
+		[Option('m', "markdown", Default = false, HelpText = "Generate the Markdown report and write in a file.")]
+		public bool MarkdownReportToFile { get; set; }
 
 		[Option('p', "password", Required = false, HelpText = "Github password.")]
 		public string GithuPassword { get; set; }
+
+		[Option('r', "markdown", Default = false, HelpText = "Generate the Markdown report and commit to cake-contrib repo.")]
+		public bool MarkdownReportToRepo { get; set; }
 
 		[Option('t', "tempfolder", Required = false, HelpText = "Folder where temporary files (including reports) are saved.")]
 		public string TemporaryFolder { get; set; }

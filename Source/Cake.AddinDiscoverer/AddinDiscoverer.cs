@@ -245,8 +245,18 @@ namespace Cake.AddinDiscoverer
 					if (_options.GenerateExcelReport) GenerateExcelReport(normalizedAddins, progressBar);
 					progressBar.Tick();
 
-					// Step 16 - generate the markdown report
-					if (_options.GenerateMarkdownReport) await GenerateMarkdownReport(normalizedAddins, progressBar).ConfigureAwait(false);
+					// Step 16 - generate the markdown report and write to file amd/or commit to cake-contrib repo
+					var markdownReport = (string)null;
+					if (_options.MarkdownReportToFile || _options.MarkdownReportToRepo) markdownReport = GenerateMarkdownReport(normalizedAddins, progressBar);
+
+					if (_options.MarkdownReportToFile)
+					{
+						var reportSaveLocation = Path.Combine(_tempFolder, "AddinDiscoveryReport.md");
+						await File.WriteAllTextAsync(reportSaveLocation, markdownReport).ConfigureAwait(false);
+					}
+
+					if (_options.MarkdownReportToRepo) await CommitMarkdownReportToRepoAsync(markdownReport).ConfigureAwait(false);
+
 					progressBar.Tick();
 				}
 			}
@@ -1049,7 +1059,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task GenerateMarkdownReport(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
+		private string GenerateMarkdownReport(IEnumerable<AddinMetadata> addins, IProgressBar parentProgressBar)
 		{
 			// Spawn a progressbar to display progress
 			var childOptions = new ProgressBarOptions
@@ -1070,7 +1080,7 @@ namespace Cake.AddinDiscoverer
 				markdown.AppendLine($"- The `Cake Core Version` and `Cake Common Version` columns  show the version referenced by a given addin");
 				markdown.AppendLine($"- The `Cake Core IsPrivate` and `Cake Common IsPrivate` columns indicate whether the references are marked as private. In other words, we are looking for references with the `PrivateAssets=All` attribute like in this example: `<PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
 				markdown.AppendLine($"- The `Framework` column shows the .NET framework(s) targeted by a given addin. As of Cake 0.26.0, addins should target netstandard2.0 only (there is no need to multi-target)");
-				markdown.AppendLine($"- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon. The automated tool that generates this report looks for the following line in the addin's `csproj`: `<PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`");
+				markdown.AppendLine($"- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon.");
 				markdown.AppendLine($"- The `YAML` column indicates if there is a `.yml` file describing the addin in this [repo](https://github.com/cake-build/website/tree/develop/addins).");
 				markdown.AppendLine();
 
@@ -1143,9 +1153,7 @@ namespace Cake.AddinDiscoverer
 					}
 				}
 
-				// Save the markdown file
-				var reportSaveLocation = Path.Combine(_tempFolder, "AddinDiscoveryReport.md");
-				await File.WriteAllTextAsync(reportSaveLocation, markdown.ToString()).ConfigureAwait(false);
+				return markdown.ToString();
 			}
 		}
 
@@ -1345,6 +1353,46 @@ namespace Cake.AddinDiscoverer
 			{
 				return projectUri;
 			}
+		}
+
+		private async Task CommitMarkdownReportToRepoAsync(string markdownReport)
+		{
+			var repositoryName = "Home";
+			var owner = "cake-contrib";
+
+			// 1. Get the SHA of the latest commit of the master branch.
+			var headMasterRef = "heads/master";
+			var masterReference = await _githubClient.Git.Reference.Get(owner, repositoryName, headMasterRef).ConfigureAwait(false); // Get reference of master branch
+			var latestCommit = await _githubClient.Git.Commit.Get(owner, repositoryName, masterReference.Object.Sha).ConfigureAwait(false); // Get the laster commit of this branch
+			var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
+
+			// 2. Create the blob(s) corresponding to your file(s)
+			var textBlob = new NewBlob
+			{
+				Encoding = EncodingType.Utf8,
+				Content = markdownReport
+			};
+			var textBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, textBlob).ConfigureAwait(false);
+
+			// 3. Create a new tree with:
+			const string FILE_MODE = "100644";
+			tree.Tree.Add(new NewTreeItem
+			{
+				Path = "Audit.md",
+				Mode = FILE_MODE,
+				Type = TreeType.Blob,
+				Sha = textBlobRef.Sha
+			});
+			var newTree = _githubClient.Git.Tree.Create(owner, repositoryName, tree).Result;
+
+			// 4. Create the commit with the SHAs of the tree and the reference of master branch
+			// Create Commit
+			var newCommit = new NewCommit("Update addin audit", newTree.Sha, masterReference.Object.Sha);
+			var commit = _githubClient.Git.Commit.Create(owner, repositoryName, newCommit).Result;
+
+			// 5. Update the reference of master branch with the SHA of the commit
+			// Update HEAD with the commit
+			await _githubClient.Git.Reference.Update(owner, repositoryName, headMasterRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
 		}
 	}
 }
