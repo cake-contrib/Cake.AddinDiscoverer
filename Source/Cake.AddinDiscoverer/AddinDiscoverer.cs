@@ -27,6 +27,7 @@ namespace Cake.AddinDiscoverer
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
 		private const string UNKNOWN_VERSION = "Unknown";
+		private const int MAX_GITHUB_CONCURENCY = 10;
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
@@ -271,34 +272,34 @@ namespace Cake.AddinDiscoverer
 
 			Console.WriteLine("Discovering Cake addins by yml");
 
-			// Get the content of the yaml files
-			var tasks = yamlFiles
-				.Select(async file =>
-				{
-					// Get the content
-					var fileWithContent = await _githubClient.Repository.Content.GetAllContents("cake-build", "website", file.Path).ConfigureAwait(false);
-
-					// Parse the content
-					var yaml = new YamlStream();
-					yaml.Load(new StringReader(fileWithContent[0].Content));
-
-					// Extract Author, Description, Name and repository URL
-					var yamlRootNode = yaml.Documents[0].RootNode;
-					var url = new Uri(yamlRootNode["Repository"].ToString());
-					var metadata = new AddinMetadata()
+			var addinsMetadata = await yamlFiles
+				.ForEachAsync(
+					async file =>
 					{
-						Source = AddinMetadataSource.Yaml,
-						Name = yamlRootNode["Name"].ToString(),
-						GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
-						NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
-						Maintainer = yamlRootNode["Author"].ToString().Trim(),
-					};
+						// Get the content
+						var fileWithContent = await _githubClient.Repository.Content.GetAllContents("cake-build", "website", file.Path).ConfigureAwait(false);
 
-					return metadata;
-				});
+						// Parse the content
+						var yaml = new YamlStream();
+						yaml.Load(new StringReader(fileWithContent[0].Content));
 
-			var filesWithContent = await Task.WhenAll(tasks).ConfigureAwait(false);
-			return filesWithContent.ToArray();
+						// Extract Author, Description, Name and repository URL
+						var yamlRootNode = yaml.Documents[0].RootNode;
+						var url = new Uri(yamlRootNode["Repository"].ToString());
+						var metadata = new AddinMetadata()
+						{
+							Source = AddinMetadataSource.Yaml,
+							Name = yamlRootNode["Name"].ToString(),
+							GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
+							NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
+							Maintainer = yamlRootNode["Author"].ToString().Trim(),
+						};
+
+						return metadata;
+					}, MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
+
+			return addinsMetadata;
 		}
 
 		private async Task<AddinMetadata[]> DiscoverCakeAddinsByWebsiteList()
@@ -370,108 +371,110 @@ namespace Cake.AddinDiscoverer
 		{
 			Console.WriteLine("Finding the .SLN");
 
-			var tasks = addins
-				.Select(async addin =>
-				{
-					try
+			var addinsMetadata = await addins
+				.ForEachAsync(
+					async addin =>
 					{
-						if (addin.GithubRepoUrl != null && string.IsNullOrEmpty(addin.SolutionPath))
+						try
 						{
-							var solutionFile = await GetSolutionFileAsync(addin).ConfigureAwait(false);
-							addin.SolutionPath = solutionFile.Path;
+							if (addin.GithubRepoUrl != null && string.IsNullOrEmpty(addin.SolutionPath))
+							{
+								var solutionFile = await GetSolutionFileAsync(addin).ConfigureAwait(false);
+								addin.SolutionPath = solutionFile.Path;
+							}
 						}
-					}
-					catch (NotFoundException)
-					{
-						addin.AnalysisResult.Notes += $"The project does not exist: {addin.GithubRepoUrl}\r\n";
-					}
-					catch (Exception e)
-					{
-						addin.AnalysisResult.Notes += $"FindSolutionPathAsync: {e.GetBaseException().Message}\r\n";
-					}
+						catch (NotFoundException)
+						{
+							addin.AnalysisResult.Notes += $"The project does not exist: {addin.GithubRepoUrl}\r\n";
+						}
+						catch (Exception e)
+						{
+							addin.AnalysisResult.Notes += $"FindSolutionPathAsync: {e.GetBaseException().Message}\r\n";
+						}
 
-					return addin;
-				});
+						return addin;
+					}, MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
 
-			var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-			return results.ToArray();
+			return addinsMetadata;
 		}
 
 		private async Task<AddinMetadata[]> FindProjectPathAsync(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("Finding the .csproj path");
 
-			var tasks = addins
-				.Select(async addin =>
-				{
-					if (!string.IsNullOrEmpty(addin.SolutionPath) && addin.ProjectPaths == null)
+			var addinsMetadata = await addins
+				.ForEachAsync(
+					async addin =>
 					{
-						try
+						if (!string.IsNullOrEmpty(addin.SolutionPath) && addin.ProjectPaths == null)
 						{
-							var solutionFile = await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, addin.SolutionPath).ConfigureAwait(false);
-
-							using (var sln = new Sln(SlnItems.Projects, solutionFile[0].Content))
+							try
 							{
-								if (sln.Result.ProjectItems != null)
-								{
-									var solutionParts = addin.SolutionPath.Split('/');
+								var solutionFile = await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, addin.SolutionPath).ConfigureAwait(false);
 
-									addin.ProjectPaths = sln.Result.ProjectItems
-										.Select(p => string.Join('/', solutionParts.Take(solutionParts.Length - 1).Union(p.path.Split('\\'))))
-										.Where(p => !p.EndsWith(".Tests.csproj"))
-										.ToArray();
-								}
-								else
+								using (var sln = new Sln(SlnItems.Projects, solutionFile[0].Content))
 								{
-									addin.AnalysisResult.Notes += $"The solution file does not reference any project: {solutionFile[0].HtmlUrl}\r\n";
+									if (sln.Result.ProjectItems != null)
+									{
+										var solutionParts = addin.SolutionPath.Split('/');
+
+										addin.ProjectPaths = sln.Result.ProjectItems
+											.Select(p => string.Join('/', solutionParts.Take(solutionParts.Length - 1).Union(p.path.Split('\\'))))
+											.Where(p => !p.EndsWith(".Tests.csproj"))
+											.ToArray();
+									}
+									else
+									{
+										addin.AnalysisResult.Notes += $"The solution file does not reference any project: {solutionFile[0].HtmlUrl}\r\n";
+									}
 								}
 							}
+							catch (Exception e)
+							{
+								addin.AnalysisResult.Notes += $"FindProjectPathAsync: {e.GetBaseException().Message}\r\n";
+							}
 						}
-						catch (Exception e)
-						{
-							addin.AnalysisResult.Notes += $"FindProjectPathAsync: {e.GetBaseException().Message}\r\n";
-						}
-					}
 
-					return addin;
-				});
+						return addin;
+					}, MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
 
-			var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-			return results.ToArray();
+			return addinsMetadata;
 		}
 
 		private async Task DownloadProjectFilesAsync(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("Downloading project files");
 
-			var tasks = addins
-				.Select(async addin =>
-				{
-					if (addin.ProjectPaths != null)
+			await addins
+				.ForEachAsync(
+					async addin =>
 					{
-						var folderLocation = Path.Combine(_tempFolder, addin.Name);
-						Directory.CreateDirectory(folderLocation);
-
-						foreach (var projectPath in addin.ProjectPaths)
+						if (addin.ProjectPaths != null)
 						{
-							try
+							var folderLocation = Path.Combine(_tempFolder, addin.Name);
+							Directory.CreateDirectory(folderLocation);
+
+							foreach (var projectPath in addin.ProjectPaths)
 							{
-								var fileName = Path.Combine(folderLocation, Path.GetFileName(projectPath));
-								if (!File.Exists(fileName))
+								try
 								{
-									var content = await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, projectPath).ConfigureAwait(false);
-									File.WriteAllText(fileName, content[0].Content);
+									var fileName = Path.Combine(folderLocation, Path.GetFileName(projectPath));
+									if (!File.Exists(fileName))
+									{
+										var content = await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, projectPath).ConfigureAwait(false);
+										File.WriteAllText(fileName, content[0].Content);
+									}
+								}
+								catch (Exception e)
+								{
+									addin.AnalysisResult.Notes += $"DownloadProjectFilesAsync: {e.GetBaseException().Message}\r\n";
 								}
 							}
-							catch (Exception e)
-							{
-								addin.AnalysisResult.Notes += $"DownloadProjectFilesAsync: {e.GetBaseException().Message}\r\n";
-							}
 						}
-					}
-				});
-
-			await Task.WhenAll(tasks).ConfigureAwait(false);
+					}, MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
 		}
 
 		private async Task DownloadNugetMetadataAsync(IEnumerable<AddinMetadata> addins)
