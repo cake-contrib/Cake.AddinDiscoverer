@@ -178,10 +178,7 @@ Task("Run")
 		new FilePath($"{publishDir}{appName}.exe"),
 		new ProcessSettings()
 		{
-			Arguments = string.Join(" ", args.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim())),
-			RedirectStandardError = true,
-			RedirectStandardOutput = true,
-			Silent = false
+			Arguments = string.Join(" ", args.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim()))
 		});
 });
 
