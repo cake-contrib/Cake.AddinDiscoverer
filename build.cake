@@ -162,6 +162,7 @@ Task("Run")
 		{ "-v", "0.26.0" },
 		{ "-m", null },
 		{ "-e", null },
+		{ "-r", null },
 		{ "-t", $"\"{outputDir}\"" },
 		{ "-u", $"\"{gitHubUserName}\"" },
 		{ "-p", $"\"{gitHubPassword}\"" },
