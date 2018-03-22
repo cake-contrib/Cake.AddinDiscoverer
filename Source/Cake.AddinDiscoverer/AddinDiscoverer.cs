@@ -1139,6 +1139,8 @@ namespace Cake.AddinDiscoverer
 
 		private async Task CommitMarkdownReportToRepoAsync(string markdownReport)
 		{
+			Console.WriteLine("  Commiting markdown report to cake-contrib/home repo");
+
 			var repositoryName = "Home";
 			var owner = "cake-contrib";
 
