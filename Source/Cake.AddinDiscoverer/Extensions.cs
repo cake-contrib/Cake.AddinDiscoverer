@@ -7,12 +7,6 @@ namespace Cake.AddinDiscoverer
 {
 	internal static class Extensions
 	{
-		public static string WithRightPadding(this string content, int desiredLength)
-		{
-			var padLength = Math.Max(0, desiredLength - content.Length);
-			return content + new string(' ', padLength);
-		}
-
 		public static async Task<TResult[]> ForEachAsync<T, TResult>(this IEnumerable<T> items, Func<T, Task<TResult>> action, int maxDegreeOfParalellism)
 		{
 			var allTasks = new List<Task<TResult>>();

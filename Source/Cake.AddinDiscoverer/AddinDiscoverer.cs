@@ -308,22 +308,20 @@ namespace Cake.AddinDiscoverer
 			var statusFile = await _githubClient.Repository.Content.GetAllContents("cake-contrib", "home", "Status.md").ConfigureAwait(false);
 			var statusFileContent = statusFile[0].Content;
 
-			// Get the "recipes", "modules" and "Addins"
+			// Get the "modules" and "Addins"
 			Console.WriteLine("Discovering Cake addins by parsing the list in cake-contrib/Home/master/Status.md");
 
 			/*
 				The status.md file contains several sections such as "Recipes", "Modules", "Websites", "Addins",
 				"Work In Progress", "Needs Investigation" and "Deprecated". I am making the assumption that we
-				only care about 3 of those sections: "Recipes", "Modules" and "Addins".
+				only care about 2 of those sections: "Modules" and "Addins".
 			*/
 
-			var recipes = GetAddins("Recipes", statusFileContent).ToArray();
 			var modules = GetAddins("Modules", statusFileContent).ToArray();
 			var addins = GetAddins("Addins", statusFileContent).ToArray();
 
-			// Combine the three lists
-			return recipes
-				.Union(modules)
+			// Combine the lists
+			return modules
 				.Union(addins)
 				.ToArray();
 		}
@@ -875,6 +873,9 @@ namespace Cake.AddinDiscoverer
 		{
 			Console.WriteLine("Generating markdown report");
 
+			var auditedAddins = addins.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes));
+			var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
+
 			var markdown = new StringBuilder();
 
 			markdown.AppendLine("# Information");
@@ -887,20 +888,10 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine($"- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon.");
 			markdown.AppendLine($"- The `YAML` column indicates if there is a `.yml` file describing the addin in this [repo](https://github.com/cake-build/website/tree/develop/addins).");
 			markdown.AppendLine();
-
-			// Calculate the column widths
-			var columnWidths = new int[_reportColumns.Length];
-			for (int i = 0; i < _reportColumns.Length; i++)
-			{
-				// Column must be wide enough to display the largest content
-				columnWidths[i] = addins.Max(addin => _reportColumns[i].GetContent(addin).Length);
-
-				// Ensure column is wide enough to display the header
-				columnWidths[i] = Math.Max(_reportColumns[i].Header.Length, columnWidths[i]);
-
-				// Account for the column seperator and two spaces
-				columnWidths[i] += 3;
-			}
+			markdown.AppendLine($"- The analysis discovered {addins.Count()} addins");
+			markdown.AppendLine($"  - {auditedAddins.Count()} were successfully audited (see the 'Addins' section)");
+			markdown.AppendLine($"  - {exceptionAddins.Count()} could not be audited (see the 'Exceptions' section)");
+			markdown.AppendLine();
 
 			// Title
 			markdown.AppendLine("# Addins");
@@ -909,7 +900,7 @@ namespace Cake.AddinDiscoverer
 			// Header row 1
 			for (int i = 0; i < _reportColumns.Length; i++)
 			{
-				markdown.Append($"| {_reportColumns[i].Header} ".WithRightPadding(columnWidths[i]));
+				markdown.Append($"| {_reportColumns[i].Header} ");
 			}
 
 			markdown.AppendLine("|");
@@ -917,32 +908,30 @@ namespace Cake.AddinDiscoverer
 			// Header row 2
 			for (int i = 0; i < _reportColumns.Length; i++)
 			{
-				var width = columnWidths[i] - 1;                     // Minus one for the column seperator
-				if (_reportColumns[i].Align == ExcelHorizontalAlignment.Right) width = width - 1;  // Minus one for the ":" character
-				if (_reportColumns[i].Align == ExcelHorizontalAlignment.Center) width = width - 2; // Minus two for the two ":" characters
-				markdown.Append("|");
+				markdown.Append("| ");
 				if (_reportColumns[i].Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
-				markdown.Append(new string('-', width));
+				markdown.Append("---");
 				if (_reportColumns[i].Align == ExcelHorizontalAlignment.Right || _reportColumns[i].Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
+				markdown.Append(" ");
 			}
 
 			markdown.AppendLine("|");
 
 			// One row per addin
-			foreach (var addin in addins
-				.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
-				.OrderBy(p => p.Name))
+			foreach (var addin in auditedAddins.OrderBy(p => p.Name))
 			{
 				for (int i = 0; i < _reportColumns.Length; i++)
 				{
-					markdown.Append($"| {_reportColumns[i].GetContent(addin)} ".WithRightPadding(columnWidths[i]));
+					var color = _reportColumns[i].GetCellColor(addin);
+					if (color == Color.LightGreen) markdown.Append($"| <span style=\"color: green\">{_reportColumns[i].GetContent(addin)}</span> ");
+					else if (color == Color.Red) markdown.Append($"| <span style=\"color: red\">{_reportColumns[i].GetContent(addin)}</span> ");
+					else markdown.Append($"| {_reportColumns[i].GetContent(addin)} ");
 				}
 
 				markdown.AppendLine("|");
 			}
 
 			// Exceptions report
-			var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
 			if (exceptionAddins.Any())
 			{
 				markdown.AppendLine();
