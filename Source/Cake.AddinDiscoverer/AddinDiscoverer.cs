@@ -270,7 +270,7 @@ namespace Cake.AddinDiscoverer
 				.Where(c => c.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
 				.ToArray();
 
-			Console.WriteLine("Discovering Cake addins by yml");
+			Console.WriteLine("  Discovering Cake addins by yml");
 
 			var addinsMetadata = await yamlFiles
 				.ForEachAsync(
@@ -309,7 +309,7 @@ namespace Cake.AddinDiscoverer
 			var statusFileContent = statusFile[0].Content;
 
 			// Get the "modules" and "Addins"
-			Console.WriteLine("Discovering Cake addins by parsing the list in cake-contrib/Home/master/Status.md");
+			Console.WriteLine("  Discovering Cake addins by parsing the list in cake-contrib/Home/master/Status.md");
 
 			/*
 				The status.md file contains several sections such as "Recipes", "Modules", "Websites", "Addins",
@@ -328,7 +328,7 @@ namespace Cake.AddinDiscoverer
 
 		private AddinMetadata[] ResetSummaryAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Clearing previous summary");
+			Console.WriteLine("  Clearing previous summary");
 
 			var results = addins
 				.Select(addin =>
@@ -342,7 +342,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> GetProjectUrlAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Getting project URL");
+			Console.WriteLine("  Getting project URL");
 
 			var tasks = addins
 				.Select(async addin =>
@@ -367,7 +367,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> FindSolutionPathAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Finding the .SLN");
+			Console.WriteLine("  Finding the .SLN");
 
 			var addinsMetadata = await addins
 				.ForEachAsync(
@@ -399,7 +399,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> FindProjectPathAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Finding the .csproj path");
+			Console.WriteLine("  Finding the .csproj path");
 
 			var addinsMetadata = await addins
 				.ForEachAsync(
@@ -443,7 +443,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task DownloadProjectFilesAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Downloading project files");
+			Console.WriteLine("  Downloading project files");
 
 			await addins
 				.ForEachAsync(
@@ -477,7 +477,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task DownloadNugetMetadataAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Downloading Nuget Metadata");
+			Console.WriteLine("  Downloading Nuget Metadata");
 
 			var tasks = addins
 				.Select(async addin =>
@@ -510,7 +510,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> FindReferencesAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Finding references");
+			Console.WriteLine("  Finding references");
 
 			var tasks = addins
 				.Select(async addin =>
@@ -552,7 +552,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> FindFrameworksAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Finding Frameworks");
+			Console.WriteLine("  Finding Frameworks");
 
 			var tasks = addins
 				.Select(async addin =>
@@ -589,7 +589,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> FindGithubIssueAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.Write("Finding Github issue");
+			Console.Write("  Finding Github issue");
 			var tasks = addins
 				.Select(async addin =>
 				{
@@ -629,7 +629,7 @@ namespace Cake.AddinDiscoverer
 
 		private AddinMetadata[] FindIconAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Finding icon");
+			Console.WriteLine("  Finding icon");
 
 			var results = addins
 				.Select(addin =>
@@ -657,7 +657,7 @@ namespace Cake.AddinDiscoverer
 
 		private AddinMetadata[] AnalyzeAddinAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Analyzing addins");
+			Console.WriteLine("  Analyzing addins");
 
 			var results = addins
 				.Select(addin =>
@@ -720,7 +720,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> CreateGithubIssueAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Creating Github issues");
+			Console.WriteLine("  Creating Github issues");
 
 			var tasks = addins
 				.Select(async addin =>
@@ -771,7 +771,7 @@ namespace Cake.AddinDiscoverer
 
 		private void GenerateExcelReport(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Generating Excel report");
+			Console.WriteLine("  Generating Excel report");
 
 			var reportSaveLocation = Path.Combine(_tempFolder, "AddinDiscoveryReport.xlsx");
 
@@ -871,7 +871,7 @@ namespace Cake.AddinDiscoverer
 
 		private string GenerateMarkdownReport(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("Generating markdown report");
+			Console.WriteLine("  Generating markdown report");
 
 			var auditedAddins = addins.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes));
 			var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
@@ -989,7 +989,7 @@ namespace Cake.AddinDiscoverer
 			var sectionContent = Extract($"# {title}", "#", content);
 			var lines = sectionContent.Trim('\n').Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
-			Console.WriteLine($"Discovering {title}");
+			Console.WriteLine($"    Discovering {title}");
 
 			// It's important to skip the two 'header' rows
 			var results = lines
