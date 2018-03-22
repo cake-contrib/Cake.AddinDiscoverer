@@ -162,17 +162,17 @@ Task("Run")
 		{ "-v", "0.26.0" },
 		{ "-m", null },
 		{ "-e", null },
-		{ "-r", null },
 		{ "-t", $"\"{outputDir}\"" },
 		{ "-u", $"\"{gitHubUserName}\"" },
 		{ "-p", $"\"{gitHubPassword}\"" },
 	};
 	if (clearCache) args.Add("-c", null);
+	if (isMainBranch) args.Add("-r", null);
 
 	// Display the command we are about to execute (be careful to avoid displaying the password)
 	var safeArgs = args.Where(arg => arg.Key != "-p").Union(new[] { new KeyValuePair<string, string>("-p", "\"<REDACTED>\"") });
 	var displayArgs = string.Join(" ", safeArgs.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim()));
-	Information($"Executing: {publishDir}{appName}.exe {displayArgs}");
+	Information($"{publishDir}{appName}.exe {displayArgs}");
 
 	// Execute the command
 	StartProcess(
