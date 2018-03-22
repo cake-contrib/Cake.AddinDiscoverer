@@ -216,7 +216,7 @@ namespace Cake.AddinDiscoverer
 				// Step 15 - generate the excel report
 				if (_options.GenerateExcelReport) GenerateExcelReport(normalizedAddins);
 
-				// Step 16 - generate the markdown report and write to file amd/or commit to cake-contrib repo
+				// Step 16 - generate the markdown report and write to file and/or commit to cake-contrib repo
 				var markdownReport = (string)null;
 				if (_options.MarkdownReportToFile || _options.MarkdownReportToRepo) markdownReport = GenerateMarkdownReport(normalizedAddins);
 
