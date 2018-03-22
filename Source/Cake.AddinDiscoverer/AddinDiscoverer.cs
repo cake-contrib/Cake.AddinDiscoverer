@@ -28,6 +28,8 @@ namespace Cake.AddinDiscoverer
 		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
 		private const string UNKNOWN_VERSION = "Unknown";
 		private const int MAX_GITHUB_CONCURENCY = 10;
+		private const string GREEN_EMOJI = ":white_check_mark: ";
+		private const string RED_EMOJI = ":small_red_triangle: ";
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
@@ -922,10 +924,11 @@ namespace Cake.AddinDiscoverer
 			{
 				for (int i = 0; i < _reportColumns.Length; i++)
 				{
+					var emoji = string.Empty;
 					var color = _reportColumns[i].GetCellColor(addin);
-					if (color == Color.LightGreen) markdown.Append($"| <span style=\"color: green\">{_reportColumns[i].GetContent(addin)}</span> ");
-					else if (color == Color.Red) markdown.Append($"| <span style=\"color: red\">{_reportColumns[i].GetContent(addin)}</span> ");
-					else markdown.Append($"| {_reportColumns[i].GetContent(addin)} ");
+					if (color == Color.LightGreen) emoji = GREEN_EMOJI;
+					else if (color == Color.Red) emoji = RED_EMOJI;
+					markdown.Append($"| {_reportColumns[i].GetContent(addin)} {emoji}");
 				}
 
 				markdown.AppendLine("|");
