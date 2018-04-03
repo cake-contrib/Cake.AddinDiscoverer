@@ -666,11 +666,11 @@ namespace Cake.AddinDiscoverer
 				{
 					addin.AnalysisResult.TargetsExpectedFramework =
 						(addin.Frameworks ?? Array.Empty<string>()).Length == 1 &&
-						addin.Frameworks[0] == "netstandard2.0";
+						addin.Frameworks[0].Equals("netstandard2.0", StringComparison.OrdinalIgnoreCase);
 
 					if (addin.References != null)
 					{
-						var cakeCommonReference = addin.References.Where(r => r.Id == "Cake.Common");
+						var cakeCommonReference = addin.References.Where(r => r.Id.Equals("Cake.Common", StringComparison.OrdinalIgnoreCase));
 						if (cakeCommonReference.Any())
 						{
 							var cakeCommonVersion = FormatVersion(cakeCommonReference.Min(r => r.Version));
@@ -685,7 +685,7 @@ namespace Cake.AddinDiscoverer
 							addin.AnalysisResult.CakeCommonIsPrivate = true;
 							addin.AnalysisResult.CakeCommonIsUpToDate = true;
 						}
-						var cakeCoreReference = addin.References.Where(r => r.Id == "Cake.Core");
+						var cakeCoreReference = addin.References.Where(r => r.Id.Equals("Cake.Core", StringComparison.OrdinalIgnoreCase));
 						if (cakeCoreReference.Any())
 						{
 							var cakeCoreVersion = FormatVersion(cakeCoreReference.Min(r => r.Version));
@@ -701,7 +701,7 @@ namespace Cake.AddinDiscoverer
 							addin.AnalysisResult.CakeCoreIsUpToDate = true;
 						}
 
-						addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri == CAKECONTRIB_ICON_URL;
+						addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri.Equals(CAKECONTRIB_ICON_URL, StringComparison.OrdinalIgnoreCase);
 						addin.AnalysisResult.HasYamlFileOnWebSite = addin.Source.HasFlag(AddinMetadataSource.Yaml);
 					}
 
@@ -1068,11 +1068,14 @@ namespace Cake.AddinDiscoverer
 				foreach (var reference in document.Descendants("PackageReference"))
 				{
 					var id = (string)reference.Attribute("Include");
-					var version = (string)reference.Attribute("Version");
-					var isPrivate = false;
-					if (reference.Attribute("PrivateAssets") != null) isPrivate = reference.Attribute("PrivateAssets").Value == "All";
-					if (reference.Element("PrivateAssets") != null) isPrivate = reference.Element("PrivateAssets").Value == "All";
-					references.Add((id, version, isPrivate));
+					if (!string.IsNullOrEmpty(id))
+					{
+						var version = (string)reference.Attribute("Version");
+						var isPrivate = false;
+						if (reference.Attribute("PrivateAssets") != null) isPrivate = reference.Attribute("PrivateAssets").Value.Equals("All", StringComparison.OrdinalIgnoreCase);
+						if (reference.Element("PrivateAssets") != null) isPrivate = reference.Element("PrivateAssets").Value.Equals("All", StringComparison.OrdinalIgnoreCase);
+						references.Add((id, version, isPrivate));
+					}
 				}
 
 				// This is for older projects files
@@ -1080,7 +1083,7 @@ namespace Cake.AddinDiscoverer
 				foreach (var reference in document.Descendants(xmlns + "Reference"))
 				{
 					var isPrivate = false;
-					if (reference.Element(xmlns + "Private") != null) isPrivate = ((string)reference.Element(xmlns + "Private")) == "True";
+					if (reference.Element(xmlns + "Private") != null) isPrivate = ((string)reference.Element(xmlns + "Private")).Equals("True", StringComparison.OrdinalIgnoreCase);
 
 					var referenceInfo = (string)reference.Attribute("Include");
 					var firstCommaPosition = referenceInfo.IndexOf(',');
@@ -1146,7 +1149,7 @@ namespace Cake.AddinDiscoverer
 					{
 						var dataTrackAttrib = a.Attributes["data-track"];
 						if (dataTrackAttrib == null) return false;
-						return dataTrackAttrib.Value == "outbound-project-url";
+						return dataTrackAttrib.Value.Equals("outbound-project-url", StringComparison.OrdinalIgnoreCase);
 					});
 				if (!outboundProjectUrl.Any()) return null;
 
