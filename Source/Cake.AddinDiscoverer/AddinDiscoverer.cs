@@ -904,7 +904,7 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.HasYamlFileOnWebSite) / (double)auditedAddins.Count():P1} have a YAML file on the cake web site");
 			markdown.AppendLine();
 
-			var addinsReferencingCakeCore = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion));
+			var addinsReferencingCakeCore = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion));
 			markdown.AppendLine($"- Of the {addinsReferencingCakeCore.Count()} audited addins that reference Cake.Core:");
 			markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsUpToDate) / (double)addinsReferencingCakeCore.Count():P1} are targeting the desired version of Cake.Core");
 			markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsPrivate) / (double)addinsReferencingCakeCore.Count():P1} have marked the reference to Cake.Core as private");
