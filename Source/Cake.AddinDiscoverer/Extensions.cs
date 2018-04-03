@@ -17,9 +17,14 @@ namespace Cake.AddinDiscoverer
 				allTasks.Add(
 					Task.Run(async () =>
 					{
-						var result = await action(item).ConfigureAwait(false);
-						throttler.Release();
-						return result;
+						try
+						{
+							return await action(item).ConfigureAwait(false);
+						}
+						finally
+						{
+							throttler.Release();
+						}
 					}));
 			}
 
@@ -37,8 +42,14 @@ namespace Cake.AddinDiscoverer
 				allTasks.Add(
 					Task.Run(async () =>
 					{
-						await action(item).ConfigureAwait(false);
-						throttler.Release();
+						try
+						{
+							await action(item).ConfigureAwait(false);
+						}
+						finally
+						{
+							throttler.Release();
+						}
 					}));
 			}
 
