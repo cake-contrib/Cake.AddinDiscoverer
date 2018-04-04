@@ -13,6 +13,7 @@ using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -241,17 +242,23 @@ namespace Cake.AddinDiscoverer
 				var message = new StringBuilder("\r\n***** AN EXCEPTION HAS OCCURED *****\r\n");
 				message.AppendLine($"Exception type {e.GetType()}");
 				message.AppendLine($"Exception message: {e.Message}");
-				message.AppendLine($"Stack trace: {e.StackTrace}");
+				message.AppendLine($"Stack trace:\r\n{e.StackTrace}");
 				if (e.InnerException != null)
 				{
 					message.AppendLine("---BEGIN InnerException---");
 					message.AppendLine($"Exception type {e.InnerException.GetType()}");
 					message.AppendLine($"Exception message: {e.InnerException.Message}");
-					message.AppendLine($"Stack trace: {e.InnerException.StackTrace}");
+					message.AppendLine($"Stack trace:\r\n{e.InnerException.StackTrace}");
 					message.AppendLine("---END Inner Exception");
 				}
 
 				Console.WriteLine(message.ToString());
+
+				Console.WriteLine("\r\n***** DETAILED EXCEPTION *****");
+				Console.WriteLine(e.ToDetailedString());
+
+				Console.WriteLine("\r\n***** DEMYSTIFIED EXCEPTION *****");
+				Console.WriteLine(e.Demystify().ToString());
 			}
 		}
 
