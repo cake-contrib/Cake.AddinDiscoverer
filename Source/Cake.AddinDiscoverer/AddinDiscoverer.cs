@@ -1,5 +1,8 @@
 ﻿using AngleSharp;
-using net.r_eg.MvsSln;
+using Cake.Common.Solution;
+using Cake.Core;
+using Cake.Core.Diagnostics;
+using Cake.Core.IO;
 using Newtonsoft.Json;
 using NuGet.Configuration;
 using NuGet.Protocol;
@@ -22,7 +25,7 @@ namespace Cake.AddinDiscoverer
 {
 	internal class AddinDiscoverer
 	{
-		private const int NUMBER_OF_STEPS = 16;
+		private const int NUMBER_OF_STEPS = 17;
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
@@ -97,7 +100,7 @@ namespace Cake.AddinDiscoverer
 		public AddinDiscoverer(Options options)
 		{
 			_options = options;
-			_tempFolder = Path.Combine(_options.TemporaryFolder, PRODUCT_NAME);
+			_tempFolder = System.IO.Path.Combine(_options.TemporaryFolder, PRODUCT_NAME);
 
 			// Setup the Github client
 			var credentials = new Credentials(_options.GithubUsername, _options.GithuPassword);
@@ -133,7 +136,7 @@ namespace Cake.AddinDiscoverer
 
 				Console.WriteLine("Auditing the Cake Addins");
 
-				var jsonSaveLocation = Path.Combine(_tempFolder, "CakeAddins.json");
+				var jsonSaveLocation = System.IO.Path.Combine(_tempFolder, "CakeAddins.json");
 
 				var normalizedAddins = File.Exists(jsonSaveLocation) ?
 					JsonConvert.DeserializeObject<AddinMetadata[]>(File.ReadAllText(jsonSaveLocation)) :
@@ -175,56 +178,59 @@ namespace Cake.AddinDiscoverer
 				normalizedAddins = await FindSolutionPathAsync(normalizedAddins).ConfigureAwait(false);
 				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 
-				// Step 6 - get the path to the .csproj file(s)
-				normalizedAddins = await FindProjectPathAsync(normalizedAddins).ConfigureAwait(false);
+				// Step 6 - download a copy of the sln file which simplyfies parsing this file in subsequent steps
+				await DownloadSolutionFileAsync(normalizedAddins).ConfigureAwait(false);
+
+				// Step 7 - get the path to the .csproj file(s)
+				normalizedAddins = FindProjectPathAsync(normalizedAddins);
 				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 
-				// Step 7 - download a copy of the csproj file(s) which simplyfies parsing this file in subsequent steps
+				// Step 8 - download a copy of the csproj file(s) which simplyfies parsing this file in subsequent steps
 				await DownloadProjectFilesAsync(normalizedAddins).ConfigureAwait(false);
 
-				// Step 8 - download package metadata from Nuget.org
+				// Step 9 - download package metadata from Nuget.org
 				await DownloadNugetMetadataAsync(normalizedAddins).ConfigureAwait(false);
 
-				// Step 9 - parse the csproj and find all references
+				// Step 10 - parse the csproj and find all references
 				normalizedAddins = await FindReferencesAsync(normalizedAddins).ConfigureAwait(false);
 				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 
-				// Step 10 - parse the csproj and find targeted framework(s)
+				// Step 11 - parse the csproj and find targeted framework(s)
 				normalizedAddins = await FindFrameworksAsync(normalizedAddins).ConfigureAwait(false);
 				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 
-				// Step 11 - determine if an issue already exists in the Github repo
+				// Step 12 - determine if an issue already exists in the Github repo
 				if (_options.CreateGithubIssue)
 				{
 					normalizedAddins = await FindGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 				}
 
-				// Step 12 - find the addin icon
+				// Step 13 - find the addin icon
 				normalizedAddins = FindIconAsync(normalizedAddins);
 				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 
-				// Step 13 - analyze
+				// Step 14 - analyze
 				normalizedAddins = AnalyzeAddinAsync(normalizedAddins);
 				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 
-				// Step 14 - create an issue in the Github repo
+				// Step 15 - create an issue in the Github repo
 				if (_options.CreateGithubIssue)
 				{
 					normalizedAddins = await CreateGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
 					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 				}
 
-				// Step 15 - generate the excel report
+				// Step 16 - generate the excel report
 				if (_options.GenerateExcelReport) GenerateExcelReport(normalizedAddins);
 
-				// Step 16 - generate the markdown report and write to file and/or commit to cake-contrib repo
+				// Step 17 - generate the markdown report and write to file and/or commit to cake-contrib repo
 				var markdownReport = (string)null;
 				if (_options.MarkdownReportToFile || _options.MarkdownReportToRepo) markdownReport = GenerateMarkdownReport(normalizedAddins);
 
 				if (_options.MarkdownReportToFile)
 				{
-					var reportSaveLocation = Path.Combine(_tempFolder, "AddinDiscoveryReport.md");
+					var reportSaveLocation = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.md");
 					await File.WriteAllTextAsync(reportSaveLocation, markdownReport).ConfigureAwait(false);
 				}
 
@@ -399,48 +405,84 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private async Task<AddinMetadata[]> FindProjectPathAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindProjectPathAsync(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding the .csproj path");
 
-			var addinsMetadata = await addins
+			var addinsMetadata = addins
+				.Select(addin =>
+				{
+					if (!string.IsNullOrEmpty(addin.SolutionPath) && addin.ProjectPaths == null)
+					{
+						try
+						{
+							var folderLocation = System.IO.Path.Combine(_tempFolder, addin.Name);
+							var fileName = System.IO.Path.Combine(folderLocation, System.IO.Path.GetFileName(addin.SolutionPath));
+							if (File.Exists(fileName))
+							{
+								var fileSystem = new FileSystem();
+								var cakeEnvironment = new CakeEnvironment(new CakePlatform(), new CakeRuntime(), new NullLog());
+								var solutionParser = new SolutionParser(fileSystem, cakeEnvironment);
+								var parsedSolution = solutionParser.Parse(fileName);
+
+								if (parsedSolution.Projects != null)
+								{
+									var solutionParts = addin.SolutionPath.Split('/');
+
+									addin.ProjectPaths = parsedSolution.Projects
+										.Where(p => !p.Name.EndsWith(".Tests"))
+										.Where(p => p.Path.GetExtension()?.Equals(".csproj", StringComparison.OrdinalIgnoreCase) ?? false)
+										.Select(p => string.Join('/', solutionParts.Take(solutionParts.Length - 1).Union(new DirectoryPath(folderLocation).GetRelativePath(p.Path).Segments)))
+										.ToArray();
+								}
+								else
+								{
+									addin.AnalysisResult.Notes += $"The solution file does not reference any project: {addin.SolutionPath}\r\n";
+								}
+							}
+						}
+						catch (Exception e)
+						{
+							addin.AnalysisResult.Notes += $"FindProjectPathAsync: {e.GetBaseException().Message}\r\n";
+						}
+					}
+
+					return addin;
+				})
+				.ToArray();
+
+			return addinsMetadata;
+		}
+
+		private async Task DownloadSolutionFileAsync(IEnumerable<AddinMetadata> addins)
+		{
+			Console.WriteLine("  Downloading solution file");
+
+			await addins
 				.ForEachAsync(
 					async addin =>
 					{
-						if (!string.IsNullOrEmpty(addin.SolutionPath) && addin.ProjectPaths == null)
+						if (!string.IsNullOrEmpty(addin.SolutionPath))
 						{
+							var folderLocation = System.IO.Path.Combine(_tempFolder, addin.Name);
+							Directory.CreateDirectory(folderLocation);
+
 							try
 							{
-								var solutionFile = await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, addin.SolutionPath).ConfigureAwait(false);
-
-								using (var sln = new Sln(SlnItems.Projects, solutionFile[0].Content))
+								var fileName = System.IO.Path.Combine(folderLocation, System.IO.Path.GetFileName(addin.SolutionPath));
+								if (!File.Exists(fileName))
 								{
-									if (sln.Result.ProjectItems != null)
-									{
-										var solutionParts = addin.SolutionPath.Split('/');
-
-										addin.ProjectPaths = sln.Result.ProjectItems
-											.Select(p => string.Join('/', solutionParts.Take(solutionParts.Length - 1).Union(p.path.Split('\\'))))
-											.Where(p => !p.EndsWith(".Tests.csproj"))
-											.ToArray();
-									}
-									else
-									{
-										addin.AnalysisResult.Notes += $"The solution file does not reference any project: {solutionFile[0].HtmlUrl}\r\n";
-									}
+									var content = await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, addin.SolutionPath).ConfigureAwait(false);
+									File.WriteAllText(fileName, content[0].Content);
 								}
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"FindProjectPathAsync: {e.GetBaseException().Message}\r\n";
+								addin.AnalysisResult.Notes += $"DownloadSolutionFileAsync: {e.GetBaseException().Message}\r\n";
 							}
 						}
-
-						return addin;
 					}, MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
-
-			return addinsMetadata;
 		}
 
 		private async Task DownloadProjectFilesAsync(IEnumerable<AddinMetadata> addins)
@@ -453,14 +495,14 @@ namespace Cake.AddinDiscoverer
 					{
 						if (addin.ProjectPaths != null)
 						{
-							var folderLocation = Path.Combine(_tempFolder, addin.Name);
+							var folderLocation = System.IO.Path.Combine(_tempFolder, addin.Name);
 							Directory.CreateDirectory(folderLocation);
 
 							foreach (var projectPath in addin.ProjectPaths)
 							{
 								try
 								{
-									var fileName = Path.Combine(folderLocation, Path.GetFileName(projectPath));
+									var fileName = System.IO.Path.Combine(folderLocation, System.IO.Path.GetFileName(projectPath));
 									if (!File.Exists(fileName))
 									{
 										var content = await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, projectPath).ConfigureAwait(false);
@@ -484,12 +526,12 @@ namespace Cake.AddinDiscoverer
 			var tasks = addins
 				.Select(async addin =>
 				{
-					var folderLocation = Path.Combine(_tempFolder, addin.Name);
+					var folderLocation = System.IO.Path.Combine(_tempFolder, addin.Name);
 					Directory.CreateDirectory(folderLocation);
 
 					try
 					{
-						var fileName = Path.Combine(folderLocation, "nuget.json");
+						var fileName = System.IO.Path.Combine(folderLocation, "nuget.json");
 						if (!File.Exists(fileName))
 						{
 							var searchMetadata = await _nugetPackageMetadataClient.GetMetadataAsync(addin.Name, true, true, new NoopLogger(), CancellationToken.None);
@@ -518,7 +560,7 @@ namespace Cake.AddinDiscoverer
 				.Select(async addin =>
 				{
 					var references = new List<(string Id, string Version, bool IsPrivate)>();
-					var folderName = Path.Combine(_tempFolder, addin.Name);
+					var folderName = System.IO.Path.Combine(_tempFolder, addin.Name);
 
 					if (Directory.Exists(folderName))
 					{
@@ -560,7 +602,7 @@ namespace Cake.AddinDiscoverer
 				.Select(async addin =>
 				{
 					var frameworks = new List<string>();
-					var folderName = Path.Combine(_tempFolder, addin.Name);
+					var folderName = System.IO.Path.Combine(_tempFolder, addin.Name);
 
 					if (Directory.Exists(folderName))
 					{
@@ -636,7 +678,7 @@ namespace Cake.AddinDiscoverer
 			var results = addins
 				.Select(addin =>
 				{
-					var fileName = Path.Combine(_tempFolder, addin.Name, "nuget.json");
+					var fileName = System.IO.Path.Combine(_tempFolder, addin.Name, "nuget.json");
 
 					try
 					{
@@ -775,7 +817,7 @@ namespace Cake.AddinDiscoverer
 		{
 			Console.WriteLine("  Generating Excel report");
 
-			var reportSaveLocation = Path.Combine(_tempFolder, "AddinDiscoveryReport.xlsx");
+			var reportSaveLocation = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.xlsx");
 
 			FileInfo file = new FileInfo(reportSaveLocation);
 
