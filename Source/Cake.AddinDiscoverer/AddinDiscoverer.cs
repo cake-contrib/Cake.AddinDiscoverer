@@ -238,7 +238,20 @@ namespace Cake.AddinDiscoverer
 			}
 			catch (Exception e)
 			{
-				Console.WriteLine(e.GetBaseException().Message);
+				var message = new StringBuilder("\r\n***** AN EXCEPTION HAS OCCURED *****\r\n");
+				message.AppendLine($"Exception type {e.GetType()}");
+				message.AppendLine($"Exception message: {e.Message}");
+				message.AppendLine($"Stack trace: {e.StackTrace}");
+				if (e.InnerException != null)
+				{
+					message.AppendLine("---BEGIN InnerException---");
+					message.AppendLine($"Exception type {e.InnerException.GetType()}");
+					message.AppendLine($"Exception message: {e.InnerException.Message}");
+					message.AppendLine($"Stack trace: {e.InnerException.StackTrace}");
+					message.AppendLine("---END Inner Exception");
+				}
+
+				Console.WriteLine(message.ToString());
 			}
 		}
 
