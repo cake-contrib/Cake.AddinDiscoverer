@@ -17,7 +17,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -875,7 +874,7 @@ namespace Cake.AddinDiscoverer
 				//worksheet.Row(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 				for (int i = 0; i < _reportColumns.Length; i++)
 				{
-					worksheet.Cells[2, i + 1, row, i + 1].Style.HorizontalAlignment = _reportColumns[i].Align;
+					//worksheet.Cells[2, i + 1, row, i + 1].Style.HorizontalAlignment = _reportColumns[i].Align;
 				}
 
 				// Resize columns
@@ -924,6 +923,7 @@ namespace Cake.AddinDiscoverer
 #if DEBUG
 			var version = "DEBUG";
 #else
+			using System.Reflection;
 			var assemblyVersion = typeof(AddinDiscoverer).GetTypeInfo().Assembly.GetName().Version;
 			var version = $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
 #endif
