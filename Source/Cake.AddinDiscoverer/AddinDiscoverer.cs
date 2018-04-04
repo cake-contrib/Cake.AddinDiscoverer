@@ -871,7 +871,7 @@ namespace Cake.AddinDiscoverer
 				worksheet.Cells[1, 1, 1, _reportColumns.Length].AutoFilter = true;
 
 				// Format the worksheet
-				worksheet.Cells[1, 1, 1, _reportColumns.Length].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+				//worksheet.Row(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 				for (int i = 0; i < _reportColumns.Length; i++)
 				{
 					worksheet.Cells[2, i + 1, row, i + 1].Style.HorizontalAlignment = _reportColumns[i].Align;
