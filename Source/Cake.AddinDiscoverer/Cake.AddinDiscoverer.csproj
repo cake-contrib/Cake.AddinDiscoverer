@@ -21,6 +21,7 @@
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="0.9.9.2" />
     <PackageReference Include="Cake.Common" Version="0.26.1" />
+    <PackageReference Include="Cake.Incubator" Version="2.0.1" />
     <PackageReference Include="CommandLineParser" Version="2.2.1" />
     <PackageReference Include="EPPlus.Core" Version="1.5.4" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.1" />

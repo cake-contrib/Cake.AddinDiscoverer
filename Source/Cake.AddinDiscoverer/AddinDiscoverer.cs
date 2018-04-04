@@ -3,6 +3,7 @@ using Cake.Common.Solution;
 using Cake.Core;
 using Cake.Core.Diagnostics;
 using Cake.Core.IO;
+using Cake.Incubator;
 using Newtonsoft.Json;
 using NuGet.Configuration;
 using NuGet.Protocol;
@@ -18,7 +19,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using YamlDotNet.RepresentationModel;
 
 namespace Cake.AddinDiscoverer
@@ -192,11 +192,11 @@ namespace Cake.AddinDiscoverer
 				await DownloadNugetMetadataAsync(normalizedAddins).ConfigureAwait(false);
 
 				// Step 10 - parse the csproj and find all references
-				normalizedAddins = await FindReferencesAsync(normalizedAddins).ConfigureAwait(false);
+				normalizedAddins = FindReferencesAsync(normalizedAddins);
 				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 
 				// Step 11 - parse the csproj and find targeted framework(s)
-				normalizedAddins = await FindFrameworksAsync(normalizedAddins).ConfigureAwait(false);
+				normalizedAddins = FindFrameworksAsync(normalizedAddins);
 				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 
 				// Step 12 - determine if an issue already exists in the Github repo
@@ -350,7 +350,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> GetProjectUrlAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Getting project URL");
+			Console.WriteLine("  Getting Github repo URLs");
 
 			var tasks = addins
 				.Select(async addin =>
@@ -375,7 +375,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> FindSolutionPathAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Finding the .SLN");
+			Console.WriteLine("  Finding solution files");
 
 			var addinsMetadata = await addins
 				.ForEachAsync(
@@ -407,7 +407,7 @@ namespace Cake.AddinDiscoverer
 
 		private AddinMetadata[] FindProjectPathAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Finding the .csproj path");
+			Console.WriteLine("  Finding project files");
 
 			var addinsMetadata = addins
 				.Select(addin =>
@@ -429,9 +429,9 @@ namespace Cake.AddinDiscoverer
 								{
 									var solutionParts = addin.SolutionPath.Split('/');
 
-									addin.ProjectPaths = parsedSolution.Projects
+									addin.ProjectPaths = parsedSolution
+										.GetProjects()
 										.Where(p => !p.Name.EndsWith(".Tests"))
-										.Where(p => p.Path.GetExtension()?.Equals(".csproj", StringComparison.OrdinalIgnoreCase) ?? false)
 										.Select(p => string.Join('/', solutionParts.Take(solutionParts.Length - 1).Union(new DirectoryPath(folderLocation).GetRelativePath(p.Path).Segments)))
 										.ToArray();
 								}
@@ -456,7 +456,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task DownloadSolutionFileAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Downloading solution file");
+			Console.WriteLine("  Downloading solution files");
 
 			await addins
 				.ForEachAsync(
@@ -552,12 +552,12 @@ namespace Cake.AddinDiscoverer
 			await Task.WhenAll(tasks).ConfigureAwait(false);
 		}
 
-		private async Task<AddinMetadata[]> FindReferencesAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindReferencesAsync(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding references");
 
-			var tasks = addins
-				.Select(async addin =>
+			var results = addins
+				.Select(addin =>
 				{
 					var references = new List<(string Id, string Version, bool IsPrivate)>();
 					var folderName = System.IO.Path.Combine(_tempFolder, addin.Name);
@@ -568,7 +568,7 @@ namespace Cake.AddinDiscoverer
 						{
 							try
 							{
-								references.AddRange(await GetProjectReferencesAsync(addin, projectPath).ConfigureAwait(false));
+								references.AddRange(GetProjectReferencesAsync(addin, projectPath));
 							}
 							catch (Exception e)
 							{
@@ -590,16 +590,15 @@ namespace Cake.AddinDiscoverer
 					return addin;
 				});
 
-			var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 			return results.ToArray();
 		}
 
-		private async Task<AddinMetadata[]> FindFrameworksAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindFrameworksAsync(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding Frameworks");
 
-			var tasks = addins
-				.Select(async addin =>
+			var results = addins
+				.Select(addin =>
 				{
 					var frameworks = new List<string>();
 					var folderName = System.IO.Path.Combine(_tempFolder, addin.Name);
@@ -610,7 +609,7 @@ namespace Cake.AddinDiscoverer
 						{
 							try
 							{
-								frameworks.AddRange(await GetProjectFrameworksAsync(addin, projectPath).ConfigureAwait(false));
+								frameworks.AddRange(GetProjectFrameworksAsync(addin, projectPath));
 							}
 							catch (Exception e)
 							{
@@ -627,13 +626,12 @@ namespace Cake.AddinDiscoverer
 					return addin;
 				});
 
-			var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 			return results.ToArray();
 		}
 
 		private async Task<AddinMetadata[]> FindGithubIssueAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.Write("  Finding Github issue");
+			Console.Write("  Finding Github issues");
 			var tasks = addins
 				.Select(async addin =>
 				{
@@ -673,7 +671,7 @@ namespace Cake.AddinDiscoverer
 
 		private AddinMetadata[] FindIconAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Finding icon");
+			Console.WriteLine("  Finding icons");
 
 			var results = addins
 				.Select(addin =>
@@ -708,11 +706,11 @@ namespace Cake.AddinDiscoverer
 				{
 					addin.AnalysisResult.TargetsExpectedFramework =
 						(addin.Frameworks ?? Array.Empty<string>()).Length == 1 &&
-						addin.Frameworks[0].Equals("netstandard2.0", StringComparison.OrdinalIgnoreCase);
+						addin.Frameworks[0].EqualsIgnoreCase("netstandard2.0");
 
 					if (addin.References != null)
 					{
-						var cakeCommonReference = addin.References.Where(r => r.Id.Equals("Cake.Common", StringComparison.OrdinalIgnoreCase));
+						var cakeCommonReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Common"));
 						if (cakeCommonReference.Any())
 						{
 							var cakeCommonVersion = FormatVersion(cakeCommonReference.Min(r => r.Version));
@@ -727,7 +725,7 @@ namespace Cake.AddinDiscoverer
 							addin.AnalysisResult.CakeCommonIsPrivate = true;
 							addin.AnalysisResult.CakeCommonIsUpToDate = true;
 						}
-						var cakeCoreReference = addin.References.Where(r => r.Id.Equals("Cake.Core", StringComparison.OrdinalIgnoreCase));
+						var cakeCoreReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Core"));
 						if (cakeCoreReference.Any())
 						{
 							var cakeCoreVersion = FormatVersion(cakeCoreReference.Min(r => r.Version));
@@ -743,7 +741,7 @@ namespace Cake.AddinDiscoverer
 							addin.AnalysisResult.CakeCoreIsUpToDate = true;
 						}
 
-						addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri.Equals(CAKECONTRIB_ICON_URL, StringComparison.OrdinalIgnoreCase);
+						addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri.EqualsIgnoreCase(CAKECONTRIB_ICON_URL);
 						addin.AnalysisResult.HasYamlFileOnWebSite = addin.Source.HasFlag(AddinMetadataSource.Yaml);
 					}
 
@@ -1024,7 +1022,7 @@ namespace Cake.AddinDiscoverer
 
 			var subFolders = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.Dir));
 
-			var sourceSubFolders = subFolders.Where(c => c.Name.Equals("source", StringComparison.OrdinalIgnoreCase) || c.Name.Equals("src", StringComparison.OrdinalIgnoreCase));
+			var sourceSubFolders = subFolders.Where(c => c.Name.EqualsIgnoreCase("source") || c.Name.EqualsIgnoreCase("src"));
 			if (sourceSubFolders.Any())
 			{
 				foreach (var subFolder in sourceSubFolders)
@@ -1098,79 +1096,49 @@ namespace Cake.AddinDiscoverer
 				.Trim();
 		}
 
-		private async Task<IEnumerable<(string Id, string Version, bool IsPrivate)>> GetProjectReferencesAsync(AddinMetadata addin, string projectPath)
+		private IEnumerable<(string Id, string Version, bool IsPrivate)> GetProjectReferencesAsync(AddinMetadata addin, string projectPath)
 		{
 			var references = new List<(string Id, string Version, bool IsPrivate)>();
 
-			using (var stream = File.OpenText(projectPath))
+			var fileSystem = new FileSystem();
+			var projectFile = fileSystem.GetFile(new FilePath(projectPath));
+			var parsedProject = projectFile.ParseProjectFile("Release");
+
+			foreach (var reference in parsedProject.References)
 			{
-				var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None).ConfigureAwait(false);
+				var parts = reference.Include.Split(',', StringSplitOptions.RemoveEmptyEntries);
+				var referenceDetails = parts.Skip(1).Select(p => p.Split('=', StringSplitOptions.RemoveEmptyEntries));
 
-				// This is for VS.NET 2017 project files
-				foreach (var reference in document.Descendants("PackageReference"))
+				var id = parts[0];
+				if (!string.IsNullOrEmpty(id))
 				{
-					var id = (string)reference.Attribute("Include");
-					if (!string.IsNullOrEmpty(id))
-					{
-						var version = (string)reference.Attribute("Version");
-						var isPrivate = false;
-						if (reference.Attribute("PrivateAssets") != null) isPrivate = reference.Attribute("PrivateAssets").Value.Equals("All", StringComparison.OrdinalIgnoreCase);
-						if (reference.Element("PrivateAssets") != null) isPrivate = reference.Element("PrivateAssets").Value.Equals("All", StringComparison.OrdinalIgnoreCase);
-						references.Add((id, version, isPrivate));
-					}
+					var version = referenceDetails.FirstOrDefault(d => d[0].EqualsIgnoreCase("Version"))?[1];
+					var isPrivate = reference.Private ?? false;
+					references.Add((id, version, isPrivate));
 				}
+			}
 
-				// This is for older projects files
-				var xmlns = XNamespace.Get("http://schemas.microsoft.com/developer/msbuild/2003");
-				foreach (var reference in document.Descendants(xmlns + "Reference"))
+			foreach (var reference in parsedProject.PackageReferences)
+			{
+				var id = reference.Name;
+				if (!string.IsNullOrEmpty(id))
 				{
-					var isPrivate = false;
-					if (reference.Element(xmlns + "Private") != null) isPrivate = ((string)reference.Element(xmlns + "Private")).Equals("True", StringComparison.OrdinalIgnoreCase);
-
-					var referenceInfo = (string)reference.Attribute("Include");
-					var firstCommaPosition = referenceInfo.IndexOf(',');
-					if (firstCommaPosition > 0)
-					{
-						var id = referenceInfo.Substring(0, firstCommaPosition);
-						var version = Extract("Version=", ",", referenceInfo);
-						references.Add((id, version, isPrivate));
-					}
-					else
-					{
-						references.Add((referenceInfo, string.Empty, isPrivate));
-					}
+					var version = reference.Version;
+					var isPrivate = reference.PrivateAssets?.Any(a => a.EqualsIgnoreCase("All")) ?? false;
+					references.Add((id, version, isPrivate));
 				}
 			}
 
 			return references.ToArray();
 		}
 
-		private async Task<IEnumerable<string>> GetProjectFrameworksAsync(AddinMetadata addin, string projectPath)
+		private IEnumerable<string> GetProjectFrameworksAsync(AddinMetadata addin, string projectPath)
 		{
-			var frameworks = new List<string>();
+			var fileSystem = new FileSystem();
+			var projectFile = fileSystem.GetFile(new FilePath(projectPath));
+			var parsedProject = projectFile.ParseProjectFile("Release");
 
-			using (var stream = File.OpenText(projectPath))
-			{
-				var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None).ConfigureAwait(false);
-
-				foreach (var target in document.Descendants("TargetFramework"))
-				{
-					frameworks.Add(target.Value);
-				}
-
-				foreach (var target in document.Descendants("TargetFrameworks"))
-				{
-					frameworks.AddRange(target.Value.Split(';', StringSplitOptions.RemoveEmptyEntries));
-				}
-
-				var xmlns = XNamespace.Get("http://schemas.microsoft.com/developer/msbuild/2003");
-				foreach (var target in document.Descendants(xmlns + "TargetFrameworkVersion"))
-				{
-					frameworks.Add(target.Value);
-				}
-
-				return frameworks.ToArray();
-			}
+			return parsedProject.TargetFrameworkVersions;
 		}
 
 		private async Task<Uri> GetNormalizedProjectUrl(Uri projectUri)
@@ -1191,7 +1159,7 @@ namespace Cake.AddinDiscoverer
 					{
 						var dataTrackAttrib = a.Attributes["data-track"];
 						if (dataTrackAttrib == null) return false;
-						return dataTrackAttrib.Value.Equals("outbound-project-url", StringComparison.OrdinalIgnoreCase);
+						return dataTrackAttrib.Value.EqualsIgnoreCase("outbound-project-url");
 					});
 				if (!outboundProjectUrl.Any()) return null;
 
