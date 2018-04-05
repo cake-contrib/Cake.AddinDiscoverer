@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
-    <Version>1.1.2</Version>
+    <Version>1.2.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -20,10 +20,11 @@
 
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="0.9.9.2" />
+    <PackageReference Include="Ben.Demystifier" Version="0.1.1" />
     <PackageReference Include="Cake.Common" Version="0.26.1" />
     <PackageReference Include="Cake.Incubator" Version="2.0.1" />
     <PackageReference Include="CommandLineParser" Version="2.2.1" />
-    <PackageReference Include="EPPlus.Core" Version="1.5.4" />
+    <PackageReference Include="EPPlus" Version="4.5.1" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.1" />
     <PackageReference Include="NuGet.Protocol.Core.Types" Version="4.2.0" />
     <PackageReference Include="NuGet.Protocol.Core.v3" Version="4.2.0" />
