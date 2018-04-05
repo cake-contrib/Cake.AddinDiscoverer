@@ -16,8 +16,6 @@ var clearCache = Argument<bool>("clearcache", false);
 // GLOBAL VARIABLES
 ///////////////////////////////////////////////////////////////////////////////
 
-var framework = "netcoreapp2.0";
-
 var appName = "Cake.AddinDiscoverer";
 var gitHubRepo = "Cake.AddinDiscoverer";
 
@@ -145,7 +143,7 @@ Task("Publish")
 {
 	DotNetCorePublish($"{sourceFolder}{appName}.sln", new DotNetCorePublishSettings
 	{
-		Framework = framework,
+		Framework = "netcoreapp2.0",
 		Runtime = "win10-x64",
 		Configuration = configuration,
 		NoRestore = true,
