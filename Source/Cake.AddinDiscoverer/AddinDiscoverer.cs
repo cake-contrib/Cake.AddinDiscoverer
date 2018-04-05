@@ -581,12 +581,11 @@ namespace Cake.AddinDiscoverer
 					}
 
 					addin.References = references
-						.GroupBy(r => r.Id)
-						.Select(grp => new DllReference()
+						.Select(r => new DllReference()
 						{
-							Id = grp.Key,
-							Version = grp.Min(r => r.Version),
-							IsPrivate = grp.All(r => r.IsPrivate)
+							Id = r.Id,
+							Version = r.Version,
+							IsPrivate = r.IsPrivate
 						})
 						.ToArray();
 
