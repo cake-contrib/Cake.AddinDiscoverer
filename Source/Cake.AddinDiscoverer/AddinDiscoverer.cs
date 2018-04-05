@@ -830,6 +830,9 @@ namespace Cake.AddinDiscoverer
 
 			using (var package = new ExcelPackage(file))
 			{
+				var auditedAddins = addins.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes));
+				var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
+
 				var namedStyle = package.Workbook.Styles.CreateNamedStyle("HyperLink");
 				namedStyle.Style.Font.UnderLine = true;
 				namedStyle.Style.Font.Color.SetColor(Color.Blue);
@@ -842,11 +845,9 @@ namespace Cake.AddinDiscoverer
 					worksheet.Cells[1, i + 1].Value = _reportColumns[i].Header;
 				}
 
-				// One row per addin
+				// One row per audited addin
 				var row = 1;
-				foreach (var addin in addins
-					.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
-					.OrderBy(p => p.Name))
+				foreach (var addin in auditedAddins.OrderBy(p => p.Name))
 				{
 					row++;
 					worksheet.Cells[row, 1].Value = addin.Name;
@@ -872,10 +873,13 @@ namespace Cake.AddinDiscoverer
 				worksheet.Cells[1, 1, 1, _reportColumns.Length].AutoFilter = true;
 
 				// Format the worksheet
-				// worksheet.Row(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-				for (int i = 0; i < _reportColumns.Length; i++)
+				worksheet.Row(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+				if (auditedAddins.Any())
 				{
-					// worksheet.Cells[2, i + 1, row, i + 1].Style.HorizontalAlignment = _reportColumns[i].Align;
+					for (int i = 0; i < _reportColumns.Length; i++)
+					{
+						worksheet.Cells[2, i + 1, row, i + 1].Style.HorizontalAlignment = _reportColumns[i].Align;
+					}
 				}
 
 				// Resize columns
@@ -888,7 +892,6 @@ namespace Cake.AddinDiscoverer
 				}
 
 				// Exceptions report
-				var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
 				if (exceptionAddins.Any())
 				{
 					worksheet = package.Workbook.Worksheets.Add("Exceptions");
