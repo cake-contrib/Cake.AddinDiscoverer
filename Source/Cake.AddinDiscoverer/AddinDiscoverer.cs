@@ -1120,7 +1120,7 @@ namespace Cake.AddinDiscoverer
 			foreach (var reference in parsedProject.References)
 			{
 				var parts = reference.Include.Split(',', StringSplitOptions.RemoveEmptyEntries);
-				var referenceDetails = parts.Skip(1).Select(p => p.Split('=', StringSplitOptions.RemoveEmptyEntries));
+				var referenceDetails = parts.Skip(1).Select(p => p.Trim().Split('=', StringSplitOptions.RemoveEmptyEntries));
 
 				var id = parts[0];
 				if (!string.IsNullOrEmpty(id))
