@@ -7,7 +7,7 @@ This console application performs the following steps:
 1. Discovers the addins listed as YAML files in the `Addins` folder of the `website` repo under the `cake-build` organization (https://github.com/cake-build/website/tree/develop/addins)
 2. Discovers the addins listed in the `Status.md` file in the `home` repo under the `cake-contrib` organization (https://raw.githubusercontent.com/cake-contrib/Home/master/Status.md').
 
-    **PLEASE NOTE**: this file contains several sections such as "Recipes", "Modules", "Websites", "Addins", "Work In Progress", "Needs Investigation" and "Deprecated". I am making the assumption that we only care about addins listed under 3 of those sections: "Recipes", "Modules" and "Addins".
+    **PLEASE NOTE**: this file contains several sections such as "Recipes", "Modules", "Websites", "Addins", "Work In Progress", "Needs Investigation" and "Deprecated". I am making the assumption that we only care about addins listed under 2 of those sections: "Modules" and "Addins".
 
 3. If the URL for the discovered addin is not pointing to the GitHub repo, attempts to figure out the repo URL by searching for the `Project Site` link on package's nuget page.
  
