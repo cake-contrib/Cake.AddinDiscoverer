@@ -40,6 +40,7 @@ namespace Cake.AddinDiscoverer
 		private readonly string _tempFolder;
 		private readonly IGitHubClient _githubClient;
 		private readonly PackageMetadataResource _nugetPackageMetadataClient;
+		private readonly string _jsonSaveLocation;
 
 #pragma warning disable SA1000 // Keywords should be spaced correctly
 #pragma warning disable SA1008 // Opening parenthesis should be spaced correctly
@@ -103,6 +104,7 @@ namespace Cake.AddinDiscoverer
 		{
 			_options = options;
 			_tempFolder = System.IO.Path.Combine(_options.TemporaryFolder, PRODUCT_NAME);
+			_jsonSaveLocation = System.IO.Path.Combine(_tempFolder, "CakeAddins.json");
 
 			// Setup the Github client
 			var credentials = new Credentials(_options.GithubUsername, _options.GithuPassword);
@@ -138,11 +140,11 @@ namespace Cake.AddinDiscoverer
 
 				Console.WriteLine("Auditing the Cake Addins");
 
-				var jsonSaveLocation = System.IO.Path.Combine(_tempFolder, "CakeAddins.json");
-
-				var normalizedAddins = File.Exists(jsonSaveLocation) ?
-					JsonConvert.DeserializeObject<AddinMetadata[]>(File.ReadAllText(jsonSaveLocation)) :
+				var normalizedAddins = File.Exists(_jsonSaveLocation) ?
+					JsonConvert.DeserializeObject<AddinMetadata[]>(File.ReadAllText(_jsonSaveLocation)) :
 					Enumerable.Empty<AddinMetadata>();
+
+				if (!string.IsNullOrEmpty(_options.AddinName)) normalizedAddins = normalizedAddins.Where(a => a.Name == _options.AddinName);
 
 				if (!normalizedAddins.Any())
 				{
@@ -167,25 +169,37 @@ namespace Cake.AddinDiscoverer
 						.ToArray();
 				}
 
+				if (!normalizedAddins.Any())
+				{
+					if (!string.IsNullOrEmpty(_options.AddinName))
+					{
+						throw new Exception($"Unable to find '{_options.AddinName}'");
+					}
+					else
+					{
+						throw new Exception($"Unable to find any addin");
+					}
+				}
+
 				// Step 3 - reset the summary
 				normalizedAddins = ResetSummaryAsync(normalizedAddins);
-				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+				SaveProgress(normalizedAddins);
 
 				// Step 4 - get the project URL
 				normalizedAddins = await GetProjectUrlAsync(normalizedAddins).ConfigureAwait(false);
-				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+				SaveProgress(normalizedAddins);
 
 				// Step 5 - get the path to the .sln file in the github repo
 				// Please note: we use the first solution file if there is more than one
 				normalizedAddins = await FindSolutionPathAsync(normalizedAddins).ConfigureAwait(false);
-				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+				SaveProgress(normalizedAddins);
 
 				// Step 6 - download a copy of the sln file which simplyfies parsing this file in subsequent steps
 				await DownloadSolutionFileAsync(normalizedAddins).ConfigureAwait(false);
 
 				// Step 7 - get the path to the .csproj file(s)
 				normalizedAddins = FindProjectPathAsync(normalizedAddins);
-				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+				SaveProgress(normalizedAddins);
 
 				// Step 8 - download a copy of the csproj file(s) which simplyfies parsing this file in subsequent steps
 				await DownloadProjectFilesAsync(normalizedAddins).ConfigureAwait(false);
@@ -195,32 +209,32 @@ namespace Cake.AddinDiscoverer
 
 				// Step 10 - parse the csproj and find all references
 				normalizedAddins = FindReferencesAsync(normalizedAddins);
-				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+				SaveProgress(normalizedAddins);
 
 				// Step 11 - parse the csproj and find targeted framework(s)
 				normalizedAddins = FindFrameworksAsync(normalizedAddins);
-				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+				SaveProgress(normalizedAddins);
 
 				// Step 12 - determine if an issue already exists in the Github repo
 				if (_options.CreateGithubIssue)
 				{
 					normalizedAddins = await FindGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
-					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+					SaveProgress(normalizedAddins);
 				}
 
 				// Step 13 - find the addin icon
 				normalizedAddins = FindIconAsync(normalizedAddins);
-				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+				SaveProgress(normalizedAddins);
 
 				// Step 14 - analyze
 				normalizedAddins = AnalyzeAddinAsync(normalizedAddins);
-				File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+				SaveProgress(normalizedAddins);
 
 				// Step 15 - create an issue in the Github repo
 				if (_options.CreateGithubIssue)
 				{
 					normalizedAddins = await CreateGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
-					File.WriteAllText(jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+					SaveProgress(normalizedAddins);
 				}
 
 				// Step 16 - generate the excel report
@@ -278,7 +292,8 @@ namespace Cake.AddinDiscoverer
 			// Get the list of yaml files in the 'addins' folder
 			var directoryContent = await _githubClient.Repository.Content.GetAllContents("cake-build", "website", "addins").ConfigureAwait(false);
 			var yamlFiles = directoryContent
-				.Where(c => c.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+				.Where(file => file.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+				.Where(file => !string.IsNullOrEmpty(_options.AddinName) ? System.IO.Path.GetFileNameWithoutExtension(file.Name) == _options.AddinName : true)
 				.ToArray();
 
 			Console.WriteLine("  Discovering Cake addins by yml");
@@ -1086,6 +1101,7 @@ namespace Cake.AddinDiscoverer
 
 					return metadata;
 				})
+				.Where(addin => !string.IsNullOrEmpty(_options.AddinName) ? System.IO.Path.GetFileNameWithoutExtension(addin.Name) == _options.AddinName : true)
 				.ToArray();
 			return results;
 		}
@@ -1224,6 +1240,16 @@ namespace Cake.AddinDiscoverer
 			// 5. Update the reference of master branch with the SHA of the commit
 			// Update HEAD with the commit
 			await _githubClient.Git.Reference.Update(owner, repositoryName, headMasterRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
+		}
+
+		private void SaveProgress(IEnumerable<AddinMetadata> normalizedAddins)
+		{
+			// Do not save progress if we are only auditing a single addin.
+			// This is to avoid overwriting the progress file that may have been created by previous audit process.
+			if (!string.IsNullOrEmpty(_options.AddinName)) return;
+
+			// Save to file
+			File.WriteAllText(_jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 		}
 	}
 }

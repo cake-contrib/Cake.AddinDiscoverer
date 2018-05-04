@@ -4,6 +4,9 @@ namespace Cake.AddinDiscoverer
 {
 	internal class Options
 	{
+		[Option('a', "addinname", Required = false, HelpText = "Name of the specific addin to be audited. If omitted, all addins are audited.")]
+		public string AddinName { get; set; }
+
 		[Option('c', "clearcache", Default = false, HelpText = "Clear the list of addins that was previously cached.")]
 		public bool ClearCache { get; set; }
 
