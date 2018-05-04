@@ -56,6 +56,12 @@ namespace Cake.AddinDiscoverer
 				DataDestination.All
 			),
 			(
+				"Author",
+				ExcelHorizontalAlignment.Left,
+				(addin) => addin.Author ?? addin.Maintainer,
+				(addin) => Color.Empty
+			),
+			(
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCoreVersion,
@@ -177,6 +183,7 @@ namespace Cake.AddinDiscoverer
 						.Select(grp => new AddinMetadata()
 						{
 							Name = grp.Key,
+							Author = grp.Where(a => a.Author != null).Select(a => a.Author).FirstOrDefault(),
 							Maintainer = grp.Where(a => a.Maintainer != null).Select(a => a.Maintainer).FirstOrDefault(),
 							GithubRepoUrl = grp.Where(a => a.GithubRepoUrl != null).Select(a => a.GithubRepoUrl).FirstOrDefault(),
 							NugetPackageUrl = grp.Where(a => a.NugetPackageUrl != null).Select(a => a.NugetPackageUrl).FirstOrDefault(),
@@ -326,15 +333,16 @@ namespace Cake.AddinDiscoverer
 						yaml.Load(new StringReader(fileWithContent[0].Content));
 
 						// Extract Author, Description, Name and repository URL
-						var yamlRootNode = yaml.Documents[0].RootNode;
-						var url = new Uri(yamlRootNode["Repository"].ToString());
+						var yamlRootNode = (YamlMappingNode)yaml.Documents[0].RootNode;
+						var url = new Uri(yamlRootNode.GetChildNodeValue("Repository"));
 						var metadata = new AddinMetadata()
 						{
 							Source = AddinMetadataSource.Yaml,
 							Name = yamlRootNode["Name"].ToString(),
 							GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
 							NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
-							Maintainer = yamlRootNode["Author"].ToString().Trim(),
+							Author = yamlRootNode.GetChildNodeValue("AuthorGitHubUserName") ?? yamlRootNode.GetChildNodeValue("Author"),
+							Maintainer = null
 						};
 
 						return metadata;
@@ -1137,6 +1145,7 @@ namespace Cake.AddinDiscoverer
 						Name = Extract("[", "]", cells[0]),
 						GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
 						NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
+						Author = null,
 						Maintainer = cells[1].Trim()
 					};
 

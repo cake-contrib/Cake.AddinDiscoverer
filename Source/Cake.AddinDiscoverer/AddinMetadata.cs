@@ -8,6 +8,8 @@ namespace Cake.AddinDiscoverer
 
 		public string Name { get; set; }
 
+		public string Author { get; set; }
+
 		public string Maintainer { get; set; }
 
 		public string GithubRepoName { get; private set; }
