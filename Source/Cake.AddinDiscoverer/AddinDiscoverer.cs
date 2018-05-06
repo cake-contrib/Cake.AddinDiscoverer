@@ -45,55 +45,63 @@ namespace Cake.AddinDiscoverer
 #pragma warning disable SA1000 // Keywords should be spaced correctly
 #pragma warning disable SA1008 // Opening parenthesis should be spaced correctly
 #pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
-		private readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor)[] _reportColumns = new(string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor)[]
+		private readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink)[] _reportColumns = new(string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink)[]
 		{
 			(
 				"Name",
 				ExcelHorizontalAlignment.Left,
-				(addin) => $"[{addin.Name}]({addin.GithubRepoUrl?.AbsoluteUri ?? addin.NugetPackageUrl?.AbsoluteUri ?? string.Empty})",
-				(addin) => Color.Empty
+				(addin) => addin.Name,
+				(addin) => Color.Empty,
+				(addin) => addin.GithubRepoUrl ?? addin.NugetPackageUrl
 			),
 			(
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCoreVersion,
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsUpToDate ? Color.LightGreen : Color.Red)
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsUpToDate ? Color.LightGreen : Color.Red),
+				(addin) => null
 			),
 			(
 				"Cake Core IsPrivate",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? string.Empty : addin.AnalysisResult.CakeCoreIsPrivate.ToString().ToLower(),
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red)
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red),
+				(addin) => null
 			),
 			(
 				"Cake Common Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCommonVersion,
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsUpToDate ? Color.LightGreen : Color.Red)
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsUpToDate ? Color.LightGreen : Color.Red),
+				(addin) => null
 			),
 			(
 				"Cake Common IsPrivate",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? string.Empty : addin.AnalysisResult.CakeCommonIsPrivate.ToString().ToLower(),
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red)
+				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red),
+				(addin) => null
 			),
 			(
 				"Framework",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.Join(", ", addin.Frameworks),
-				(addin) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (addin.AnalysisResult.TargetsExpectedFramework ? Color.LightGreen : Color.Red)
+				(addin) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (addin.AnalysisResult.TargetsExpectedFramework ? Color.LightGreen : Color.Red),
+				(addin) => null
 			),
 			(
 				"Icon",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.UsingCakeContribIcon.ToString().ToLower(),
-				(addin) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red
+				(addin) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red,
+				(addin) => null
 			),
 			(
 				"YAML",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite.ToString().ToLower(),
-				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite ? Color.LightGreen : Color.Red
+				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite ? Color.LightGreen : Color.Red,
+				(addin) => null
 			),
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
@@ -864,9 +872,6 @@ namespace Cake.AddinDiscoverer
 				foreach (var addin in auditedAddins.OrderBy(p => p.Name))
 				{
 					row++;
-					worksheet.Cells[row, 1].Value = addin.Name;
-					worksheet.Cells[row, 1].Hyperlink = addin.GithubRepoUrl ?? addin.NugetPackageUrl;
-					worksheet.Cells[row, 1].StyleName = "HyperLink";
 
 					for (int i = 1; i < _reportColumns.Length; i++)
 					{
@@ -878,6 +883,13 @@ namespace Cake.AddinDiscoverer
 						{
 							cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
 							cell.Style.Fill.BackgroundColor.SetColor(color);
+						}
+
+						var hyperlink = _reportColumns[i].GetHyperLink(addin);
+						if (hyperlink != null)
+						{
+							cell.Hyperlink = hyperlink;
+							cell.StyleName = "HyperLink";
 						}
 					}
 				}
@@ -1013,11 +1025,22 @@ namespace Cake.AddinDiscoverer
 			{
 				for (int i = 0; i < _reportColumns.Length; i++)
 				{
-					var emoji = string.Empty;
+					var content = _reportColumns[i].GetContent(addin);
+					var hyperlink = _reportColumns[i].GetHyperLink(addin);
 					var color = _reportColumns[i].GetCellColor(addin);
+
+					var emoji = string.Empty;
 					if (color == Color.LightGreen) emoji = GREEN_EMOJI;
 					else if (color == Color.Red) emoji = RED_EMOJI;
-					markdown.Append($"| {_reportColumns[i].GetContent(addin)} {emoji}");
+
+					if (hyperlink == null)
+					{
+						markdown.Append($"| {content} {emoji}");
+					}
+					else
+					{
+						markdown.Append($"| [{content}]({hyperlink.AbsoluteUri}) {emoji}");
+					}
 				}
 
 				markdown.AppendLine("|");
