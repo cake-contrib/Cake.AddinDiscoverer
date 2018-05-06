@@ -56,17 +56,11 @@ namespace Cake.AddinDiscoverer
 				DataDestination.All
 			),
 			(
-				"Name",
-				ExcelHorizontalAlignment.Left,
-				(addin) => addin.Name,
-				(addin) => Color.Empty,
-				DataDestination.Excel
-			),
-			(
 				"Maintainer",
 				ExcelHorizontalAlignment.Left,
 				(addin) => addin.Author ?? addin.Maintainer,
 				(addin) => Color.Empty,
+				(addin) => null,
 				DataDestination.Excel
 			),
 			(
@@ -863,11 +857,6 @@ namespace Cake.AddinDiscoverer
 		private void GenerateExcelReport(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Generating Excel report");
-
-			var reportColumns = _reportColumns
-				.Where(column => column.destination.HasFlag(DataDestination.Excel))
-				.Select((data, index) => new { Index = index, Data = data })
-				.ToArray();
 
 			var reportSaveLocation = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.xlsx");
 			var file = new FileInfo(reportSaveLocation);
