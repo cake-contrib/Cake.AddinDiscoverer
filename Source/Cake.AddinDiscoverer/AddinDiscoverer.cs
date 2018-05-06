@@ -262,12 +262,11 @@ namespace Cake.AddinDiscoverer
 					SaveProgress(normalizedAddins);
 				}
 
-				// Step 16 - generate the excel report
-				if (_options.GenerateExcelReport) GenerateExcelReport(normalizedAddins);
+				// Step 16 - generate the excel report and save to a file
+				var excelReport = GenerateExcelReport(normalizedAddins);
 
-				// Step 17 - generate the markdown report and write to file and/or commit to cake-contrib repo
-				var markdownReport = (string)null;
-				if (_options.MarkdownReportToFile || _options.MarkdownReportToRepo) markdownReport = GenerateMarkdownReport(normalizedAddins);
+				// Step 17 - generate the markdown report and write to file
+				var markdownReport = GenerateMarkdownReport(normalizedAddins);
 
 				if (_options.MarkdownReportToFile)
 				{
@@ -275,7 +274,8 @@ namespace Cake.AddinDiscoverer
 					await File.WriteAllTextAsync(reportSaveLocation, markdownReport).ConfigureAwait(false);
 				}
 
-				if (_options.MarkdownReportToRepo) await CommitMarkdownReportToRepoAsync(markdownReport).ConfigureAwait(false);
+				// Step 18 - commit the reports to the cake-contrib repo
+				await CommitReportsToRepoAsync(markdownReport, excelReport).ConfigureAwait(false);
 			}
 			catch (Exception e)
 			{
@@ -854,8 +854,10 @@ namespace Cake.AddinDiscoverer
 			return results.ToArray();
 		}
 
-		private void GenerateExcelReport(IEnumerable<AddinMetadata> addins)
+		private byte[] GenerateExcelReport(IEnumerable<AddinMetadata> addins)
 		{
+			if (!_options.ExcelReportToFile && !_options.ExcelReportToRepo) return null;
+
 			Console.WriteLine("  Generating Excel report");
 
 			var reportSaveLocation = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.xlsx");
@@ -961,12 +963,17 @@ namespace Cake.AddinDiscoverer
 				}
 
 				// Save the Excel file
-				package.Save();
+				if (_options.ExcelReportToFile) package.Save();
+
+				// return binary
+				return package.GetAsByteArray();
 			}
 		}
 
 		private string GenerateMarkdownReport(IEnumerable<AddinMetadata> addins)
 		{
+			if (!_options.MarkdownReportToFile && !_options.MarkdownReportToRepo) return null;
+
 			Console.WriteLine("  Generating markdown report");
 
 			var auditedAddins = addins.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes));
@@ -1021,6 +1028,15 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine($"- Of the {addinsReferencingCakeCommon.Count()} audited addins that reference Cake.Common:");
 			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsUpToDate) / (double)addinsReferencingCakeCommon.Count():P1} are targeting the desired version of Cake.Common");
 			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsPrivate) / (double)addinsReferencingCakeCommon.Count():P1} have marked the reference to Cake.Common as private");
+			markdown.AppendLine();
+
+			markdown.AppendLine("# Excel");
+			markdown.AppendLine();
+			markdown.AppendLine("Due to space constraints we couldn't fit all audit information in this page so we generated an Excel spreadsheet that contains the following additional information:");
+			markdown.AppendLine("- `Maintainer` indicates who is maintaining the source for this project");
+			markdown.AppendLine("- `Transferred to cake-contrib` indicates if the project has been moved to the cake-contrib github organisation.");
+			markdown.AppendLine();
+			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
 			markdown.AppendLine();
 
 			// Title
@@ -1251,44 +1267,65 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task CommitMarkdownReportToRepoAsync(string markdownReport)
+		private async Task CommitReportsToRepoAsync(string markdownReport, byte[] excelReport)
 		{
-			Console.WriteLine("  Commiting markdown report to cake-contrib/home repo");
+			if (!_options.MarkdownReportToRepo && !_options.ExcelReportToRepo) return;
+
+			Console.WriteLine("  Commiting reports to cake-contrib/home repo");
 
 			var repositoryName = "Home";
 			var owner = "cake-contrib";
 
-			// 1. Get the SHA of the latest commit of the master branch.
+			// Get the SHA of the latest commit of the master branch.
 			var headMasterRef = "heads/master";
 			var masterReference = await _githubClient.Git.Reference.Get(owner, repositoryName, headMasterRef).ConfigureAwait(false); // Get reference of master branch
 			var latestCommit = await _githubClient.Git.Commit.Get(owner, repositoryName, masterReference.Object.Sha).ConfigureAwait(false); // Get the laster commit of this branch
 			var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
 
-			// 2. Create the blob(s) corresponding to your file(s)
-			var textBlob = new NewBlob
-			{
-				Encoding = EncodingType.Utf8,
-				Content = markdownReport
-			};
-			var textBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, textBlob).ConfigureAwait(false);
-
-			// 3. Create a new tree with:
+			// Create the blobs corresponding corresponding to the reports and add them to the tree
 			const string FILE_MODE = "100644";
-			tree.Tree.Add(new NewTreeItem
+			if (_options.MarkdownReportToRepo)
 			{
-				Path = "Audit.md",
-				Mode = FILE_MODE,
-				Type = TreeType.Blob,
-				Sha = textBlobRef.Sha
-			});
+				var makdownReportBlob = new NewBlob
+				{
+					Encoding = EncodingType.Utf8,
+					Content = markdownReport
+				};
+				var makdownReportBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, makdownReportBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = "Audit.md",
+					Mode = FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = makdownReportBlobRef.Sha
+				});
+			}
+
+			if (_options.ExcelReportToRepo)
+			{
+				var excelReportBlob = new NewBlob
+				{
+					Encoding = EncodingType.Base64,
+					Content = Convert.ToBase64String(excelReport, Base64FormattingOptions.None)
+				};
+				var excelReportBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, excelReportBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = "Audit.xlsx",
+					Mode = FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = excelReportBlobRef.Sha
+				});
+			}
+
+			// Create a new tree
 			var newTree = _githubClient.Git.Tree.Create(owner, repositoryName, tree).Result;
 
-			// 4. Create the commit with the SHAs of the tree and the reference of master branch
-			// Create Commit
+			// Create the commit with the SHAs of the tree and the reference of master branch
 			var newCommit = new NewCommit("Update addin audit", newTree.Sha, masterReference.Object.Sha);
 			var commit = _githubClient.Git.Commit.Create(owner, repositoryName, newCommit).Result;
 
-			// 5. Update the reference of master branch with the SHA of the commit
+			// Update the reference of master branch with the SHA of the commit
 			// Update HEAD with the commit
 			await _githubClient.Git.Reference.Update(owner, repositoryName, headMasterRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
 		}
