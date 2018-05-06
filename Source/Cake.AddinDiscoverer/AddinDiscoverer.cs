@@ -111,6 +111,14 @@ namespace Cake.AddinDiscoverer
 				(addin) => null,
 				DataDestination.All
 			),
+			(
+				"Transferred to cake-contrib",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.TransferedToCakeContribOrganisation.ToString().ToLower(),
+				(addin) => addin.AnalysisResult.TransferedToCakeContribOrganisation ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				DataDestination.Excel
+			),
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 #pragma warning restore SA1008 // Opening parenthesis should be spaced correctly
@@ -776,6 +784,7 @@ namespace Cake.AddinDiscoverer
 
 						addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri.EqualsIgnoreCase(CAKECONTRIB_ICON_URL);
 						addin.AnalysisResult.HasYamlFileOnWebSite = addin.Source.HasFlag(AddinMetadataSource.Yaml);
+						addin.AnalysisResult.TransferedToCakeContribOrganisation = addin.GithubRepoOwner?.Equals("cake-contrib", StringComparison.OrdinalIgnoreCase) ?? false;
 					}
 
 					if (addin.GithubRepoUrl == null)
@@ -1000,6 +1009,7 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TargetsExpectedFramework) / (double)auditedAddins.Count():P1} are targeting the desired .NET framework");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingCakeContribIcon) / (double)auditedAddins.Count():P1} are using the cake-contrib icon");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.HasYamlFileOnWebSite) / (double)auditedAddins.Count():P1} have a YAML file on the cake web site");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferedToCakeContribOrganisation) / (double)auditedAddins.Count():P1} have been transfered to the cake-contrib organisation");
 			markdown.AppendLine();
 
 			var addinsReferencingCakeCore = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion));
@@ -1012,6 +1022,16 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine($"- Of the {addinsReferencingCakeCommon.Count()} audited addins that reference Cake.Common:");
 			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsUpToDate) / (double)addinsReferencingCakeCommon.Count():P1} are targeting the desired version of Cake.Common");
 			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsPrivate) / (double)addinsReferencingCakeCommon.Count():P1} have marked the reference to Cake.Common as private");
+			markdown.AppendLine();
+
+			markdown.AppendLine("# Excel");
+			markdown.AppendLine();
+			markdown.AppendLine("Due to space constraints we couldn't fit all audit information in this page so we generated an Excel spreadsheet that contains the following additional information:");
+			markdown.AppendLine($"- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon.");
+			markdown.AppendLine($"- The `YAML` column indicates if there is a `.yml` file describing the addin in this [repo](https://github.com/cake-build/website/tree/develop/addins).");
+			markdown.AppendLine("- The `Transferred to cake-contrib` column indicates if the project has been moved to the cake-contrib github organisation.");
+			markdown.AppendLine();
+			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
 			markdown.AppendLine();
 
 			// Title

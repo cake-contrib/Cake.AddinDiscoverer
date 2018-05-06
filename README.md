@@ -39,6 +39,7 @@ The best practice this tool inspects for are:
 3. Your plugin does not target multiple .NET frameworks and only targets `netstandard2.0`
 4. Your plugin uses the "cake-contrib" icon
 5. There is a YAML file describing your plugin on the Cake website
+6. The project has been move to the cake-contrib organisation
 
 ## Command Line arguments
 
