@@ -45,63 +45,71 @@ namespace Cake.AddinDiscoverer
 #pragma warning disable SA1000 // Keywords should be spaced correctly
 #pragma warning disable SA1008 // Opening parenthesis should be spaced correctly
 #pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
-		private readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink)[] _reportColumns = new(string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink)[]
+		private readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, DataDestination destination)[] _reportColumns = new(string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, DataDestination Destination)[]
 		{
 			(
 				"Name",
 				ExcelHorizontalAlignment.Left,
 				(addin) => addin.Name,
 				(addin) => Color.Empty,
-				(addin) => addin.GithubRepoUrl ?? addin.NugetPackageUrl
+				(addin) => addin.GithubRepoUrl ?? addin.NugetPackageUrl,
+				DataDestination.All
 			),
 			(
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCoreVersion,
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsUpToDate ? Color.LightGreen : Color.Red),
-				(addin) => null
+				(addin) => null,
+				DataDestination.All
 			),
 			(
 				"Cake Core IsPrivate",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? string.Empty : addin.AnalysisResult.CakeCoreIsPrivate.ToString().ToLower(),
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red),
-				(addin) => null
+				(addin) => null,
+				DataDestination.All
 			),
 			(
 				"Cake Common Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCommonVersion,
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsUpToDate ? Color.LightGreen : Color.Red),
-				(addin) => null
+				(addin) => null,
+				DataDestination.All
 			),
 			(
 				"Cake Common IsPrivate",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? string.Empty : addin.AnalysisResult.CakeCommonIsPrivate.ToString().ToLower(),
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red),
-				(addin) => null
+				(addin) => null,
+				DataDestination.All
 			),
 			(
 				"Framework",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.Join(", ", addin.Frameworks),
 				(addin) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (addin.AnalysisResult.TargetsExpectedFramework ? Color.LightGreen : Color.Red),
-				(addin) => null
+				(addin) => null,
+				DataDestination.All
 			),
 			(
 				"Icon",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.UsingCakeContribIcon.ToString().ToLower(),
 				(addin) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red,
-				(addin) => null
+				(addin) => null,
+				DataDestination.All
 			),
 			(
 				"YAML",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite.ToString().ToLower(),
 				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite ? Color.LightGreen : Color.Red,
-				(addin) => null
+				(addin) => null,
+				DataDestination.All
 			),
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
@@ -855,6 +863,11 @@ namespace Cake.AddinDiscoverer
 				var auditedAddins = addins.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes));
 				var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
 
+				var reportColumns = _reportColumns
+					.Where(column => column.destination.HasFlag(DataDestination.Excel))
+					.Select((data, index) => new { Index = index, Data = data })
+					.ToArray();
+
 				var namedStyle = package.Workbook.Styles.CreateNamedStyle("HyperLink");
 				namedStyle.Style.Font.UnderLine = true;
 				namedStyle.Style.Font.Color.SetColor(Color.Blue);
@@ -862,9 +875,9 @@ namespace Cake.AddinDiscoverer
 				var worksheet = package.Workbook.Worksheets.Add("Addins");
 
 				// Header row
-				for (int i = 0; i < _reportColumns.Length; i++)
+				foreach (var column in reportColumns)
 				{
-					worksheet.Cells[1, i + 1].Value = _reportColumns[i].Header;
+					worksheet.Cells[1, column.Index + 1].Value = column.Data.Header;
 				}
 
 				// One row per audited addin
@@ -873,19 +886,19 @@ namespace Cake.AddinDiscoverer
 				{
 					row++;
 
-					for (int i = 1; i < _reportColumns.Length; i++)
+					foreach (var column in reportColumns)
 					{
-						var cell = worksheet.Cells[row, i + 1];
-						cell.Value = _reportColumns[i].GetContent(addin);
+						var cell = worksheet.Cells[row, column.Index + 1];
+						cell.Value = column.Data.GetContent(addin);
 
-						var color = _reportColumns[i].GetCellColor(addin);
+						var color = column.Data.GetCellColor(addin);
 						if (color != Color.Empty)
 						{
 							cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
 							cell.Style.Fill.BackgroundColor.SetColor(color);
 						}
 
-						var hyperlink = _reportColumns[i].GetHyperLink(addin);
+						var hyperlink = column.Data.GetHyperLink(addin);
 						if (hyperlink != null)
 						{
 							cell.Hyperlink = hyperlink;
@@ -896,25 +909,25 @@ namespace Cake.AddinDiscoverer
 
 				// Freeze the top row and setup auto-filter
 				worksheet.View.FreezePanes(2, 1);
-				worksheet.Cells[1, 1, 1, _reportColumns.Length].AutoFilter = true;
+				worksheet.Cells[1, 1, 1, reportColumns.Length].AutoFilter = true;
 
 				// Format the worksheet
 				worksheet.Row(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 				if (auditedAddins.Any())
 				{
-					for (int i = 0; i < _reportColumns.Length; i++)
+					foreach (var column in reportColumns)
 					{
-						worksheet.Cells[2, i + 1, row, i + 1].Style.HorizontalAlignment = _reportColumns[i].Align;
+						worksheet.Cells[2, column.Index + 1, row, column.Index + 1].Style.HorizontalAlignment = column.Data.Align;
 					}
 				}
 
 				// Resize columns
-				worksheet.Cells[1, 1, row, _reportColumns.Length].AutoFitColumns();
+				worksheet.Cells[1, 1, row, reportColumns.Length].AutoFitColumns();
 
 				// Make columns a little bit wider to account for the filter "drop-down arrow" button
-				for (int i = 0; i < _reportColumns.Length; i++)
+				foreach (var column in reportColumns)
 				{
-					worksheet.Column(i + 1).Width = worksheet.Column(i + 1).Width + 2.14;
+					worksheet.Column(column.Index + 1).Width += 2.14;
 				}
 
 				// Exceptions report
@@ -949,6 +962,11 @@ namespace Cake.AddinDiscoverer
 
 			var auditedAddins = addins.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes));
 			var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
+
+			var reportColumns = _reportColumns
+				.Where(column => column.destination.HasFlag(DataDestination.Markdown))
+				.Select((data, index) => new { Index = index, Data = data })
+				.ToArray();
 
 			var version = string.Empty;
 			var assemblyVersion = typeof(AddinDiscoverer).GetTypeInfo().Assembly.GetName().Version;
@@ -1001,20 +1019,20 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine();
 
 			// Header row 1
-			for (int i = 0; i < _reportColumns.Length; i++)
+			foreach (var column in reportColumns)
 			{
-				markdown.Append($"| {_reportColumns[i].Header} ");
+				markdown.Append($"| {column.Data.Header} ");
 			}
 
 			markdown.AppendLine("|");
 
 			// Header row 2
-			for (int i = 0; i < _reportColumns.Length; i++)
+			foreach (var column in reportColumns)
 			{
 				markdown.Append("| ");
-				if (_reportColumns[i].Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
+				if (column.Data.Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
 				markdown.Append("---");
-				if (_reportColumns[i].Align == ExcelHorizontalAlignment.Right || _reportColumns[i].Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
+				if (column.Data.Align == ExcelHorizontalAlignment.Right || column.Data.Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
 				markdown.Append(" ");
 			}
 
@@ -1023,11 +1041,11 @@ namespace Cake.AddinDiscoverer
 			// One row per addin
 			foreach (var addin in auditedAddins.OrderBy(p => p.Name))
 			{
-				for (int i = 0; i < _reportColumns.Length; i++)
+				foreach (var column in reportColumns)
 				{
-					var content = _reportColumns[i].GetContent(addin);
-					var hyperlink = _reportColumns[i].GetHyperLink(addin);
-					var color = _reportColumns[i].GetCellColor(addin);
+					var content = column.Data.GetContent(addin);
+					var hyperlink = column.Data.GetHyperLink(addin);
+					var color = column.Data.GetCellColor(addin);
 
 					var emoji = string.Empty;
 					if (color == Color.LightGreen) emoji = GREEN_EMOJI;
