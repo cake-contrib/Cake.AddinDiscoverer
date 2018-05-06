@@ -1027,8 +1027,6 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine("# Excel");
 			markdown.AppendLine();
 			markdown.AppendLine("Due to space constraints we couldn't fit all audit information in this page so we generated an Excel spreadsheet that contains the following additional information:");
-			markdown.AppendLine($"- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon.");
-			markdown.AppendLine($"- The `YAML` column indicates if there is a `.yml` file describing the addin in this [repo](https://github.com/cake-build/website/tree/develop/addins).");
 			markdown.AppendLine("- The `Transferred to cake-contrib` column indicates if the project has been moved to the cake-contrib github organisation.");
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
