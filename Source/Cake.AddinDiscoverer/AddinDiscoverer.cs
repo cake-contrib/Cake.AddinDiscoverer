@@ -664,7 +664,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> FindGithubIssueAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.Write("  Finding Github issues");
+			Console.WriteLine("  Finding Github issues");
 			var tasks = addins
 				.Select(async addin =>
 				{
@@ -748,8 +748,8 @@ namespace Cake.AddinDiscoverer
 						{
 							var cakeCommonVersion = FormatVersion(cakeCommonReference.Min(r => r.Version));
 							var cakeCommonIsPrivate = cakeCommonReference.All(r => r.IsPrivate);
-							addin.AnalysisResult.CakeCommonVersion = FormatVersion(cakeCommonReference.Min(r => r.Version));
-							addin.AnalysisResult.CakeCommonIsPrivate = cakeCommonReference.All(r => r.IsPrivate);
+							addin.AnalysisResult.CakeCommonVersion = cakeCommonVersion;
+							addin.AnalysisResult.CakeCommonIsPrivate = cakeCommonIsPrivate;
 							addin.AnalysisResult.CakeCommonIsUpToDate = IsUpToDate(cakeCommonVersion, _options.RecommendedCakeVersion);
 						}
 						else
@@ -803,18 +803,24 @@ namespace Cake.AddinDiscoverer
 					if (addin.GithubRepoUrl != null && addin.GithubIssueUrl == null)
 					{
 						var issuesDescription = new StringBuilder();
-						if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) &&
-							addin.AnalysisResult.CakeCoreVersion != UNKNOWN_VERSION &&
-							!addin.AnalysisResult.CakeCoreIsUpToDate)
+						if (addin.AnalysisResult.CakeCoreVersion == UNKNOWN_VERSION)
+						{
+							issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Core your addin is referencing. Please make sure you are referencing {_options.RecommendedCakeVersion}\r\n");
+						}
+						else if (!addin.AnalysisResult.CakeCoreIsUpToDate)
 						{
 							issuesDescription.Append($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
 						}
-						if (!string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) &&
-							addin.AnalysisResult.CakeCommonVersion != UNKNOWN_VERSION &&
-							!addin.AnalysisResult.CakeCommonIsUpToDate)
+
+						if (addin.AnalysisResult.CakeCommonVersion == UNKNOWN_VERSION)
+						{
+							issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Common your addin is referencing. Please make sure you are referencing {_options.RecommendedCakeVersion}\r\n");
+						}
+						else if (!addin.AnalysisResult.CakeCommonIsUpToDate)
 						{
 							issuesDescription.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
 						}
+
 						if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.Append($"- [ ] The Cake.Core reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Core\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
 						if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.Append($"- [ ] The Cake.Common reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
 						if (!addin.AnalysisResult.TargetsExpectedFramework) issuesDescription.Append("- [ ] Your addin should target netstandard2.0\r\nPlease note that there is no need to multi-target: as of Cake 0.26.0, netstandard2.0 is sufficient.\r\n");
