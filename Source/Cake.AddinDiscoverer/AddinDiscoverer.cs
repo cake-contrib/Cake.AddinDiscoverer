@@ -1290,10 +1290,10 @@ namespace Cake.AddinDiscoverer
 		{
 			if (!_options.MarkdownReportToRepo && !_options.ExcelReportToRepo) return;
 
-			Console.WriteLine("  Commiting reports to cake-contrib/home repo");
-
-			var repositoryName = "Home";
 			var owner = "cake-contrib";
+			var repositoryName = "Home";
+
+			Console.WriteLine($"  Committing reports to {owner}/{repositoryName} repo");
 
 			// Get the SHA of the latest commit of the master branch.
 			var headMasterRef = "heads/master";
