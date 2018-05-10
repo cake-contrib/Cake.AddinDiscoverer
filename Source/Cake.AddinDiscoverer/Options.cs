@@ -19,13 +19,16 @@ namespace Cake.AddinDiscoverer
 		[Option('i', "issue", Default = false, HelpText = "Create issue in Github repositories that do not meet recommendations.")]
 		public bool CreateGithubIssue { get; set; }
 
-		[Option('e', "excel", Default = false, HelpText = "Generate the Excel report.")]
-		public bool GenerateExcelReport { get; set; }
+		[Option('e', "exceltofile", Default = false, HelpText = "Generate the Excel report and write to a file.")]
+		public bool ExcelReportToFile { get; set; }
 
-		[Option('m', "markdown", Default = false, HelpText = "Generate the Markdown report and write in a file.")]
+		[Option('x', "exceltorepo", Default = false, HelpText = "Generate the Excel report and commit to cake-contrib repo.")]
+		public bool ExcelReportToRepo { get; set; }
+
+		[Option('m', "markdowntofile", Default = false, HelpText = "Generate the Markdown report and write to a file.")]
 		public bool MarkdownReportToFile { get; set; }
 
-		[Option('r', "markdown", Default = false, HelpText = "Generate the Markdown report and commit to cake-contrib repo.")]
+		[Option('r', "markdowntorepo", Default = false, HelpText = "Generate the Markdown report and commit to cake-contrib repo.")]
 		public bool MarkdownReportToRepo { get; set; }
 
 		[Option('t', "tempfolder", Required = false, HelpText = "Folder where temporary files (including reports) are saved.")]

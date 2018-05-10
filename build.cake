@@ -163,7 +163,11 @@ Task("Run")
 		{ "-p", $"\"{gitHubPassword}\"" },
 	};
 	if (clearCache) args.Add("-c", null);
-	if (isMainBranch) args.Add("-r", null);
+	if (isMainBranch)
+	{
+		args.Add("-r", null);
+		args.Add("-x", null);
+	}
 
 	// Display the command we are about to execute (be careful to avoid displaying the password)
 	var safeArgs = args.Where(arg => arg.Key != "-p").Union(new[] { new KeyValuePair<string, string>("-p", "\"<REDACTED>\"") });
