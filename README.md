@@ -7,7 +7,7 @@ This console application performs the following steps:
 1. Discovers the addins listed as YAML files in the `Addins` folder of the `website` repo under the `cake-build` organization (https://github.com/cake-build/website/tree/develop/addins)
 2. Discovers the addins listed in the `Status.md` file in the `home` repo under the `cake-contrib` organization (https://raw.githubusercontent.com/cake-contrib/Home/master/Status.md').
 
-    **PLEASE NOTE**: this file contains several sections such as "Recipes", "Modules", "Websites", "Addins", "Work In Progress", "Needs Investigation" and "Deprecated". I am making the assumption that we only care about addins listed under 3 of those sections: "Recipes", "Modules" and "Addins".
+    **PLEASE NOTE**: this file contains several sections such as "Recipes", "Modules", "Websites", "Addins", "Work In Progress", "Needs Investigation" and "Deprecated". I am making the assumption that we only care about addins listed under 2 of those sections: "Modules" and "Addins".
 
 3. If the URL for the discovered addin is not pointing to the GitHub repo, attempts to figure out the repo URL by searching for the `Project Site` link on package's nuget page.
  
@@ -39,22 +39,26 @@ The best practice this tool inspects for are:
 3. Your plugin does not target multiple .NET frameworks and only targets `netstandard2.0`
 4. Your plugin uses the "cake-contrib" icon
 5. There is a YAML file describing your plugin on the Cake website
+6. The project has been move to the cake-contrib organisation
 
 ## Command Line arguments
 
 You can invoke this tool with the following arguments:
 
 ```csharp
--c, --clearcache     (Default: false) Clear the list of addins that was previously cached.
--e, --excel          (Default: false) Generate the Excel report.
--i, --issue          (Default: false) Create issue in Github repositories that do not meet recommendations.
--m, --markdown       (Default: false) Generate the Markdown report.
--p, --password       Github password.
--t, --tempfolder     Folder where temporary files (including reports) are saved.
--u, --user           Github username.
--v, --cakeversion    Required. The recommended Cake version. e.g.: 0.26.0
---help               Display this help screen.
---version            Display version information.
+  -a, --addinname         Name of the specific addin to be audited. If omitted, all addins are audited.
+  -c, --clearcache        (Default: false) Clear the list of addins that was previously cached.
+  -u, --user              Github username.
+  -p, --password          Github password.
+  -i, --issue             (Default: false) Create issue in Github repositories that do not meet recommendations.
+  -e, --exceltofile       (Default: false) Generate the Excel report and write to a file.
+  -x, --exceltorepo       (Default: false) Generate the Excel report and commit to cake-contrib repo.
+  -m, --markdowntofile    (Default: false) Generate the Markdown report and write to a file.
+  -r, --markdowntorepo    (Default: false) Generate the Markdown report and commit to cake-contrib repo.
+  -t, --tempfolder        Folder where temporary files (including reports) are saved.
+  -v, --cakeversion       Required. The recommended Cake version. e.g.: 0.26.0
+  --help                  Display this help screen.
+  --version               Display version information.
 ```
 
 ## Important note

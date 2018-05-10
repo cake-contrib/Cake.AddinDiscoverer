@@ -51,6 +51,11 @@
 		public bool HasYamlFileOnWebSite { get; set; }
 
 		/// <summary>
+		/// Gets or sets a value indicating whether the addin was transfered to the cake-contrib github organisation
+		/// </summary>
+		public bool TransferedToCakeContribOrganisation { get; set; }
+
+		/// <summary>
 		/// Gets or sets notes (such as error messages)
 		/// </summary>
 		public string Notes { get; set; }
