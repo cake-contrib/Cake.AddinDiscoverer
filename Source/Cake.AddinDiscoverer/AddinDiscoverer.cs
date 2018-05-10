@@ -160,7 +160,7 @@ namespace Cake.AddinDiscoverer
 			try
 			{
 				var excelReportPath = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.xlsx");
-				var markdownReportPath = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.md"); ;
+				var markdownReportPath = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.md");
 
 				if (_options.ClearCache && Directory.Exists(_tempFolder))
 				{
