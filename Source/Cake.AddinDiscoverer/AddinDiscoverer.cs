@@ -1020,22 +1020,22 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine();
 
 			markdown.AppendLine($"- Of the {auditedAddins.Count()} audited addins:");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TargetsExpectedFramework) / (double)auditedAddins.Count():P1} are targeting the desired .NET framework");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingCakeContribIcon) / (double)auditedAddins.Count():P1} are using the cake-contrib icon");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.HasYamlFileOnWebSite) / (double)auditedAddins.Count():P1} have a YAML file on the cake web site");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferedToCakeContribOrganisation) / (double)auditedAddins.Count():P1} have been transfered to the cake-contrib organisation");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TargetsExpectedFramework)} are targeting the desired .NET framework");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingCakeContribIcon)} are using the cake-contrib icon");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.HasYamlFileOnWebSite)} have a YAML file on the cake web site");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferedToCakeContribOrganisation)} have been transfered to the cake-contrib organisation");
 			markdown.AppendLine();
 
 			var addinsReferencingCakeCore = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion));
 			markdown.AppendLine($"- Of the {addinsReferencingCakeCore.Count()} audited addins that reference Cake.Core:");
-			markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsUpToDate) / (double)addinsReferencingCakeCore.Count():P1} are targeting the desired version of Cake.Core");
-			markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsPrivate) / (double)addinsReferencingCakeCore.Count():P1} have marked the reference to Cake.Core as private");
+			markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsUpToDate)} are targeting the desired version of Cake.Core");
+			markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsPrivate)} have marked the reference to Cake.Core as private");
 			markdown.AppendLine();
 
 			var addinsReferencingCakeCommon = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion));
 			markdown.AppendLine($"- Of the {addinsReferencingCakeCommon.Count()} audited addins that reference Cake.Common:");
-			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsUpToDate) / (double)addinsReferencingCakeCommon.Count():P1} are targeting the desired version of Cake.Common");
-			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsPrivate) / (double)addinsReferencingCakeCommon.Count():P1} have marked the reference to Cake.Common as private");
+			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsUpToDate)} are targeting the desired version of Cake.Common");
+			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsPrivate)} have marked the reference to Cake.Common as private");
 			markdown.AppendLine();
 
 			markdown.AppendLine("# Excel");
