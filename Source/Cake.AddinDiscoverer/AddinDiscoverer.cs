@@ -485,7 +485,7 @@ namespace Cake.AddinDiscoverer
 									addin.ProjectPaths = parsedSolution
 										.GetProjects()
 										.Where(p => !p.Name.EndsWith(".Tests"))
-										.Select(p => string.Join('/', solutionParts.Take(solutionParts.Length - 1).Union(new DirectoryPath(folderLocation).GetRelativePath(p.Path).Segments)))
+										.Select(p => string.Join('/', solutionParts.Take(solutionParts.Length - 1).Concat(new DirectoryPath(folderLocation).GetRelativePath(p.Path).Segments)))
 										.ToArray();
 								}
 								else
