@@ -231,6 +231,10 @@ namespace Cake.AddinDiscoverer
 				normalizedAddins = await GetProjectUrlAsync(normalizedAddins).ConfigureAwait(false);
 				SaveProgress(normalizedAddins);
 
+				// Validate the project URL
+				normalizedAddins = await ValidateProjectUrlAsync(normalizedAddins).ConfigureAwait(false);
+				SaveProgress(normalizedAddins);
+
 				// Get the path to the .sln file in the github repo
 				// Please note: we use the first solution file if there is more than one
 				normalizedAddins = await FindSolutionPathAsync(normalizedAddins).ConfigureAwait(false);
@@ -425,6 +429,38 @@ namespace Cake.AddinDiscoverer
 				});
 
 			var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+			return results;
+		}
+
+		private async Task<AddinMetadata[]> ValidateProjectUrlAsync(IEnumerable<AddinMetadata> addins)
+		{
+			Console.WriteLine("  Validate the Github repo URLs");
+
+			var cakeContribRepositories = await _githubClient.Repository.GetAllForUser("cake-contrib").ConfigureAwait(false);
+
+			var results = addins
+				.Select(addin =>
+				{
+					if (addin.GithubRepoUrl == null ||
+						addin.GithubRepoUrl.Host != "github.com" ||
+						addin.GithubRepoOwner != "cake-contrib")
+					{
+						try
+						{
+							var repo = cakeContribRepositories.FirstOrDefault(r => r.Name == addin.Name);
+							if (repo != null)
+							{
+								addin.GithubRepoUrl = new Uri(repo.HtmlUrl);
+							}
+						}
+						catch (Exception e)
+						{
+							addin.AnalysisResult.Notes += $"ValidateProjectUrlAsync: {e.GetBaseException().Message}\r\n";
+						}
+					}
+					return addin;
+				});
+
 			return results.ToArray();
 		}
 
