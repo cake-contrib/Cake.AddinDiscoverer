@@ -46,17 +46,17 @@ The best practice this tool inspects for are:
 You can invoke this tool with the following arguments:
 
 ```csharp
+  -v, --cakeversion       Required. The recommended Cake version. e.g.: 0.26.0
+  -t, --tempfolder        Folder where temporary files (including reports) are saved.
   -a, --addinname         Name of the specific addin to be audited. If omitted, all addins are audited.
-  -c, --clearcache        (Default: false) Clear the list of addins that was previously cached.
   -u, --user              Github username.
   -p, --password          Github password.
+  -c, --clearcache        (Default: false) Clear the list of addins that was previously cached.
   -i, --issue             (Default: false) Create issue in Github repositories that do not meet recommendations.
   -e, --exceltofile       (Default: false) Generate the Excel report and write to a file.
   -x, --exceltorepo       (Default: false) Generate the Excel report and commit to cake-contrib repo.
   -m, --markdowntofile    (Default: false) Generate the Markdown report and write to a file.
   -r, --markdowntorepo    (Default: false) Generate the Markdown report and commit to cake-contrib repo.
-  -t, --tempfolder        Folder where temporary files (including reports) are saved.
-  -v, --cakeversion       Required. The recommended Cake version. e.g.: 0.26.0
   --help                  Display this help screen.
   --version               Display version information.
 ```
