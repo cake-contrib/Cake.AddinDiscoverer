@@ -162,6 +162,8 @@ namespace Cake.AddinDiscoverer
 				var excelReportPath = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.xlsx");
 				var markdownReportPath = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.md");
 
+				Console.WriteLine("Clean up");
+
 				if (_options.ClearCache && Directory.Exists(_tempFolder))
 				{
 					Directory.Delete(_tempFolder, true);
@@ -187,10 +189,10 @@ namespace Cake.AddinDiscoverer
 
 				if (!normalizedAddins.Any())
 				{
-					// Step 1 - Discover Cake Addins by going through the '.yml' files in https://github.com/cake-build/website/tree/develop/addins
+					// Discover Cake Addins by going through the '.yml' files in https://github.com/cake-build/website/tree/develop/addins
 					var addinsDiscoveredByYaml = await DiscoverCakeAddinsByYmlAsync().ConfigureAwait(false);
 
-					// Step 2 - Discover Cake addins by looking at the "Recipe", "Modules" and "Addins" section in 'https://raw.githubusercontent.com/cake-contrib/Home/master/Status.md'
+					// Discover Cake addins by looking at the "Modules" and "Addins" sections in 'https://raw.githubusercontent.com/cake-contrib/Home/master/Status.md'
 					var addinsDiscoveredByWebsiteList = await DiscoverCakeAddinsByWebsiteList().ConfigureAwait(false);
 
 					// Combine all the discovered addins
@@ -221,69 +223,73 @@ namespace Cake.AddinDiscoverer
 					}
 				}
 
-				// Step 3 - reset the summary
+				// Reset the summary
 				normalizedAddins = ResetSummaryAsync(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
-				// Step 4 - get the project URL
+				// Get the project URL
 				normalizedAddins = await GetProjectUrlAsync(normalizedAddins).ConfigureAwait(false);
 				SaveProgress(normalizedAddins);
 
-				// Step 5 - get the path to the .sln file in the github repo
+				// Validate the project URL
+				normalizedAddins = await ValidateProjectUrlAsync(normalizedAddins).ConfigureAwait(false);
+				SaveProgress(normalizedAddins);
+
+				// Get the path to the .sln file in the github repo
 				// Please note: we use the first solution file if there is more than one
 				normalizedAddins = await FindSolutionPathAsync(normalizedAddins).ConfigureAwait(false);
 				SaveProgress(normalizedAddins);
 
-				// Step 6 - download a copy of the sln file which simplyfies parsing this file in subsequent steps
+				// Download a copy of the sln file which simplyfies parsing this file in subsequent steps
 				await DownloadSolutionFileAsync(normalizedAddins).ConfigureAwait(false);
 
-				// Step 7 - get the path to the .csproj file(s)
+				// Get the path to the .csproj file(s)
 				normalizedAddins = FindProjectPathAsync(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
-				// Step 8 - download a copy of the csproj file(s) which simplyfies parsing this file in subsequent steps
+				// Download a copy of the csproj file(s) which simplyfies parsing this file in subsequent steps
 				await DownloadProjectFilesAsync(normalizedAddins).ConfigureAwait(false);
 
-				// Step 9 - download package metadata from Nuget.org
+				// Download package metadata from Nuget.org
 				await DownloadNugetMetadataAsync(normalizedAddins).ConfigureAwait(false);
 
-				// Step 10 - parse the csproj and find all references
+				// Parse the csproj and find all references
 				normalizedAddins = FindReferencesAsync(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
-				// Step 11 - parse the csproj and find targeted framework(s)
+				// Parse the csproj and find targeted framework(s)
 				normalizedAddins = FindFrameworksAsync(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
-				// Step 12 - determine if an issue already exists in the Github repo
+				// Determine if an issue already exists in the Github repo
 				if (_options.CreateGithubIssue)
 				{
 					normalizedAddins = await FindGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
 					SaveProgress(normalizedAddins);
 				}
 
-				// Step 13 - find the addin icon
+				// Find the addin icon
 				normalizedAddins = FindIconAsync(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
-				// Step 14 - analyze
+				// Analyze
 				normalizedAddins = AnalyzeAddinAsync(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
-				// Step 15 - create an issue in the Github repo
+				// Create an issue in the Github repo
 				if (_options.CreateGithubIssue)
 				{
 					normalizedAddins = await CreateGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
 					SaveProgress(normalizedAddins);
 				}
 
-				// Step 16 - generate the excel report and save to a file
+				// Generate the excel report and save to a file
 				GenerateExcelReport(normalizedAddins, excelReportPath);
 
-				// Step 17 - generate the markdown report and write to file
+				// Generate the markdown report and write to file
 				await GenerateMarkdownReport(normalizedAddins, markdownReportPath).ConfigureAwait(false);
 
-				// Step 18 - commit the reports to the cake-contrib repo
+				// Commit the reports to the cake-contrib repo
 				await CommitReportsToRepoAsync(excelReportPath, markdownReportPath).ConfigureAwait(false);
 			}
 			catch (Exception e)
@@ -423,6 +429,38 @@ namespace Cake.AddinDiscoverer
 				});
 
 			var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+			return results;
+		}
+
+		private async Task<AddinMetadata[]> ValidateProjectUrlAsync(IEnumerable<AddinMetadata> addins)
+		{
+			Console.WriteLine("  Validate Github repo URLs");
+
+			var cakeContribRepositories = await _githubClient.Repository.GetAllForUser("cake-contrib").ConfigureAwait(false);
+
+			var results = addins
+				.Select(addin =>
+				{
+					if (addin.GithubRepoUrl == null ||
+						addin.GithubRepoUrl.Host != "github.com" ||
+						addin.GithubRepoOwner != "cake-contrib")
+					{
+						try
+						{
+							var repo = cakeContribRepositories.FirstOrDefault(r => r.Name == addin.Name);
+							if (repo != null)
+							{
+								addin.GithubRepoUrl = new Uri(repo.HtmlUrl);
+							}
+						}
+						catch (Exception e)
+						{
+							addin.AnalysisResult.Notes += $"ValidateProjectUrlAsync: {e.GetBaseException().Message}\r\n";
+						}
+					}
+					return addin;
+				});
+
 			return results.ToArray();
 		}
 
