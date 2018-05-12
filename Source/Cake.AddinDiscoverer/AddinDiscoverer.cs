@@ -434,7 +434,7 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> ValidateProjectUrlAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Validate the Github repo URLs");
+			Console.WriteLine("  Validate Github repo URLs");
 
 			var cakeContribRepositories = await _githubClient.Repository.GetAllForUser("cake-contrib").ConfigureAwait(false);
 
