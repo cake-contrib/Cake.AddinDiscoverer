@@ -1371,7 +1371,7 @@ namespace Cake.AddinDiscoverer
 			var newTree = await _githubClient.Git.Tree.Create(owner, repositoryName, tree).ConfigureAwait(false);
 
 			// Create the commit with the SHAs of the tree and the reference of master branch
-			var newCommit = new NewCommit("Update addin audit", newTree.Sha, masterReference.Object.Sha);
+			var newCommit = new NewCommit($"Automated addins audit {DateTime.UtcNow:yyyy-MM-dd} at {DateTime.UtcNow:HH:mm} UTC", newTree.Sha, masterReference.Object.Sha);
 			var commit = _githubClient.Git.Commit.Create(owner, repositoryName, newCommit).Result;
 
 			// Update the reference of master branch with the SHA of the commit
