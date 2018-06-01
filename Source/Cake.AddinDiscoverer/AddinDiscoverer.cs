@@ -74,7 +74,7 @@ namespace Cake.AddinDiscoverer
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCoreVersion,
-				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (IsUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
@@ -90,7 +90,7 @@ namespace Cake.AddinDiscoverer
 				"Cake Common Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCommonVersion,
-				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (IsUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
@@ -106,7 +106,7 @@ namespace Cake.AddinDiscoverer
 				"Framework",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.Join(", ", addin.Frameworks),
-				(addin, cakeVersion) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (addin.Frameworks.Length == 1 && addin.Frameworks[0].EqualsIgnoreCase(cakeVersion.Framework) ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (IsFrameworkUpToDate(addin.Frameworks, cakeVersion.Framework) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
@@ -288,11 +288,11 @@ namespace Cake.AddinDiscoverer
 				SaveProgress(normalizedAddins);
 
 				// Create an issue in the Github repo
-				//if (_options.CreateGithubIssue)
-				//{
-				//	normalizedAddins = await CreateGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
-				//	SaveProgress(normalizedAddins);
-				//}
+				if (_options.CreateGithubIssue)
+				{
+					normalizedAddins = await CreateGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
+					SaveProgress(normalizedAddins);
+				}
 
 				// Generate the excel report and save to a file
 				GenerateExcelReport(normalizedAddins, excelReportPath);
@@ -301,7 +301,7 @@ namespace Cake.AddinDiscoverer
 				await GenerateMarkdownReport(normalizedAddins, markdownReportPath).ConfigureAwait(false);
 
 				// Commit the reports to the cake-contrib repo
-				await CommitReportsToRepoAsync(excelReportPath, markdownReportPath).ConfigureAwait(false);
+				await CommitReportsToRepoAsync().ConfigureAwait(false);
 			}
 			catch (Exception e)
 			{
@@ -310,7 +310,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private static bool IsUpToDate(string currentVersion, string desiredVersion)
+		private static bool IsCakeVersionUpToDate(string currentVersion, string desiredVersion)
 		{
 			if (string.IsNullOrEmpty(currentVersion)) return false;
 
@@ -325,6 +325,13 @@ namespace Cake.AddinDiscoverer
 			}
 
 			return true;
+		}
+
+		private static bool IsFrameworkUpToDate(string[] currentFrameworks, string desiredFramework)
+		{
+			if (currentFrameworks == null) return false;
+			else if (currentFrameworks.Length != 1) return false;
+			else return currentFrameworks[0].EqualsIgnoreCase(desiredFramework);
 		}
 
 		/// <summary>
@@ -856,63 +863,69 @@ namespace Cake.AddinDiscoverer
 			return results.ToArray();
 		}
 
-		//private async Task<AddinMetadata[]> CreateGithubIssueAsync(IEnumerable<AddinMetadata> addins)
-		//{
-		//	Console.WriteLine("  Creating Github issues");
+		private async Task<AddinMetadata[]> CreateGithubIssueAsync(IEnumerable<AddinMetadata> addins)
+		{
+			Console.WriteLine("  Creating Github issues");
 
-		//	var addinsMetadata = await addins
-		//		.ForEachAsync(
-		//			async addin =>
-		//			{
-		//				if (addin.GithubRepoUrl != null && addin.GithubIssueUrl == null)
-		//				{
-		//					var issuesDescription = new StringBuilder();
-		//					if (addin.AnalysisResult.CakeCoreVersion == UNKNOWN_VERSION)
-		//					{
-		//						issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Core your addin is referencing. Please make sure you are referencing {_options.RecommendedCakeVersion}\r\n");
-		//					}
-		//					else if (!addin.AnalysisResult.CakeCoreIsUpToDate)
-		//					{
-		//						issuesDescription.Append($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
-		//					}
+			var recommendedCakeVersion = _cakeVersions
+				.OrderByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[0]))
+				.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[1]))
+				.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[2]))
+				.First();
 
-		//					if (addin.AnalysisResult.CakeCommonVersion == UNKNOWN_VERSION)
-		//					{
-		//						issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Common your addin is referencing. Please make sure you are referencing {_options.RecommendedCakeVersion}\r\n");
-		//					}
-		//					else if (!addin.AnalysisResult.CakeCommonIsUpToDate)
-		//					{
-		//						issuesDescription.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
-		//					}
+			var addinsMetadata = await addins
+				.ForEachAsync(
+					async addin =>
+					{
+						if (addin.GithubRepoUrl != null && addin.GithubIssueUrl == null)
+						{
+							var issuesDescription = new StringBuilder();
+							if (addin.AnalysisResult.CakeCoreVersion == UNKNOWN_VERSION)
+							{
+								issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Core your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}\r\n");
+							}
+							else if (!IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, recommendedCakeVersion.Version))
+							{
+								issuesDescription.Append($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {recommendedCakeVersion.Version}\r\n");
+							}
 
-		//					if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.Append($"- [ ] The Cake.Core reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Core\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
-		//					if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.Append($"- [ ] The Cake.Common reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
-		//					if (!addin.AnalysisResult.TargetsExpectedFramework) issuesDescription.Append("- [ ] Your addin should target netstandard2.0\r\nPlease note that there is no need to multi-target: as of Cake 0.26.0, netstandard2.0 is sufficient.\r\n");
-		//					if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.Append($"- [ ] The nuget package for your addin should use the cake-contrib icon.\r\nSpecifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`.\r\n");
-		//					if (!addin.AnalysisResult.HasYamlFileOnWebSite) issuesDescription.Append("- [ ] There should be a YAML file describing your addin on the cake web site\r\nSpecifically, you should add a `.yml` file in this [repo](https://github.com/cake-build/website/tree/develop/addins)");
+							if (addin.AnalysisResult.CakeCommonVersion == UNKNOWN_VERSION)
+							{
+								issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Common your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}\r\n");
+							}
+							else if (!IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, recommendedCakeVersion.Version))
+							{
+								issuesDescription.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {recommendedCakeVersion.Version}\r\n");
+							}
 
-		//					if (issuesDescription.Length > 0)
-		//					{
-		//						var issueBody = "We performed an automated audit of your Cake addin and found that it does not follow all the best practices.\r\n\r\n";
-		//						issueBody += "We encourage you to make the following modifications:\r\n\r\n";
-		//						issueBody += issuesDescription.ToString();
+							if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.Append($"- [ ] The Cake.Core reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Core\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
+							if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.Append($"- [ ] The Cake.Common reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Common\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
+							if (!IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion.Framework)) issuesDescription.Append($"- [ ] Your addin should target {recommendedCakeVersion.Framework}\r\nPlease note that there is no need to multi-target, {recommendedCakeVersion.Framework} is sufficient.\r\n");
+							if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.Append($"- [ ] The nuget package for your addin should use the cake-contrib icon.\r\nSpecifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`.\r\n");
+							if (!addin.AnalysisResult.HasYamlFileOnWebSite) issuesDescription.Append("- [ ] There should be a YAML file describing your addin on the cake web site\r\nSpecifically, you should add a `.yml` file in this [repo](https://github.com/cake-build/website/tree/develop/addins)");
 
-		//						var newIssue = new NewIssue(ISSUE_TITLE)
-		//						{
-		//							Body = issueBody.ToString()
-		//						};
-		//						var issue = await _githubClient.Issue.Create(addin.GithubRepoOwner, addin.GithubRepoName, newIssue).ConfigureAwait(false);
-		//						addin.GithubIssueUrl = new Uri(issue.Url);
-		//						addin.GithubIssueId = issue.Number;
-		//					}
-		//				}
+							if (issuesDescription.Length > 0)
+							{
+								var issueBody = "We performed an automated audit of your Cake addin and found that it does not follow all the best practices.\r\n\r\n";
+								issueBody += "We encourage you to make the following modifications:\r\n\r\n";
+								issueBody += issuesDescription.ToString();
 
-		//				return addin;
-		//			}, MAX_GITHUB_CONCURENCY)
-		//		.ConfigureAwait(false);
+								var newIssue = new NewIssue(ISSUE_TITLE)
+								{
+									Body = issueBody.ToString()
+								};
+								var issue = await _githubClient.Issue.Create(addin.GithubRepoOwner, addin.GithubRepoName, newIssue).ConfigureAwait(false);
+								addin.GithubIssueUrl = new Uri(issue.Url);
+								addin.GithubIssueId = issue.Number;
+							}
+						}
 
-		//	return addinsMetadata;
-		//}
+						return addin;
+					}, MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
+
+			return addinsMetadata;
+		}
 
 		private void GenerateExcelReport(IEnumerable<AddinMetadata> addins, string saveFilePath)
 		{
@@ -1130,13 +1143,13 @@ namespace Cake.AddinDiscoverer
 
 				var addinsReferencingCakeCore = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion));
 				markdown.AppendLine($"- Of the {addinsReferencingCakeCore.Count()} audited addins that reference Cake.Core:");
-				markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => IsUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version))} are targeting the desired version of Cake.Core");
+				markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version))} are targeting the desired version of Cake.Core");
 				markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsPrivate)} have marked the reference to Cake.Core as private");
 				markdown.AppendLine();
 
 				var addinsReferencingCakeCommon = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion));
 				markdown.AppendLine($"- Of the {addinsReferencingCakeCommon.Count()} audited addins that reference Cake.Common:");
-				markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => IsUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version))} are targeting the desired version of Cake.Common");
+				markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version))} are targeting the desired version of Cake.Common");
 				markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsPrivate)} have marked the reference to Cake.Common as private");
 				markdown.AppendLine();
 
@@ -1357,7 +1370,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task CommitReportsToRepoAsync(string excelReportPath, string markdownReportPath)
+		private async Task CommitReportsToRepoAsync()
 		{
 			if (!_options.MarkdownReportToRepo && !_options.ExcelReportToRepo) return;
 
@@ -1375,37 +1388,43 @@ namespace Cake.AddinDiscoverer
 			// Create the blobs corresponding corresponding to the reports and add them to the tree
 			if (_options.ExcelReportToRepo)
 			{
-				var excelBinary = await File.ReadAllBytesAsync(excelReportPath).ConfigureAwait(false);
-				var excelReportBlob = new NewBlob
+				foreach (var excelReport in Directory.EnumerateFiles(_tempFolder, $"*.xlsx"))
 				{
-					Encoding = EncodingType.Base64,
-					Content = Convert.ToBase64String(excelBinary)
-				};
-				var excelReportBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, excelReportBlob).ConfigureAwait(false);
-				tree.Tree.Add(new NewTreeItem
-				{
-					Path = "Audit.xlsx",
-					Mode = FILE_MODE,
-					Type = TreeType.Blob,
-					Sha = excelReportBlobRef.Sha
-				});
+					var excelBinary = await File.ReadAllBytesAsync(excelReport).ConfigureAwait(false);
+					var excelReportBlob = new NewBlob
+					{
+						Encoding = EncodingType.Base64,
+						Content = Convert.ToBase64String(excelBinary)
+					};
+					var excelReportBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, excelReportBlob).ConfigureAwait(false);
+					tree.Tree.Add(new NewTreeItem
+					{
+						Path = System.IO.Path.GetFileName(excelReport),
+						Mode = FILE_MODE,
+						Type = TreeType.Blob,
+						Sha = excelReportBlobRef.Sha
+					});
+				}
 			}
 
 			if (_options.MarkdownReportToRepo)
 			{
-				var makdownReportBlob = new NewBlob
+				foreach (var markdownReport in Directory.EnumerateFiles(_tempFolder, $"*.md"))
 				{
-					Encoding = EncodingType.Utf8,
-					Content = await File.ReadAllTextAsync(markdownReportPath).ConfigureAwait(false)
-				};
-				var makdownReportBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, makdownReportBlob).ConfigureAwait(false);
-				tree.Tree.Add(new NewTreeItem
-				{
-					Path = "Audit.md",
-					Mode = FILE_MODE,
-					Type = TreeType.Blob,
-					Sha = makdownReportBlobRef.Sha
-				});
+					var makdownReportBlob = new NewBlob
+					{
+						Encoding = EncodingType.Utf8,
+						Content = await File.ReadAllTextAsync(markdownReport).ConfigureAwait(false)
+					};
+					var makdownReportBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, makdownReportBlob).ConfigureAwait(false);
+					tree.Tree.Add(new NewTreeItem
+					{
+						Path = System.IO.Path.GetFileName(markdownReport),
+						Mode = FILE_MODE,
+						Type = TreeType.Blob,
+						Sha = makdownReportBlobRef.Sha
+					});
+				}
 			}
 
 			// Create a new tree
