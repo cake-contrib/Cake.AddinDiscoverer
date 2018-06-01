@@ -43,16 +43,22 @@ namespace Cake.AddinDiscoverer
 		private readonly PackageMetadataResource _nugetPackageMetadataClient;
 		private readonly string _jsonSaveLocation;
 
+		private readonly CakeVersion[] _cakeVersions = new[]
+		{
+			new CakeVersion { Version = "0.26.0", Framework = "netstandard2.0" },
+			new CakeVersion { Version = "0.28.0", Framework = "netstandard2.0" }
+		};
+
 #pragma warning disable SA1000 // Keywords should be spaced correctly
 #pragma warning disable SA1008 // Opening parenthesis should be spaced correctly
 #pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
-		private readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, DataDestination destination)[] _reportColumns = new(string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, DataDestination Destination)[]
+		private readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, CakeVersion, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, DataDestination destination)[] _reportColumns = new(string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, CakeVersion, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, DataDestination Destination)[]
 		{
 			(
 				"Name",
 				ExcelHorizontalAlignment.Left,
 				(addin) => addin.Name,
-				(addin) => Color.Empty,
+				(addin, cakeVersion) => Color.Empty,
 				(addin) => addin.GithubRepoUrl ?? addin.NugetPackageUrl,
 				DataDestination.All
 			),
@@ -60,7 +66,7 @@ namespace Cake.AddinDiscoverer
 				"Maintainer",
 				ExcelHorizontalAlignment.Left,
 				(addin) => addin.Author ?? addin.Maintainer,
-				(addin) => Color.Empty,
+				(addin, cakeVersion) => Color.Empty,
 				(addin) => null,
 				DataDestination.Excel
 			),
@@ -68,7 +74,7 @@ namespace Cake.AddinDiscoverer
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCoreVersion,
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsUpToDate ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (IsUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
@@ -76,7 +82,7 @@ namespace Cake.AddinDiscoverer
 				"Cake Core IsPrivate",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? string.Empty : addin.AnalysisResult.CakeCoreIsPrivate.ToString().ToLower(),
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
@@ -84,7 +90,7 @@ namespace Cake.AddinDiscoverer
 				"Cake Common Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCommonVersion,
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsUpToDate ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (IsUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
@@ -92,7 +98,7 @@ namespace Cake.AddinDiscoverer
 				"Cake Common IsPrivate",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? string.Empty : addin.AnalysisResult.CakeCommonIsPrivate.ToString().ToLower(),
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
@@ -100,7 +106,7 @@ namespace Cake.AddinDiscoverer
 				"Framework",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.Join(", ", addin.Frameworks),
-				(addin) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (addin.AnalysisResult.TargetsExpectedFramework ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (addin.Frameworks.Length == 1 && addin.Frameworks[0].EqualsIgnoreCase(cakeVersion.Framework) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
@@ -108,7 +114,7 @@ namespace Cake.AddinDiscoverer
 				"Icon",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.UsingCakeContribIcon.ToString().ToLower(),
-				(addin) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red,
+				(addin, cakeVersion) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				DataDestination.Excel
 			),
@@ -116,7 +122,7 @@ namespace Cake.AddinDiscoverer
 				"YAML",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite.ToString().ToLower(),
-				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite ? Color.LightGreen : Color.Red,
+				(addin, cakeVersion) => addin.AnalysisResult.HasYamlFileOnWebSite ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				DataDestination.Excel
 			),
@@ -124,7 +130,7 @@ namespace Cake.AddinDiscoverer
 				"Transferred to cake-contrib",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.TransferedToCakeContribOrganisation.ToString().ToLower(),
-				(addin) => addin.AnalysisResult.TransferedToCakeContribOrganisation ? Color.LightGreen : Color.Red,
+				(addin, cakeVersion) => addin.AnalysisResult.TransferedToCakeContribOrganisation ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				DataDestination.Excel
 			),
@@ -159,8 +165,8 @@ namespace Cake.AddinDiscoverer
 		{
 			try
 			{
-				var excelReportPath = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.xlsx");
-				var markdownReportPath = System.IO.Path.Combine(_tempFolder, "AddinDiscoveryReport.md");
+				var excelReportPath = System.IO.Path.Combine(_tempFolder, "Audit.xlsx");
+				var markdownReportPath = System.IO.Path.Combine(_tempFolder, "Audit.md");
 
 				Console.WriteLine("Clean up");
 
@@ -178,6 +184,11 @@ namespace Cake.AddinDiscoverer
 
 				if (File.Exists(excelReportPath)) File.Delete(excelReportPath);
 				if (File.Exists(markdownReportPath)) File.Delete(markdownReportPath);
+
+				foreach (var markdownReport in Directory.EnumerateFiles(_tempFolder, $"{System.IO.Path.GetFileNameWithoutExtension(markdownReportPath)}*.md"))
+				{
+					File.Delete(markdownReport);
+				}
 
 				Console.WriteLine("Auditing the Cake Addins");
 
@@ -277,11 +288,11 @@ namespace Cake.AddinDiscoverer
 				SaveProgress(normalizedAddins);
 
 				// Create an issue in the Github repo
-				if (_options.CreateGithubIssue)
-				{
-					normalizedAddins = await CreateGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
-					SaveProgress(normalizedAddins);
-				}
+				//if (_options.CreateGithubIssue)
+				//{
+				//	normalizedAddins = await CreateGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
+				//	SaveProgress(normalizedAddins);
+				//}
 
 				// Generate the excel report and save to a file
 				GenerateExcelReport(normalizedAddins, excelReportPath);
@@ -796,10 +807,6 @@ namespace Cake.AddinDiscoverer
 			var results = addins
 				.Select(addin =>
 				{
-					addin.AnalysisResult.TargetsExpectedFramework =
-						(addin.Frameworks ?? Array.Empty<string>()).Length == 1 &&
-						addin.Frameworks[0].EqualsIgnoreCase("netstandard2.0");
-
 					if (addin.References != null)
 					{
 						var cakeCommonReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Common"));
@@ -809,13 +816,11 @@ namespace Cake.AddinDiscoverer
 							var cakeCommonIsPrivate = cakeCommonReference.All(r => r.IsPrivate);
 							addin.AnalysisResult.CakeCommonVersion = cakeCommonVersion;
 							addin.AnalysisResult.CakeCommonIsPrivate = cakeCommonIsPrivate;
-							addin.AnalysisResult.CakeCommonIsUpToDate = IsUpToDate(cakeCommonVersion, _options.RecommendedCakeVersion);
 						}
 						else
 						{
 							addin.AnalysisResult.CakeCommonVersion = string.Empty;
 							addin.AnalysisResult.CakeCommonIsPrivate = true;
-							addin.AnalysisResult.CakeCommonIsUpToDate = true;
 						}
 						var cakeCoreReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Core"));
 						if (cakeCoreReference.Any())
@@ -824,13 +829,11 @@ namespace Cake.AddinDiscoverer
 							var cakeCoreIsPrivate = cakeCoreReference.All(r => r.IsPrivate);
 							addin.AnalysisResult.CakeCoreVersion = cakeCoreVersion;
 							addin.AnalysisResult.CakeCoreIsPrivate = cakeCoreIsPrivate;
-							addin.AnalysisResult.CakeCoreIsUpToDate = IsUpToDate(cakeCoreVersion, _options.RecommendedCakeVersion);
 						}
 						else
 						{
 							addin.AnalysisResult.CakeCoreVersion = string.Empty;
 							addin.AnalysisResult.CakeCoreIsPrivate = true;
-							addin.AnalysisResult.CakeCoreIsUpToDate = true;
 						}
 
 						addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri.EqualsIgnoreCase(CAKECONTRIB_ICON_URL);
@@ -853,63 +856,63 @@ namespace Cake.AddinDiscoverer
 			return results.ToArray();
 		}
 
-		private async Task<AddinMetadata[]> CreateGithubIssueAsync(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Creating Github issues");
+		//private async Task<AddinMetadata[]> CreateGithubIssueAsync(IEnumerable<AddinMetadata> addins)
+		//{
+		//	Console.WriteLine("  Creating Github issues");
 
-			var addinsMetadata = await addins
-				.ForEachAsync(
-					async addin =>
-					{
-						if (addin.GithubRepoUrl != null && addin.GithubIssueUrl == null)
-						{
-							var issuesDescription = new StringBuilder();
-							if (addin.AnalysisResult.CakeCoreVersion == UNKNOWN_VERSION)
-							{
-								issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Core your addin is referencing. Please make sure you are referencing {_options.RecommendedCakeVersion}\r\n");
-							}
-							else if (!addin.AnalysisResult.CakeCoreIsUpToDate)
-							{
-								issuesDescription.Append($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
-							}
+		//	var addinsMetadata = await addins
+		//		.ForEachAsync(
+		//			async addin =>
+		//			{
+		//				if (addin.GithubRepoUrl != null && addin.GithubIssueUrl == null)
+		//				{
+		//					var issuesDescription = new StringBuilder();
+		//					if (addin.AnalysisResult.CakeCoreVersion == UNKNOWN_VERSION)
+		//					{
+		//						issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Core your addin is referencing. Please make sure you are referencing {_options.RecommendedCakeVersion}\r\n");
+		//					}
+		//					else if (!addin.AnalysisResult.CakeCoreIsUpToDate)
+		//					{
+		//						issuesDescription.Append($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
+		//					}
 
-							if (addin.AnalysisResult.CakeCommonVersion == UNKNOWN_VERSION)
-							{
-								issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Common your addin is referencing. Please make sure you are referencing {_options.RecommendedCakeVersion}\r\n");
-							}
-							else if (!addin.AnalysisResult.CakeCommonIsUpToDate)
-							{
-								issuesDescription.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
-							}
+		//					if (addin.AnalysisResult.CakeCommonVersion == UNKNOWN_VERSION)
+		//					{
+		//						issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Common your addin is referencing. Please make sure you are referencing {_options.RecommendedCakeVersion}\r\n");
+		//					}
+		//					else if (!addin.AnalysisResult.CakeCommonIsUpToDate)
+		//					{
+		//						issuesDescription.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {_options.RecommendedCakeVersion}\r\n");
+		//					}
 
-							if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.Append($"- [ ] The Cake.Core reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Core\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
-							if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.Append($"- [ ] The Cake.Common reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
-							if (!addin.AnalysisResult.TargetsExpectedFramework) issuesDescription.Append("- [ ] Your addin should target netstandard2.0\r\nPlease note that there is no need to multi-target: as of Cake 0.26.0, netstandard2.0 is sufficient.\r\n");
-							if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.Append($"- [ ] The nuget package for your addin should use the cake-contrib icon.\r\nSpecifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`.\r\n");
-							if (!addin.AnalysisResult.HasYamlFileOnWebSite) issuesDescription.Append("- [ ] There should be a YAML file describing your addin on the cake web site\r\nSpecifically, you should add a `.yml` file in this [repo](https://github.com/cake-build/website/tree/develop/addins)");
+		//					if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.Append($"- [ ] The Cake.Core reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Core\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
+		//					if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.Append($"- [ ] The Cake.Common reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
+		//					if (!addin.AnalysisResult.TargetsExpectedFramework) issuesDescription.Append("- [ ] Your addin should target netstandard2.0\r\nPlease note that there is no need to multi-target: as of Cake 0.26.0, netstandard2.0 is sufficient.\r\n");
+		//					if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.Append($"- [ ] The nuget package for your addin should use the cake-contrib icon.\r\nSpecifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`.\r\n");
+		//					if (!addin.AnalysisResult.HasYamlFileOnWebSite) issuesDescription.Append("- [ ] There should be a YAML file describing your addin on the cake web site\r\nSpecifically, you should add a `.yml` file in this [repo](https://github.com/cake-build/website/tree/develop/addins)");
 
-							if (issuesDescription.Length > 0)
-							{
-								var issueBody = "We performed an automated audit of your Cake addin and found that it does not follow all the best practices.\r\n\r\n";
-								issueBody += "We encourage you to make the following modifications:\r\n\r\n";
-								issueBody += issuesDescription.ToString();
+		//					if (issuesDescription.Length > 0)
+		//					{
+		//						var issueBody = "We performed an automated audit of your Cake addin and found that it does not follow all the best practices.\r\n\r\n";
+		//						issueBody += "We encourage you to make the following modifications:\r\n\r\n";
+		//						issueBody += issuesDescription.ToString();
 
-								var newIssue = new NewIssue(ISSUE_TITLE)
-								{
-									Body = issueBody.ToString()
-								};
-								var issue = await _githubClient.Issue.Create(addin.GithubRepoOwner, addin.GithubRepoName, newIssue).ConfigureAwait(false);
-								addin.GithubIssueUrl = new Uri(issue.Url);
-								addin.GithubIssueId = issue.Number;
-							}
-						}
+		//						var newIssue = new NewIssue(ISSUE_TITLE)
+		//						{
+		//							Body = issueBody.ToString()
+		//						};
+		//						var issue = await _githubClient.Issue.Create(addin.GithubRepoOwner, addin.GithubRepoName, newIssue).ConfigureAwait(false);
+		//						addin.GithubIssueUrl = new Uri(issue.Url);
+		//						addin.GithubIssueId = issue.Number;
+		//					}
+		//				}
 
-						return addin;
-					}, MAX_GITHUB_CONCURENCY)
-				.ConfigureAwait(false);
+		//				return addin;
+		//			}, MAX_GITHUB_CONCURENCY)
+		//		.ConfigureAwait(false);
 
-			return addinsMetadata;
-		}
+		//	return addinsMetadata;
+		//}
 
 		private void GenerateExcelReport(IEnumerable<AddinMetadata> addins, string saveFilePath)
 		{
@@ -933,73 +936,80 @@ namespace Cake.AddinDiscoverer
 				namedStyle.Style.Font.UnderLine = true;
 				namedStyle.Style.Font.Color.SetColor(Color.Blue);
 
-				var worksheet = package.Workbook.Worksheets.Add("Addins");
-
-				// Header row
-				foreach (var column in reportColumns)
+				foreach (var cakeVersion in _cakeVersions
+					.OrderByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[0]))
+					.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[1]))
+					.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[2])))
 				{
-					worksheet.Cells[1, column.Index + 1].Value = column.Data.Header;
-				}
+					// One worksheet per version of Cake
+					var worksheet = package.Workbook.Worksheets.Add($"Cake {cakeVersion.Version}");
 
-				// One row per audited addin
-				var row = 1;
-				foreach (var addin in auditedAddins.OrderBy(p => p.Name))
-				{
-					row++;
-
+					// Header row
 					foreach (var column in reportColumns)
 					{
-						var cell = worksheet.Cells[row, column.Index + 1];
-						cell.Value = column.Data.GetContent(addin);
+						worksheet.Cells[1, column.Index + 1].Value = column.Data.Header;
+					}
 
-						var color = column.Data.GetCellColor(addin);
-						if (color != Color.Empty)
-						{
-							cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
-							cell.Style.Fill.BackgroundColor.SetColor(color);
-						}
+					// One row per audited addin
+					var row = 1;
+					foreach (var addin in auditedAddins.OrderBy(p => p.Name))
+					{
+						row++;
 
-						var hyperlink = column.Data.GetHyperLink(addin);
-						if (hyperlink != null)
+						foreach (var column in reportColumns)
 						{
-							cell.Hyperlink = hyperlink;
-							cell.StyleName = "HyperLink";
+							var cell = worksheet.Cells[row, column.Index + 1];
+							cell.Value = column.Data.GetContent(addin);
+
+							var color = column.Data.GetCellColor(addin, cakeVersion);
+							if (color != Color.Empty)
+							{
+								cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+								cell.Style.Fill.BackgroundColor.SetColor(color);
+							}
+
+							var hyperlink = column.Data.GetHyperLink(addin);
+							if (hyperlink != null)
+							{
+								cell.Hyperlink = hyperlink;
+								cell.StyleName = "HyperLink";
+							}
 						}
 					}
-				}
 
-				// Freeze the top row and setup auto-filter
-				worksheet.View.FreezePanes(2, 1);
-				worksheet.Cells[1, 1, 1, reportColumns.Length].AutoFilter = true;
+					// Freeze the top row and setup auto-filter
+					worksheet.View.FreezePanes(2, 1);
+					worksheet.Cells[1, 1, 1, reportColumns.Length].AutoFilter = true;
 
-				// Format the worksheet
-				worksheet.Row(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-				if (auditedAddins.Any())
-				{
+					// Format the worksheet
+					worksheet.Row(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+					if (auditedAddins.Any())
+					{
+						foreach (var column in reportColumns)
+						{
+							worksheet.Cells[2, column.Index + 1, row, column.Index + 1].Style.HorizontalAlignment = column.Data.Align;
+						}
+					}
+
+					// Resize columns
+					worksheet.Cells[1, 1, row, reportColumns.Length].AutoFitColumns();
+
+					// Make columns a little bit wider to account for the filter "drop-down arrow" button
 					foreach (var column in reportColumns)
 					{
-						worksheet.Cells[2, column.Index + 1, row, column.Index + 1].Style.HorizontalAlignment = column.Data.Align;
+						worksheet.Column(column.Index + 1).Width += 2.14;
 					}
-				}
-
-				// Resize columns
-				worksheet.Cells[1, 1, row, reportColumns.Length].AutoFitColumns();
-
-				// Make columns a little bit wider to account for the filter "drop-down arrow" button
-				foreach (var column in reportColumns)
-				{
-					worksheet.Column(column.Index + 1).Width += 2.14;
 				}
 
 				// Exceptions report
 				if (exceptionAddins.Any())
 				{
-					worksheet = package.Workbook.Worksheets.Add("Exceptions");
+					var worksheet = package.Workbook.Worksheets.Add("Exceptions");
 
 					worksheet.Cells[1, 1].Value = "Addin";
 					worksheet.Cells[1, 2].Value = "Notes";
 
-					row = 1;
+					var row = 1;
 					foreach (var addin in exceptionAddins.OrderBy(p => p.Name))
 					{
 						row++;
@@ -1039,46 +1049,41 @@ namespace Cake.AddinDiscoverer
 			version = $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
 #endif
 
+			var now = DateTime.UtcNow;
+
 			var markdown = new StringBuilder();
 
 			markdown.AppendLine("# Information");
 			markdown.AppendLine();
-			markdown.AppendLine($"- This report was generated by Cake.AddinDiscoverer {version} on {DateTime.UtcNow.ToLongDateString()} at {DateTime.UtcNow.ToLongTimeString()} GMT");
-			markdown.AppendLine($"- The desired Cake version is `{_options.RecommendedCakeVersion}`");
-			markdown.AppendLine("- The `Cake Core Version` and `Cake Common Version` columns  show the version referenced by a given addin");
-			markdown.AppendLine($"- The `Cake Core IsPrivate` and `Cake Common IsPrivate` columns indicate whether the references are marked as private. In other words, we are looking for references with the `PrivateAssets=All` attribute like in this example: `<PackageReference Include=\"Cake.Common\" Version=\"{_options.RecommendedCakeVersion}\" PrivateAssets=\"All\" />`");
-			markdown.AppendLine("- The `Framework` column shows the .NET framework(s) targeted by a given addin. As of Cake 0.26.0, addins should target netstandard2.0 only (there is no need to multi-target)");
+			markdown.AppendLine($"- This report was generated by Cake.AddinDiscoverer {version} on {now.ToLongDateString()} at {now.ToLongTimeString()} GMT");
 			markdown.AppendLine();
 
 			markdown.AppendLine("# Statistics");
 			markdown.AppendLine();
 			markdown.AppendLine($"- The analysis discovered {addins.Count()} addins");
-			markdown.AppendLine($"  - {auditedAddins.Count()} were successfully audited (see the 'Addins' section)");
+			markdown.AppendLine($"  - {auditedAddins.Count()} were successfully audited");
 			markdown.AppendLine($"  - {exceptionAddins.Count()} could not be audited (see the 'Exceptions' section)");
 			markdown.AppendLine();
 
 			markdown.AppendLine($"- Of the {auditedAddins.Count()} audited addins:");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TargetsExpectedFramework)} are targeting the desired .NET framework");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingCakeContribIcon)} are using the cake-contrib icon");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.HasYamlFileOnWebSite)} have a YAML file on the cake web site");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferedToCakeContribOrganisation)} have been transfered to the cake-contrib organisation");
 			markdown.AppendLine();
 
-			var addinsReferencingCakeCore = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion));
-			markdown.AppendLine($"- Of the {addinsReferencingCakeCore.Count()} audited addins that reference Cake.Core:");
-			markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsUpToDate)} are targeting the desired version of Cake.Core");
-			markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsPrivate)} have marked the reference to Cake.Core as private");
+			markdown.AppendLine("# Reports");
+			markdown.AppendLine();
+			foreach (var cakeVersion in _cakeVersions)
+			{
+				var versionReportName = $"{System.IO.Path.GetFileNameWithoutExtension(saveFilePath)}_for_Cake_{cakeVersion.Version}.md";
+				markdown.AppendLine($"- Click [here]({versionReportName}) to view the report for Cake {cakeVersion.Version}.");
+			}
+
 			markdown.AppendLine();
 
-			var addinsReferencingCakeCommon = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion));
-			markdown.AppendLine($"- Of the {addinsReferencingCakeCommon.Count()} audited addins that reference Cake.Common:");
-			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsUpToDate)} are targeting the desired version of Cake.Common");
-			markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsPrivate)} have marked the reference to Cake.Common as private");
+			markdown.AppendLine("# Additional audit results");
 			markdown.AppendLine();
-
-			markdown.AppendLine("# Excel");
-			markdown.AppendLine();
-			markdown.AppendLine("Due to space constraints we couldn't fit all audit information in this page so we generated an Excel spreadsheet that contains the following additional information:");
+			markdown.AppendLine("Due to space constraints we couldn't fit all audit information in this report so we generated an Excel spreadsheet that contains the following additional information:");
 			markdown.AppendLine("- The `Maintainer` column indicates who is maintaining the source for this project");
 			markdown.AppendLine("- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon.");
 			markdown.AppendLine("- The `YAML` column indicates if there is a `.yml` file describing the addin in this [repo](https://github.com/cake-build/website/tree/develop/addins).");
@@ -1086,56 +1091,6 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
 			markdown.AppendLine();
-
-			// Title
-			markdown.AppendLine("# Addins");
-			markdown.AppendLine();
-
-			// Header row 1
-			foreach (var column in reportColumns)
-			{
-				markdown.Append($"| {column.Data.Header} ");
-			}
-
-			markdown.AppendLine("|");
-
-			// Header row 2
-			foreach (var column in reportColumns)
-			{
-				markdown.Append("| ");
-				if (column.Data.Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
-				markdown.Append("---");
-				if (column.Data.Align == ExcelHorizontalAlignment.Right || column.Data.Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
-				markdown.Append(" ");
-			}
-
-			markdown.AppendLine("|");
-
-			// One row per addin
-			foreach (var addin in auditedAddins.OrderBy(p => p.Name))
-			{
-				foreach (var column in reportColumns)
-				{
-					var content = column.Data.GetContent(addin);
-					var hyperlink = column.Data.GetHyperLink(addin);
-					var color = column.Data.GetCellColor(addin);
-
-					var emoji = string.Empty;
-					if (color == Color.LightGreen) emoji = GREEN_EMOJI;
-					else if (color == Color.Red) emoji = RED_EMOJI;
-
-					if (hyperlink == null)
-					{
-						markdown.Append($"| {content} {emoji}");
-					}
-					else
-					{
-						markdown.Append($"| [{content}]({hyperlink.AbsoluteUri}) {emoji}");
-					}
-				}
-
-				markdown.AppendLine("|");
-			}
 
 			// Exceptions report
 			if (exceptionAddins.Any())
@@ -1152,6 +1107,92 @@ namespace Cake.AddinDiscoverer
 
 			// Save
 			await File.WriteAllTextAsync(saveFilePath, markdown.ToString()).ConfigureAwait(false);
+
+			// Generate the markdown report for each version of Cake
+			foreach (var cakeVersion in _cakeVersions)
+			{
+				var versionReportName = $"{System.IO.Path.GetFileNameWithoutExtension(saveFilePath)}_for_Cake_{cakeVersion.Version}.md";
+				var versionReportPath = System.IO.Path.Combine(_tempFolder, versionReportName);
+
+				markdown.Clear();
+
+				markdown.AppendLine("# Information");
+				markdown.AppendLine();
+				markdown.AppendLine($"- This report was generated by Cake.AddinDiscoverer {version} on {now.ToLongDateString()} at {now.ToLongTimeString()} GMT");
+				markdown.AppendLine($"- The desired Cake version is `{cakeVersion.Version}`");
+				markdown.AppendLine("- The `Cake Core Version` and `Cake Common Version` columns  show the version referenced by a given addin");
+				markdown.AppendLine($"- The `Cake Core IsPrivate` and `Cake Common IsPrivate` columns indicate whether the references are marked as private. In other words, we are looking for references with the `PrivateAssets=All` attribute like in this example: `<PackageReference Include=\"Cake.Common\" Version=\"{cakeVersion.Version}\" PrivateAssets=\"All\" />`");
+				markdown.AppendLine($"- The `Framework` column shows the .NET framework(s) targeted by a given addin. Addins should target {cakeVersion.Framework} only (there is no need to multi-target)");
+				markdown.AppendLine();
+
+				markdown.AppendLine("# Statistics");
+				markdown.AppendLine();
+
+				var addinsReferencingCakeCore = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion));
+				markdown.AppendLine($"- Of the {addinsReferencingCakeCore.Count()} audited addins that reference Cake.Core:");
+				markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => IsUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version))} are targeting the desired version of Cake.Core");
+				markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsPrivate)} have marked the reference to Cake.Core as private");
+				markdown.AppendLine();
+
+				var addinsReferencingCakeCommon = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion));
+				markdown.AppendLine($"- Of the {addinsReferencingCakeCommon.Count()} audited addins that reference Cake.Common:");
+				markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => IsUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version))} are targeting the desired version of Cake.Common");
+				markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsPrivate)} have marked the reference to Cake.Common as private");
+				markdown.AppendLine();
+
+				// Title
+				markdown.AppendLine("# Addins");
+				markdown.AppendLine();
+
+				// Header row 1
+				foreach (var column in reportColumns)
+				{
+					markdown.Append($"| {column.Data.Header} ");
+				}
+
+				markdown.AppendLine("|");
+
+				// Header row 2
+				foreach (var column in reportColumns)
+				{
+					markdown.Append("| ");
+					if (column.Data.Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
+					markdown.Append("---");
+					if (column.Data.Align == ExcelHorizontalAlignment.Right || column.Data.Align == ExcelHorizontalAlignment.Center) markdown.Append(":");
+					markdown.Append(" ");
+				}
+
+				markdown.AppendLine("|");
+
+				// One row per addin
+				foreach (var addin in auditedAddins.OrderBy(p => p.Name))
+				{
+					foreach (var column in reportColumns)
+					{
+						var content = column.Data.GetContent(addin);
+						var hyperlink = column.Data.GetHyperLink(addin);
+						var color = column.Data.GetCellColor(addin, cakeVersion);
+
+						var emoji = string.Empty;
+						if (color == Color.LightGreen) emoji = GREEN_EMOJI;
+						else if (color == Color.Red) emoji = RED_EMOJI;
+
+						if (hyperlink == null)
+						{
+							markdown.Append($"| {content} {emoji}");
+						}
+						else
+						{
+							markdown.Append($"| [{content}]({hyperlink.AbsoluteUri}) {emoji}");
+						}
+					}
+
+					markdown.AppendLine("|");
+				}
+
+				// Save
+				await File.WriteAllTextAsync(versionReportPath, markdown.ToString()).ConfigureAwait(false);
+			}
 		}
 
 		private async Task<RepositoryContent> GetSolutionFileAsync(AddinMetadata addin, string folderName = null)

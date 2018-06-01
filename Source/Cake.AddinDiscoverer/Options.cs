@@ -4,9 +4,6 @@ namespace Cake.AddinDiscoverer
 {
 	internal class Options
 	{
-		[Option('v', "cakeversion", Required = true, HelpText = "The recommended Cake version. e.g.: 0.26.0")]
-		public string RecommendedCakeVersion { get; set; }
-
 		[Option('t', "tempfolder", Required = false, HelpText = "Folder where temporary files (including reports) are saved.")]
 		public string TemporaryFolder { get; set; }
 

@@ -34,19 +34,18 @@ This console application performs the following steps:
 
 The best practice this tool inspects for are:
 
-1. Your plugin references a given version of the Cake DLLs.
+1. Your plugin references the appropriate version of the Cake DLLs.
 2. The references to the Cake DLLs are private
 3. Your plugin does not target multiple .NET frameworks and only targets `netstandard2.0`
 4. Your plugin uses the "cake-contrib" icon
 5. There is a YAML file describing your plugin on the Cake website
-6. The project has been move to the cake-contrib organisation
+6. The project has been moved to the cake-contrib organisation
 
 ## Command Line arguments
 
 You can invoke this tool with the following arguments:
 
 ```csharp
-  -v, --cakeversion       Required. The recommended Cake version. e.g.: 0.26.0
   -t, --tempfolder        Folder where temporary files (including reports) are saved.
   -a, --addinname         Name of the specific addin to be audited. If omitted, all addins are audited.
   -u, --user              Github username.

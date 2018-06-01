@@ -1,4 +1,6 @@
-﻿namespace Cake.AddinDiscoverer
+﻿using System.Collections.Generic;
+
+namespace Cake.AddinDiscoverer
 {
 	/// <summary>
 	/// Contains the result of the analysis of a given addin
@@ -16,16 +18,6 @@
 		public string CakeCommonVersion { get; set; }
 
 		/// <summary>
-		/// Gets or sets a value indicating whether the addin references the desired Cake.Core version (or a more recent version)
-		/// </summary>
-		public bool CakeCoreIsUpToDate { get; set; }
-
-		/// <summary>
-		/// Gets or sets a value indicating whether the addin references the desired Cake.Common version (or a more recent version)
-		/// </summary>
-		public bool CakeCommonIsUpToDate { get; set; }
-
-		/// <summary>
 		/// Gets or sets a value indicating whether reference to Cake.Core is private
 		/// </summary>
 		public bool CakeCoreIsPrivate { get; set; }
@@ -34,11 +26,6 @@
 		/// Gets or sets a value indicating whether reference to Cake.Common is private
 		/// </summary>
 		public bool CakeCommonIsPrivate { get; set; }
-
-		/// <summary>
-		/// Gets or sets a value indicating whether the addin targets the expected framework (which, as of this writing, is netstandard2.0)
-		/// </summary>
-		public bool TargetsExpectedFramework { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether the addin references the cake-contrib icon
