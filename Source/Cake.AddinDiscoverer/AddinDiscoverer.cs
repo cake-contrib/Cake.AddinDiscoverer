@@ -936,7 +936,10 @@ namespace Cake.AddinDiscoverer
 				namedStyle.Style.Font.UnderLine = true;
 				namedStyle.Style.Font.Color.SetColor(Color.Blue);
 
-				foreach (var cakeVersion in _cakeVersions)
+				foreach (var cakeVersion in _cakeVersions
+					.OrderByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[0]))
+					.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[1]))
+					.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[2])))
 				{
 					// One worksheet per version of Cake
 					var worksheet = package.Workbook.Worksheets.Add($"Cake {cakeVersion.Version}");
