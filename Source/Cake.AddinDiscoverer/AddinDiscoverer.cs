@@ -673,7 +673,11 @@ namespace Cake.AddinDiscoverer
 
 					if (Directory.Exists(folderName))
 					{
-						foreach (var projectPath in Directory.EnumerateFiles(folderName, "*.csproj"))
+						var csharpProjectFiles = Directory.EnumerateFiles(folderName, "*.csproj");
+						var fsharpProjectFiles = Directory.EnumerateFiles(folderName, "*.fsproj");
+						var allProjectFiles = csharpProjectFiles.Union(fsharpProjectFiles).ToArray();
+
+						foreach (var projectPath in allProjectFiles)
 						{
 							try
 							{
