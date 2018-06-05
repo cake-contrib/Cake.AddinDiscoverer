@@ -28,7 +28,6 @@ namespace Cake.AddinDiscoverer
 	internal class AddinDiscoverer
 	{
 		private const string FILE_MODE = "100644";
-		private const int NUMBER_OF_STEPS = 17;
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
