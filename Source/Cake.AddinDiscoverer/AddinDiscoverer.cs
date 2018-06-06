@@ -203,7 +203,7 @@ namespace Cake.AddinDiscoverer
 					var addinsDiscoveredByYaml = await DiscoverCakeAddinsByYmlAsync().ConfigureAwait(false);
 
 					// Discover Cake addins by looking at the "Modules" and "Addins" sections in 'https://raw.githubusercontent.com/cake-contrib/Home/master/Status.md'
-					var addinsDiscoveredByWebsiteList = await DiscoverCakeAddinsByWebsiteList().ConfigureAwait(false);
+					var addinsDiscoveredByWebsiteList = await DiscoverCakeAddinsByWebsiteListAsync().ConfigureAwait(false);
 
 					// Combine all the discovered addins
 					normalizedAddins = addinsDiscoveredByYaml
@@ -234,7 +234,7 @@ namespace Cake.AddinDiscoverer
 				}
 
 				// Reset the summary
-				normalizedAddins = ResetSummaryAsync(normalizedAddins);
+				normalizedAddins = ResetSummary(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Get the project URL
@@ -254,7 +254,7 @@ namespace Cake.AddinDiscoverer
 				await DownloadSolutionFileAsync(normalizedAddins).ConfigureAwait(false);
 
 				// Get the path to the .csproj file(s)
-				normalizedAddins = FindProjectPathAsync(normalizedAddins);
+				normalizedAddins = FindProjectPath(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Download a copy of the csproj file(s) which simplyfies parsing this file in subsequent steps
@@ -264,11 +264,11 @@ namespace Cake.AddinDiscoverer
 				await DownloadNugetMetadataAsync(normalizedAddins).ConfigureAwait(false);
 
 				// Parse the csproj and find all references
-				normalizedAddins = FindReferencesAsync(normalizedAddins);
+				normalizedAddins = FindReferences(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Parse the csproj and find targeted framework(s)
-				normalizedAddins = FindFrameworksAsync(normalizedAddins);
+				normalizedAddins = FindFrameworks(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Determine if an issue already exists in the Github repo
@@ -279,11 +279,11 @@ namespace Cake.AddinDiscoverer
 				}
 
 				// Find the addin icon
-				normalizedAddins = FindIconAsync(normalizedAddins);
+				normalizedAddins = FindIcon(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Analyze
-				normalizedAddins = AnalyzeAddinAsync(normalizedAddins);
+				normalizedAddins = AnalyzeAddin(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Create an issue in the Github repo
@@ -297,7 +297,7 @@ namespace Cake.AddinDiscoverer
 				GenerateExcelReport(normalizedAddins, excelReportPath);
 
 				// Generate the markdown report and write to file
-				await GenerateMarkdownReport(normalizedAddins, markdownReportPath).ConfigureAwait(false);
+				await GenerateMarkdownReportAsync(normalizedAddins, markdownReportPath).ConfigureAwait(false);
 
 				// Commit the reports to the cake-contrib repo
 				await CommitReportsToRepoAsync().ConfigureAwait(false);
@@ -386,7 +386,7 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private async Task<AddinMetadata[]> DiscoverCakeAddinsByWebsiteList()
+		private async Task<AddinMetadata[]> DiscoverCakeAddinsByWebsiteListAsync()
 		{
 			// Get the content of the 'Status.md' file
 			var statusFile = await _githubClient.Repository.Content.GetAllContents("cake-contrib", "home", "Status.md").ConfigureAwait(false);
@@ -410,7 +410,7 @@ namespace Cake.AddinDiscoverer
 				.ToArray();
 		}
 
-		private AddinMetadata[] ResetSummaryAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] ResetSummary(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Clearing previous summary");
 
@@ -435,7 +435,7 @@ namespace Cake.AddinDiscoverer
 					{
 						try
 						{
-							addin.GithubRepoUrl = await GetNormalizedProjectUrl(addin.NugetPackageUrl).ConfigureAwait(false);
+							addin.GithubRepoUrl = await GetNormalizedProjectUrlAsync(addin.NugetPackageUrl).ConfigureAwait(false);
 						}
 						catch (Exception e)
 						{
@@ -513,7 +513,7 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private AddinMetadata[] FindProjectPathAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindProjectPath(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding project files");
 
@@ -551,7 +551,7 @@ namespace Cake.AddinDiscoverer
 						}
 						catch (Exception e)
 						{
-							addin.AnalysisResult.Notes += $"FindProjectPathAsync: {e.GetBaseException().Message}\r\n";
+							addin.AnalysisResult.Notes += $"FindProjectPath: {e.GetBaseException().Message}\r\n";
 						}
 					}
 
@@ -660,7 +660,7 @@ namespace Cake.AddinDiscoverer
 			await Task.WhenAll(tasks).ConfigureAwait(false);
 		}
 
-		private AddinMetadata[] FindReferencesAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindReferences(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding references");
 
@@ -680,11 +680,11 @@ namespace Cake.AddinDiscoverer
 						{
 							try
 							{
-								references.AddRange(GetProjectReferencesAsync(addin, projectPath));
+								references.AddRange(GetProjectReferences(addin, projectPath));
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"FindReferencesAsync: {e.GetBaseException().Message}\r\n";
+								addin.AnalysisResult.Notes += $"FindReferences: {e.GetBaseException().Message}\r\n";
 							}
 						}
 					}
@@ -704,7 +704,7 @@ namespace Cake.AddinDiscoverer
 			return results.ToArray();
 		}
 
-		private AddinMetadata[] FindFrameworksAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindFrameworks(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding Frameworks");
 
@@ -720,11 +720,11 @@ namespace Cake.AddinDiscoverer
 						{
 							try
 							{
-								frameworks.AddRange(GetProjectFrameworksAsync(addin, projectPath));
+								frameworks.AddRange(GetProjectFrameworks(addin, projectPath));
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"FindFrameworksAsync: {e.GetBaseException().Message}\r\n";
+								addin.AnalysisResult.Notes += $"FindFrameworks: {e.GetBaseException().Message}\r\n";
 							}
 						}
 					}
@@ -782,7 +782,7 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private AddinMetadata[] FindIconAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindIcon(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding icons");
 
@@ -801,7 +801,7 @@ namespace Cake.AddinDiscoverer
 					}
 					catch (Exception e)
 					{
-						addin.AnalysisResult.Notes += $"FindIconAsync: {e.GetBaseException().Message}\r\n";
+						addin.AnalysisResult.Notes += $"FindIcon: {e.GetBaseException().Message}\r\n";
 					}
 
 					return addin;
@@ -810,7 +810,7 @@ namespace Cake.AddinDiscoverer
 			return results.ToArray();
 		}
 
-		private AddinMetadata[] AnalyzeAddinAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] AnalyzeAddin(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Analyzing addins");
 
@@ -1044,7 +1044,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task GenerateMarkdownReport(IEnumerable<AddinMetadata> addins, string saveFilePath)
+		private async Task GenerateMarkdownReportAsync(IEnumerable<AddinMetadata> addins, string saveFilePath)
 		{
 			if (!_options.MarkdownReportToFile && !_options.MarkdownReportToRepo) return;
 
@@ -1299,7 +1299,7 @@ namespace Cake.AddinDiscoverer
 				.Trim();
 		}
 
-		private IEnumerable<(string Id, string Version, bool IsPrivate)> GetProjectReferencesAsync(AddinMetadata addin, string projectPath)
+		private IEnumerable<(string Id, string Version, bool IsPrivate)> GetProjectReferences(AddinMetadata addin, string projectPath)
 		{
 			var references = new List<(string Id, string Version, bool IsPrivate)>();
 
@@ -1335,7 +1335,7 @@ namespace Cake.AddinDiscoverer
 			return references.ToArray();
 		}
 
-		private IEnumerable<string> GetProjectFrameworksAsync(AddinMetadata addin, string projectPath)
+		private IEnumerable<string> GetProjectFrameworks(AddinMetadata addin, string projectPath)
 		{
 			var fileSystem = new FileSystem();
 			var projectFile = fileSystem.GetFile(new FilePath(projectPath));
@@ -1344,7 +1344,7 @@ namespace Cake.AddinDiscoverer
 			return parsedProject.TargetFrameworkVersions;
 		}
 
-		private async Task<Uri> GetNormalizedProjectUrl(Uri projectUri)
+		private async Task<Uri> GetNormalizedProjectUrlAsync(Uri projectUri)
 		{
 			if (projectUri.Host.Contains("nuget.org"))
 			{
