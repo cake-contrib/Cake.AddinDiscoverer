@@ -311,7 +311,7 @@ namespace Cake.AddinDiscoverer
 
 		private static bool IsCakeVersionUpToDate(string currentVersion, string desiredVersion)
 		{
-			if (string.IsNullOrEmpty(currentVersion)) return false;
+			if (string.IsNullOrEmpty(currentVersion)) return true;
 
 			var current = currentVersion.Split('.');
 			var desired = desiredVersion.Split('.');
