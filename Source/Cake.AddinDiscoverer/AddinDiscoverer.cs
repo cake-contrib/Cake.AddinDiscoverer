@@ -35,6 +35,7 @@ namespace Cake.AddinDiscoverer
 		private const int MAX_GITHUB_CONCURENCY = 10;
 		private const string GREEN_EMOJI = ":white_check_mark: ";
 		private const string RED_EMOJI = ":small_red_triangle: ";
+		private const string NUGET_METADATA_FILE = "nuget.json";
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
@@ -278,8 +279,8 @@ namespace Cake.AddinDiscoverer
 					SaveProgress(normalizedAddins);
 				}
 
-				// Find the addin icon
-				normalizedAddins = FindIcon(normalizedAddins);
+				// Find the nuget metadata such as icon url, package version, etc.
+				normalizedAddins = FindNugetMetadata(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Analyze
@@ -639,7 +640,7 @@ namespace Cake.AddinDiscoverer
 
 					try
 					{
-						var fileName = System.IO.Path.Combine(folderLocation, "nuget.json");
+						var fileName = System.IO.Path.Combine(folderLocation, NUGET_METADATA_FILE);
 						if (!File.Exists(fileName))
 						{
 							var searchMetadata = await _nugetPackageMetadataClient.GetMetadataAsync(addin.Name, true, true, new NoopLogger(), CancellationToken.None);
@@ -782,14 +783,14 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private AddinMetadata[] FindIcon(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindNugetMetadata(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Finding icons");
+			Console.WriteLine("  Finding nuget metadata (icon, version, etc.)");
 
 			var results = addins
 				.Select(addin =>
 				{
-					var fileName = System.IO.Path.Combine(_tempFolder, addin.Name, "nuget.json");
+					var fileName = System.IO.Path.Combine(_tempFolder, addin.Name, NUGET_METADATA_FILE);
 
 					try
 					{
@@ -797,11 +798,12 @@ namespace Cake.AddinDiscoverer
 						{
 							var nugetMetadata = JsonConvert.DeserializeObject<PackageSearchMetadata>(File.ReadAllText(fileName), new[] { new NugetVersionConverter() });
 							addin.IconUrl = nugetMetadata.IconUrl;
+							addin.NugetPackageVersion = nugetMetadata.Version.ToNormalizedString();
 						}
 					}
 					catch (Exception e)
 					{
-						addin.AnalysisResult.Notes += $"FindIcon: {e.GetBaseException().Message}\r\n";
+						addin.AnalysisResult.Notes += $"FindNugetMetadata: {e.GetBaseException().Message}\r\n";
 					}
 
 					return addin;
