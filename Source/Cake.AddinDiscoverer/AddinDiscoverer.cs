@@ -15,6 +15,7 @@ using OxyPlot.Axes;
 using OxyPlot.Series;
 using OxyPlot.WindowsForms;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -23,6 +24,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -250,6 +252,12 @@ namespace Cake.AddinDiscoverer
 				if (_options.SynchronizeYaml)
 				{
 					await SynchronizeYmlFilesAsync(addins).ConfigureAwait(false);
+				}
+
+				// Update CakeRecipe
+				if (_options.UpdateCakeRecipeReferences)
+				{
+					await UpdateCakeRecipeFilesAsync(normalizedAddins).ConfigureAwait(false);
 				}
 			}
 			catch (Exception e)
@@ -1469,11 +1477,136 @@ namespace Cake.AddinDiscoverer
 			var commit = await _githubClient.Git.Commit.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_CONTRIB_REPO_NAME, newCommit).ConfigureAwait(false);
 
 			// Update the reference of master branch with the SHA of the commit
-			// Update HEAD with the commit
 			await _githubClient.Git.Reference.Update(CAKE_CONTRIB_REPO_OWNER, CAKE_CONTRIB_REPO_NAME, headMasterRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
 		}
 
 		private async Task UpdateStatsAsync(IEnumerable<AddinMetadata> addins)
+		private async Task UpdateCakeRecipeFilesAsync(IEnumerable<AddinMetadata> addins)
+		{
+			Console.WriteLine("  Updating Cake.Recipe");
+
+			//var owner = "cake-contrib";
+			//var repositoryName = "Cake.Recipe";
+			var owner = "jericho";
+			var repositoryName = "_testing";
+			var folderName = "Cake.Recipe/Content";
+			var modifiedFiles = new ConcurrentDictionary<string, (IEnumerable<string> AddinNames, string Content)>();
+			var regEx = new Regex(@"(?<lineprefix>.*?)(?<packageprefix>\#addin nuget:\?package=)(?<packagename>.*)(?<versionprefix>&version=)(?<packageversion>.*)", RegexOptions.Compiled);
+
+			// --------------------------------------------------
+			// STEP 1 - get the list of ".cake" files
+			var directoryContent = await _githubClient.Repository.Content.GetAllContents(owner, repositoryName, folderName).ConfigureAwait(false);
+			var cakeFiles = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.File) && c.Name.EndsWith(".cake", StringComparison.OrdinalIgnoreCase));
+
+			// --------------------------------------------------
+			// STEP 2 - update the addin references in the ".cake" files
+			await cakeFiles
+				.ForEachAsync(
+					async cakeFile =>
+					{
+						var contents = await _githubClient.Repository.Content.GetAllContents(owner, repositoryName, cakeFile.Path).ConfigureAwait(false);
+						var fileContent = contents[0].Content;
+
+						var contentModified = false;
+						var newFileContent = new StringBuilder();
+						var updatedAddinReference = new List<string>();
+
+						foreach (var line in fileContent.Split('\n'))
+						{
+							var matchResult = regEx.Match(line);
+							if (matchResult.Success)
+							{
+								var packageName = matchResult.Groups["packagename"].Value;
+								var packageCurrentVersion = matchResult.Groups["packageversion"].Value;
+
+								var newLine = regEx.Replace(line, m =>
+								{
+									var package = addins.SingleOrDefault(addin => addin.Name.Equals(m.Groups["packagename"].Value, StringComparison.OrdinalIgnoreCase));
+
+									if (package == null) return m.Groups[0].Value;
+									if (m.Groups["packageversion"].Value == package.NugetPackageVersion) return m.Groups[0].Value;
+
+									updatedAddinReference.Add(m.Groups["packagename"].Value);
+									return m.Groups["lineprefix"].Value + m.Groups["packageprefix"].Value + m.Groups["packagename"].Value + m.Groups["versionprefix"].Value + package.NugetPackageVersion;
+								});
+
+								newFileContent.Append(newLine + '\n');
+								contentModified |= newLine != line;
+							}
+							else
+							{
+								newFileContent.Append(line + '\n');
+							}
+						}
+
+						if (contentModified)
+						{
+							modifiedFiles.TryAdd(cakeFile.Name, (updatedAddinReference.ToArray(), newFileContent.ToString()));
+						}
+					}, MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
+
+			if (modifiedFiles.Any())
+			{
+				// --------------------------------------------------
+				// STEP 3 - create issue
+				var newIssue = new NewIssue("Addin references need to be updated")
+				{
+					Body = "The following cake files contain outdated addin references that should be updated:\r\n" +
+						string.Join("\r\n", modifiedFiles.Select(f => $"- `{f.Key}` contains the following outdated references:\r\n" +
+						string.Join("\r\n", f.Value.AddinNames.Select(n => $"    - {n}"))))
+				};
+				var issue = await _githubClient.Issue.Create(owner, repositoryName, newIssue).ConfigureAwait(false);
+
+				// --------------------------------------------------
+				// STEP 4 - commit changes to a new branch
+				var developBranchName = "develop";
+				var newBranchName = "my_new_branch";
+				var developRef = $"heads/{developBranchName}";
+				var newBranchRef = $"heads/{newBranchName}";
+
+				var developReference = await _githubClient.Git.Reference.Get(owner, repositoryName, developRef).ConfigureAwait(false);
+
+				var newReference = new NewReference(newBranchRef, developReference.Object.Sha);
+				var newBranch = await _githubClient.Git.Reference.Create(owner, repositoryName, newReference).ConfigureAwait(false);
+
+				var latestCommit = await _githubClient.Git.Commit.Get(owner, repositoryName, newBranch.Object.Sha).ConfigureAwait(false);
+				var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
+				foreach (var modifiedFile in modifiedFiles)
+				{
+					var cakeFileBlob = new NewBlob
+					{
+						Encoding = EncodingType.Utf8,
+						Content = modifiedFile.Value.Content
+					};
+					var cakeFileBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, cakeFileBlob).ConfigureAwait(false);
+					tree.Tree.Add(new NewTreeItem
+					{
+						Path = $"{folderName}/{modifiedFile.Key}",
+						Mode = FILE_MODE,
+						Type = TreeType.Blob,
+						Sha = cakeFileBlobRef.Sha
+					});
+				}
+
+				var newTree = await _githubClient.Git.Tree.Create(owner, repositoryName, tree).ConfigureAwait(false);
+
+				var newCommit = new NewCommit("Update addin references", newTree.Sha, newBranch.Object.Sha);
+				var commit = await _githubClient.Git.Commit.Create(owner, repositoryName, newCommit).ConfigureAwait(false);
+
+				await _githubClient.Git.Reference.Update(owner, repositoryName, newBranchRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
+
+				// --------------------------------------------------
+				// STEP 5 - submit pull request
+				var newPullRequest = new NewPullRequest("Update addin references", newBranchName, developBranchName)
+				{
+					Body = $"Resolves #{issue.Number}"
+				};
+				await _githubClient.PullRequest.Create(owner, repositoryName, newPullRequest).ConfigureAwait(false);
+			}
+		}
+
+		private void SaveProgress(IEnumerable<AddinMetadata> normalizedAddins)
 		{
 			// Do not update the stats if we are only auditing a single addin.
 			if (!string.IsNullOrEmpty(_options.AddinName)) return;
