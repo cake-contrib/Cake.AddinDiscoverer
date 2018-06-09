@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
-    <Version>2.1.0</Version>
+    <Version>2.2.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -24,7 +24,7 @@
     <PackageReference Include="Cake.Common" Version="0.28.0" />
     <PackageReference Include="Cake.Incubator" Version="2.0.2" />
     <PackageReference Include="CommandLineParser" Version="2.2.1" />
-    <PackageReference Include="CsvHelper" Version="7.1.0" />
+    <PackageReference Include="CsvHelper" Version="7.1.1" />
     <PackageReference Include="EPPlus" Version="4.5.2.1" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
     <PackageReference Include="NuGet.Protocol.Core.Types" Version="4.2.0" />
