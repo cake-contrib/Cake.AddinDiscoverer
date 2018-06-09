@@ -1519,6 +1519,8 @@ namespace Cake.AddinDiscoverer
 			var owner = "cake-contrib";
 			var repositoryName = "Home";
 
+			Console.WriteLine("  Updating statistics");
+
 			var content = await _githubClient.Repository.Content.GetAllContents(owner, repositoryName, System.IO.Path.GetFileName(_statsSaveLocation)).ConfigureAwait(false);
 			File.WriteAllText(_statsSaveLocation, content[0].Content);
 
@@ -1546,6 +1548,8 @@ namespace Cake.AddinDiscoverer
 
 		private void GenerateStatsGraph()
 		{
+			Console.WriteLine("  Generating graph");
+
 			var graphPath = System.IO.Path.Combine(_tempFolder, "Audit_progress.png");
 
 			var plotModel = new PlotModel
