@@ -1130,7 +1130,8 @@ namespace Cake.AddinDiscoverer
 
 			markdown.AppendLine("# Progress");
 			markdown.AppendLine();
-			markdown.AppendLine("The following graph shows the percentage of addins that are compatible with Cake over time. For the purpose of this graph, we consider an addin to be compatible with a given version of Cake if is references the desired version of Cake.Core and Cake.Common.");
+			markdown.AppendLine("The following graph shows the percentage of addins that are compatible with Cake over time. For the purpose of this graph, we consider an addin to be compatible with a given version of Cake if it references the desired version of Cake.Core and Cake.Common.");
+			markdown.AppendLine();
 			markdown.AppendLine($"![]({System.IO.Path.GetFileName(_graphSaveLocation)})");
 			markdown.AppendLine();
 
@@ -1404,7 +1405,7 @@ namespace Cake.AddinDiscoverer
 			var owner = "cake-contrib";
 			var repositoryName = "Home";
 
-			Console.WriteLine($"  Committing reports to {owner}/{repositoryName} repo");
+			Console.WriteLine($"  Committing changes to {owner}/{repositoryName} repo");
 
 			// Get the SHA of the latest commit of the master branch.
 			var headMasterRef = "heads/master";
