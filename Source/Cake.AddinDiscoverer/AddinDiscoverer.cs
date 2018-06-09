@@ -1534,7 +1534,7 @@ namespace Cake.AddinDiscoverer
 					{
 						CakeVersion = cakeVersion.Version,
 						Date = DateTime.UtcNow,
-						CompatibleCount = normalizedAddins.Count(addin => IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version)),
+						CompatibleCount = normalizedAddins.Count(addin => IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version)),
 						TotalCount = normalizedAddins.Count()
 					};
 
