@@ -1,9 +1,11 @@
 ﻿using AngleSharp;
+using Cake.AddinDiscoverer.Utilities;
 using Cake.Common.Solution;
 using Cake.Core;
 using Cake.Core.Diagnostics;
 using Cake.Core.IO;
 using Cake.Incubator;
+using CsvHelper;
 using Newtonsoft.Json;
 using NuGet.Configuration;
 using NuGet.Protocol;
@@ -11,6 +13,10 @@ using NuGet.Protocol.Core.Types;
 using Octokit;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
+using OxyPlot.WindowsForms;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -28,7 +34,6 @@ namespace Cake.AddinDiscoverer
 	internal class AddinDiscoverer
 	{
 		private const string FILE_MODE = "100644";
-		private const int NUMBER_OF_STEPS = 17;
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
@@ -36,12 +41,16 @@ namespace Cake.AddinDiscoverer
 		private const int MAX_GITHUB_CONCURENCY = 10;
 		private const string GREEN_EMOJI = ":white_check_mark: ";
 		private const string RED_EMOJI = ":small_red_triangle: ";
+		private const string NUGET_METADATA_FILE = "nuget.json";
+		private const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
 		private readonly IGitHubClient _githubClient;
 		private readonly PackageMetadataResource _nugetPackageMetadataClient;
 		private readonly string _jsonSaveLocation;
+		private readonly string _statsSaveLocation;
+		private readonly string _graphSaveLocation;
 
 		private readonly CakeVersion[] _cakeVersions = new[]
 		{
@@ -144,6 +153,8 @@ namespace Cake.AddinDiscoverer
 			_options = options;
 			_tempFolder = System.IO.Path.Combine(_options.TemporaryFolder, PRODUCT_NAME);
 			_jsonSaveLocation = System.IO.Path.Combine(_tempFolder, "CakeAddins.json");
+			_statsSaveLocation = System.IO.Path.Combine(_tempFolder, "Audit_stats.csv");
+			_graphSaveLocation = System.IO.Path.Combine(_tempFolder, "Audit_progress.png");
 
 			// Setup the Github client
 			var credentials = new Credentials(_options.GithubUsername, _options.GithuPassword);
@@ -204,7 +215,7 @@ namespace Cake.AddinDiscoverer
 					var addinsDiscoveredByYaml = await DiscoverCakeAddinsByYmlAsync().ConfigureAwait(false);
 
 					// Discover Cake addins by looking at the "Modules" and "Addins" sections in 'https://raw.githubusercontent.com/cake-contrib/Home/master/Status.md'
-					var addinsDiscoveredByWebsiteList = await DiscoverCakeAddinsByWebsiteList().ConfigureAwait(false);
+					var addinsDiscoveredByWebsiteList = await DiscoverCakeAddinsByWebsiteListAsync().ConfigureAwait(false);
 
 					// Combine all the discovered addins
 					normalizedAddins = addinsDiscoveredByYaml
@@ -235,7 +246,7 @@ namespace Cake.AddinDiscoverer
 				}
 
 				// Reset the summary
-				normalizedAddins = ResetSummaryAsync(normalizedAddins);
+				normalizedAddins = ResetSummary(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Get the project URL
@@ -255,7 +266,7 @@ namespace Cake.AddinDiscoverer
 				await DownloadSolutionFileAsync(normalizedAddins).ConfigureAwait(false);
 
 				// Get the path to the .csproj file(s)
-				normalizedAddins = FindProjectPathAsync(normalizedAddins);
+				normalizedAddins = FindProjectPath(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Download a copy of the csproj file(s) which simplyfies parsing this file in subsequent steps
@@ -265,11 +276,11 @@ namespace Cake.AddinDiscoverer
 				await DownloadNugetMetadataAsync(normalizedAddins).ConfigureAwait(false);
 
 				// Parse the csproj and find all references
-				normalizedAddins = FindReferencesAsync(normalizedAddins);
+				normalizedAddins = FindReferences(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Parse the csproj and find targeted framework(s)
-				normalizedAddins = FindFrameworksAsync(normalizedAddins);
+				normalizedAddins = FindFrameworks(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Determine if an issue already exists in the Github repo
@@ -279,12 +290,12 @@ namespace Cake.AddinDiscoverer
 					SaveProgress(normalizedAddins);
 				}
 
-				// Find the addin icon
-				normalizedAddins = FindIconAsync(normalizedAddins);
+				// Find the nuget metadata such as icon url, package version, etc.
+				normalizedAddins = FindNugetMetadata(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Analyze
-				normalizedAddins = AnalyzeAddinAsync(normalizedAddins);
+				normalizedAddins = AnalyzeAddin(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Create an issue in the Github repo
@@ -298,10 +309,16 @@ namespace Cake.AddinDiscoverer
 				GenerateExcelReport(normalizedAddins, excelReportPath);
 
 				// Generate the markdown report and write to file
-				await GenerateMarkdownReport(normalizedAddins, markdownReportPath).ConfigureAwait(false);
+				await GenerateMarkdownReportAsync(normalizedAddins, markdownReportPath).ConfigureAwait(false);
 
-				// Commit the reports to the cake-contrib repo
-				await CommitReportsToRepoAsync().ConfigureAwait(false);
+				// Update the CSV file containing historical statistics (used to generate graph)
+				await UpdateStatsAsync(normalizedAddins).ConfigureAwait(false);
+
+				// Generate the graph showing how many addins are compatible with Cake over time
+				GenerateStatsGraph();
+
+				// Commit the changed files (such as reports, stats CSV, graph, etc.) to the cake-contrib repo
+				await CommitChangesToRepoAsync().ConfigureAwait(false);
 			}
 			catch (Exception e)
 			{
@@ -312,7 +329,7 @@ namespace Cake.AddinDiscoverer
 
 		private static bool IsCakeVersionUpToDate(string currentVersion, string desiredVersion)
 		{
-			if (string.IsNullOrEmpty(currentVersion)) return false;
+			if (string.IsNullOrEmpty(currentVersion)) return true;
 
 			var current = currentVersion.Split('.');
 			var desired = desiredVersion.Split('.');
@@ -387,7 +404,7 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private async Task<AddinMetadata[]> DiscoverCakeAddinsByWebsiteList()
+		private async Task<AddinMetadata[]> DiscoverCakeAddinsByWebsiteListAsync()
 		{
 			// Get the content of the 'Status.md' file
 			var statusFile = await _githubClient.Repository.Content.GetAllContents("cake-contrib", "home", "Status.md").ConfigureAwait(false);
@@ -411,7 +428,7 @@ namespace Cake.AddinDiscoverer
 				.ToArray();
 		}
 
-		private AddinMetadata[] ResetSummaryAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] ResetSummary(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Clearing previous summary");
 
@@ -436,7 +453,7 @@ namespace Cake.AddinDiscoverer
 					{
 						try
 						{
-							addin.GithubRepoUrl = await GetNormalizedProjectUrl(addin.NugetPackageUrl).ConfigureAwait(false);
+							addin.GithubRepoUrl = await GetNormalizedProjectUrlAsync(addin.NugetPackageUrl).ConfigureAwait(false);
 						}
 						catch (Exception e)
 						{
@@ -514,7 +531,7 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private AddinMetadata[] FindProjectPathAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindProjectPath(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding project files");
 
@@ -552,7 +569,7 @@ namespace Cake.AddinDiscoverer
 						}
 						catch (Exception e)
 						{
-							addin.AnalysisResult.Notes += $"FindProjectPathAsync: {e.GetBaseException().Message}\r\n";
+							addin.AnalysisResult.Notes += $"FindProjectPath: {e.GetBaseException().Message}\r\n";
 						}
 					}
 
@@ -640,7 +657,7 @@ namespace Cake.AddinDiscoverer
 
 					try
 					{
-						var fileName = System.IO.Path.Combine(folderLocation, "nuget.json");
+						var fileName = System.IO.Path.Combine(folderLocation, NUGET_METADATA_FILE);
 						if (!File.Exists(fileName))
 						{
 							var searchMetadata = await _nugetPackageMetadataClient.GetMetadataAsync(addin.Name, true, true, new NoopLogger(), CancellationToken.None);
@@ -661,7 +678,7 @@ namespace Cake.AddinDiscoverer
 			await Task.WhenAll(tasks).ConfigureAwait(false);
 		}
 
-		private AddinMetadata[] FindReferencesAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindReferences(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding references");
 
@@ -681,11 +698,11 @@ namespace Cake.AddinDiscoverer
 						{
 							try
 							{
-								references.AddRange(GetProjectReferencesAsync(addin, projectPath));
+								references.AddRange(GetProjectReferences(addin, projectPath));
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"FindReferencesAsync: {e.GetBaseException().Message}\r\n";
+								addin.AnalysisResult.Notes += $"FindReferences: {e.GetBaseException().Message}\r\n";
 							}
 						}
 					}
@@ -705,7 +722,7 @@ namespace Cake.AddinDiscoverer
 			return results.ToArray();
 		}
 
-		private AddinMetadata[] FindFrameworksAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindFrameworks(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Finding Frameworks");
 
@@ -721,11 +738,11 @@ namespace Cake.AddinDiscoverer
 						{
 							try
 							{
-								frameworks.AddRange(GetProjectFrameworksAsync(addin, projectPath));
+								frameworks.AddRange(GetProjectFrameworks(addin, projectPath));
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"FindFrameworksAsync: {e.GetBaseException().Message}\r\n";
+								addin.AnalysisResult.Notes += $"FindFrameworks: {e.GetBaseException().Message}\r\n";
 							}
 						}
 					}
@@ -783,14 +800,14 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private AddinMetadata[] FindIconAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] FindNugetMetadata(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Finding icons");
+			Console.WriteLine("  Finding nuget metadata (icon, version, etc.)");
 
 			var results = addins
 				.Select(addin =>
 				{
-					var fileName = System.IO.Path.Combine(_tempFolder, addin.Name, "nuget.json");
+					var fileName = System.IO.Path.Combine(_tempFolder, addin.Name, NUGET_METADATA_FILE);
 
 					try
 					{
@@ -798,11 +815,12 @@ namespace Cake.AddinDiscoverer
 						{
 							var nugetMetadata = JsonConvert.DeserializeObject<PackageSearchMetadata>(File.ReadAllText(fileName), new[] { new NugetVersionConverter() });
 							addin.IconUrl = nugetMetadata.IconUrl;
+							addin.NugetPackageVersion = nugetMetadata.Version.ToNormalizedString();
 						}
 					}
 					catch (Exception e)
 					{
-						addin.AnalysisResult.Notes += $"FindIconAsync: {e.GetBaseException().Message}\r\n";
+						addin.AnalysisResult.Notes += $"FindNugetMetadata: {e.GetBaseException().Message}\r\n";
 					}
 
 					return addin;
@@ -811,7 +829,7 @@ namespace Cake.AddinDiscoverer
 			return results.ToArray();
 		}
 
-		private AddinMetadata[] AnalyzeAddinAsync(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] AnalyzeAddin(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Analyzing addins");
 
@@ -881,38 +899,39 @@ namespace Cake.AddinDiscoverer
 				.ForEachAsync(
 					async addin =>
 					{
-						if (addin.GithubRepoUrl != null && addin.GithubIssueUrl == null)
+						if (addin.GithubRepoUrl != null && !addin.GithubIssueId.HasValue)
 						{
 							var issuesDescription = new StringBuilder();
 							if (addin.AnalysisResult.CakeCoreVersion == UNKNOWN_VERSION)
 							{
-								issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Core your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}\r\n");
+								issuesDescription.AppendLine($"- [ ] We were unable to determine what version of Cake.Core your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}");
 							}
 							else if (!IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, recommendedCakeVersion.Version))
 							{
-								issuesDescription.Append($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {recommendedCakeVersion.Version}\r\n");
+								issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {recommendedCakeVersion.Version}");
 							}
 
 							if (addin.AnalysisResult.CakeCommonVersion == UNKNOWN_VERSION)
 							{
-								issuesDescription.Append($"- [ ] We were unable to determine what version of Cake.Common your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}\r\n");
+								issuesDescription.AppendLine($"- [ ] We were unable to determine what version of Cake.Common your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}");
 							}
 							else if (!IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, recommendedCakeVersion.Version))
 							{
-								issuesDescription.Append($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {recommendedCakeVersion.Version}\r\n");
+								issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {recommendedCakeVersion.Version}");
 							}
 
-							if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.Append($"- [ ] The Cake.Core reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Core\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
-							if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.Append($"- [ ] The Cake.Common reference should be private.\r\nSpecifically, your addin's `.csproj` should have a line similar to this:\r\n`<PackageReference Include=\"Cake.Common\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
-							if (!IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion.Framework)) issuesDescription.Append($"- [ ] Your addin should target {recommendedCakeVersion.Framework}\r\nPlease note that there is no need to multi-target, {recommendedCakeVersion.Framework} is sufficient.\r\n");
-							if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.Append($"- [ ] The nuget package for your addin should use the cake-contrib icon.\r\nSpecifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`.\r\n");
-							if (!addin.AnalysisResult.HasYamlFileOnWebSite) issuesDescription.Append("- [ ] There should be a YAML file describing your addin on the cake web site\r\nSpecifically, you should add a `.yml` file in this [repo](https://github.com/cake-build/website/tree/develop/addins)");
+							if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Core reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Core\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
+							if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Common reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Common\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
+							if (!IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion.Framework)) issuesDescription.AppendLine($"- [ ] Your addin should target {recommendedCakeVersion.Framework}. Please note that there is no need to multi-target, {recommendedCakeVersion.Framework} is sufficient.");
+							if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.AppendLine($"- [ ] The nuget package for your addin should use the cake-contrib icon. Specifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{CAKECONTRIB_ICON_URL}</PackageIconUrl>`.");
+							if (!addin.AnalysisResult.HasYamlFileOnWebSite) issuesDescription.AppendLine("- [ ] There should be a YAML file describing your addin on the cake web site. Specifically, you should add a `.yml` file in this [repo](https://github.com/cake-build/website/tree/develop/addins)");
 
 							if (issuesDescription.Length > 0)
 							{
 								var issueBody = "We performed an automated audit of your Cake addin and found that it does not follow all the best practices.\r\n\r\n";
 								issueBody += "We encourage you to make the following modifications:\r\n\r\n";
 								issueBody += issuesDescription.ToString();
+								issueBody += "\r\n\r\n\r\nApologies if this is already being worked on, or if there are existing open issues, this issue was created based on what is currently published for this package on NuGet.org and in the project on github.\r\n";
 
 								var newIssue = new NewIssue(ISSUE_TITLE)
 								{
@@ -1044,7 +1063,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task GenerateMarkdownReport(IEnumerable<AddinMetadata> addins, string saveFilePath)
+		private async Task GenerateMarkdownReportAsync(IEnumerable<AddinMetadata> addins, string saveFilePath)
 		{
 			if (!_options.MarkdownReportToFile && !_options.MarkdownReportToRepo) return;
 
@@ -1107,6 +1126,12 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine("- The `Transferred to cake-contrib` column indicates if the project has been moved to the cake-contrib github organisation.");
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
+			markdown.AppendLine();
+
+			markdown.AppendLine("# Progress");
+			markdown.AppendLine();
+			markdown.AppendLine("The following graph shows the percentage of addins that are compatible with Cake over time. For the purpose of this graph, we consider an addin to be compatible with a given version of Cake if is references the desired version of Cake.Core and Cake.Common.");
+			markdown.AppendLine($"![]({System.IO.Path.GetFileName(_graphSaveLocation)})");
 			markdown.AppendLine();
 
 			// Exceptions report
@@ -1292,14 +1317,12 @@ namespace Cake.AddinDiscoverer
 			var start = content.IndexOf(startMark, StringComparison.OrdinalIgnoreCase);
 			var end = content.IndexOf(endMark, start + startMark.Length);
 
-			if (start == -1 || end == -1) return string.Empty;
-
-			return content
-				.Substring(start + startMark.Length, end - start - startMark.Length)
-				.Trim();
+			if (start == -1) return string.Empty;
+			else if (end == -1) return content.Substring(start + startMark.Length).Trim();
+			else return content.Substring(start + startMark.Length, end - start - startMark.Length).Trim();
 		}
 
-		private IEnumerable<(string Id, string Version, bool IsPrivate)> GetProjectReferencesAsync(AddinMetadata addin, string projectPath)
+		private IEnumerable<(string Id, string Version, bool IsPrivate)> GetProjectReferences(AddinMetadata addin, string projectPath)
 		{
 			var references = new List<(string Id, string Version, bool IsPrivate)>();
 
@@ -1335,7 +1358,7 @@ namespace Cake.AddinDiscoverer
 			return references.ToArray();
 		}
 
-		private IEnumerable<string> GetProjectFrameworksAsync(AddinMetadata addin, string projectPath)
+		private IEnumerable<string> GetProjectFrameworks(AddinMetadata addin, string projectPath)
 		{
 			var fileSystem = new FileSystem();
 			var projectFile = fileSystem.GetFile(new FilePath(projectPath));
@@ -1344,7 +1367,7 @@ namespace Cake.AddinDiscoverer
 			return parsedProject.TargetFrameworkVersions;
 		}
 
-		private async Task<Uri> GetNormalizedProjectUrl(Uri projectUri)
+		private async Task<Uri> GetNormalizedProjectUrlAsync(Uri projectUri)
 		{
 			if (projectUri.Host.Contains("nuget.org"))
 			{
@@ -1374,7 +1397,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task CommitReportsToRepoAsync()
+		private async Task CommitChangesToRepoAsync()
 		{
 			if (!_options.MarkdownReportToRepo && !_options.ExcelReportToRepo) return;
 
@@ -1431,12 +1454,47 @@ namespace Cake.AddinDiscoverer
 				}
 			}
 
+			if (File.Exists(_statsSaveLocation))
+			{
+				var statsBlob = new NewBlob
+				{
+					Encoding = EncodingType.Utf8,
+					Content = await File.ReadAllTextAsync(_statsSaveLocation).ConfigureAwait(false)
+				};
+				var statsBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, statsBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = System.IO.Path.GetFileName(_statsSaveLocation),
+					Mode = FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = statsBlobRef.Sha
+				});
+			}
+
+			if (File.Exists(_graphSaveLocation))
+			{
+				var graphBinary = await File.ReadAllBytesAsync(_graphSaveLocation).ConfigureAwait(false);
+				var graphBlob = new NewBlob
+				{
+					Encoding = EncodingType.Base64,
+					Content = Convert.ToBase64String(graphBinary)
+				};
+				var graphBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, graphBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = System.IO.Path.GetFileName(_graphSaveLocation),
+					Mode = FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = graphBlobRef.Sha
+				});
+			}
+
 			// Create a new tree
 			var newTree = await _githubClient.Git.Tree.Create(owner, repositoryName, tree).ConfigureAwait(false);
 
 			// Create the commit with the SHAs of the tree and the reference of master branch
 			var newCommit = new NewCommit($"Automated addins audit {DateTime.UtcNow:yyyy-MM-dd} at {DateTime.UtcNow:HH:mm} UTC", newTree.Sha, masterReference.Object.Sha);
-			var commit = _githubClient.Git.Commit.Create(owner, repositoryName, newCommit).Result;
+			var commit = await _githubClient.Git.Commit.Create(owner, repositoryName, newCommit).ConfigureAwait(false);
 
 			// Update the reference of master branch with the SHA of the commit
 			// Update HEAD with the commit
@@ -1451,6 +1509,105 @@ namespace Cake.AddinDiscoverer
 
 			// Save to file
 			File.WriteAllText(_jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+		}
+
+		private async Task UpdateStatsAsync(IEnumerable<AddinMetadata> normalizedAddins)
+		{
+			// Do not update the stats if we are only auditing a single addin.
+			if (!string.IsNullOrEmpty(_options.AddinName)) return;
+
+			var owner = "cake-contrib";
+			var repositoryName = "Home";
+
+			Console.WriteLine("  Updating statistics");
+
+			var content = await _githubClient.Repository.Content.GetAllContents(owner, repositoryName, System.IO.Path.GetFileName(_statsSaveLocation)).ConfigureAwait(false);
+			File.WriteAllText(_statsSaveLocation, content[0].Content);
+
+			using (var fs = new FileStream(_statsSaveLocation, System.IO.FileMode.Append, FileAccess.Write))
+			using (TextWriter writer = new StreamWriter(fs))
+			{
+				var csv = new CsvWriter(writer);
+				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter(CSV_DATE_FORMAT));
+
+				foreach (var cakeVersion in _cakeVersions)
+				{
+					var summary = new AddinProgressSummary
+					{
+						CakeVersion = cakeVersion.Version,
+						Date = DateTime.UtcNow,
+						CompatibleCount = normalizedAddins.Count(addin => IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version)),
+						TotalCount = normalizedAddins.Count()
+					};
+
+					csv.WriteRecord(summary);
+					csv.NextRecord();
+				}
+			}
+		}
+
+		private void GenerateStatsGraph()
+		{
+			Console.WriteLine("  Generating graph");
+
+			var graphPath = System.IO.Path.Combine(_tempFolder, "Audit_progress.png");
+
+			var plotModel = new PlotModel
+			{
+				Title = "Addins compatibility over time",
+				Subtitle = "Percentage of all known addins compatible with a given version of Cake"
+			};
+			var startTime = new DateTime(2018, 3, 21, 0, 0, 0, DateTimeKind.Utc); // We started auditting addins on March 22 2018
+			var minDate = DateTimeAxis.ToDouble(startTime);
+			var maxDate = minDate + (DateTime.UtcNow - startTime).TotalDays + 2;
+
+			plotModel.Axes.Add(new DateTimeAxis
+			{
+				Position = AxisPosition.Bottom,
+				Minimum = minDate,
+				Maximum = maxDate,
+				IntervalType = DateTimeIntervalType.Months,
+				Title = "Date",
+				StringFormat = "yyyy-MM-dd"
+			});
+			plotModel.Axes.Add(new LinearAxis
+			{
+				Position = AxisPosition.Left,
+				Minimum = 0,
+				Maximum = 100,
+				MajorStep = 25,
+				MinorStep = 5,
+				MajorGridlineStyle = LineStyle.Solid,
+				MinorGridlineStyle = LineStyle.Dot,
+				Title = "Percent"
+			});
+
+			using (TextReader reader = new StreamReader(System.IO.Path.Combine(_tempFolder, "Audit_stats.csv")))
+			{
+				var csv = new CsvReader(reader);
+				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter("yyyy-MM-dd HH:mm:ss"));
+
+				var recordsGroupedByCakeVersion = csv
+					.GetRecords<AddinProgressSummary>()
+					.GroupBy(r => r.CakeVersion);
+
+				foreach (var grp in recordsGroupedByCakeVersion)
+				{
+					var series = new LineSeries()
+					{
+						Title = $"Cake {grp.Key}"
+					};
+					foreach (var statsSummary in grp)
+					{
+						series.Points.Add(new DataPoint(DateTimeAxis.ToDouble(statsSummary.Date), (Convert.ToDouble(statsSummary.CompatibleCount) / Convert.ToDouble(statsSummary.TotalCount)) * 100));
+					}
+
+					plotModel.Series.Add(series);
+				}
+			}
+
+			var pngExporter = new PngExporter { Width = 600, Height = 400, Background = OxyColors.White };
+			pngExporter.ExportToFile(plotModel, graphPath);
 		}
 	}
 }
