@@ -1,9 +1,11 @@
 ﻿using AngleSharp;
+using Cake.AddinDiscoverer.Utilities;
 using Cake.Common.Solution;
 using Cake.Core;
 using Cake.Core.Diagnostics;
 using Cake.Core.IO;
 using Cake.Incubator;
+using CsvHelper;
 using Newtonsoft.Json;
 using NuGet.Configuration;
 using NuGet.Protocol;
@@ -11,6 +13,10 @@ using NuGet.Protocol.Core.Types;
 using Octokit;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
+using OxyPlot.WindowsForms;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -36,12 +42,15 @@ namespace Cake.AddinDiscoverer
 		private const string GREEN_EMOJI = ":white_check_mark: ";
 		private const string RED_EMOJI = ":small_red_triangle: ";
 		private const string NUGET_METADATA_FILE = "nuget.json";
+		private const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
 		private readonly IGitHubClient _githubClient;
 		private readonly PackageMetadataResource _nugetPackageMetadataClient;
 		private readonly string _jsonSaveLocation;
+		private readonly string _statsSaveLocation;
+		private readonly string _graphSaveLocation;
 
 		private readonly CakeVersion[] _cakeVersions = new[]
 		{
@@ -144,6 +153,8 @@ namespace Cake.AddinDiscoverer
 			_options = options;
 			_tempFolder = System.IO.Path.Combine(_options.TemporaryFolder, PRODUCT_NAME);
 			_jsonSaveLocation = System.IO.Path.Combine(_tempFolder, "CakeAddins.json");
+			_statsSaveLocation = System.IO.Path.Combine(_tempFolder, "Audit_stats.csv");
+			_graphSaveLocation = System.IO.Path.Combine(_tempFolder, "Audit_progress.png");
 
 			// Setup the Github client
 			var credentials = new Credentials(_options.GithubUsername, _options.GithuPassword);
@@ -300,8 +311,14 @@ namespace Cake.AddinDiscoverer
 				// Generate the markdown report and write to file
 				await GenerateMarkdownReportAsync(normalizedAddins, markdownReportPath).ConfigureAwait(false);
 
-				// Commit the reports to the cake-contrib repo
-				await CommitReportsToRepoAsync().ConfigureAwait(false);
+				// Update the CSV file containing historical statistics (used to generate graph)
+				await UpdateStatsAsync(normalizedAddins).ConfigureAwait(false);
+
+				// Generate the graph showing how many addins are compatible with Cake over time
+				GenerateStatsGraph();
+
+				// Commit the changed files (such as reports, stats CSV, graph, etc.) to the cake-contrib repo
+				await CommitChangesToRepoAsync().ConfigureAwait(false);
 			}
 			catch (Exception e)
 			{
@@ -1111,6 +1128,12 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
 			markdown.AppendLine();
 
+			markdown.AppendLine("# Progress");
+			markdown.AppendLine();
+			markdown.AppendLine("The following graph shows the percentage of addins that are compatible with Cake over time. For the purpose of this graph, we consider an addin to be compatible with a given version of Cake if is references the desired version of Cake.Core and Cake.Common.");
+			markdown.AppendLine($"![]({System.IO.Path.GetFileName(_graphSaveLocation)})");
+			markdown.AppendLine();
+
 			// Exceptions report
 			if (exceptionAddins.Any())
 			{
@@ -1294,11 +1317,9 @@ namespace Cake.AddinDiscoverer
 			var start = content.IndexOf(startMark, StringComparison.OrdinalIgnoreCase);
 			var end = content.IndexOf(endMark, start + startMark.Length);
 
-			if (start == -1 || end == -1) return string.Empty;
-
-			return content
-				.Substring(start + startMark.Length, end - start - startMark.Length)
-				.Trim();
+			if (start == -1) return string.Empty;
+			else if (end == -1) return content.Substring(start + startMark.Length).Trim();
+			else return content.Substring(start + startMark.Length, end - start - startMark.Length).Trim();
 		}
 
 		private IEnumerable<(string Id, string Version, bool IsPrivate)> GetProjectReferences(AddinMetadata addin, string projectPath)
@@ -1376,7 +1397,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task CommitReportsToRepoAsync()
+		private async Task CommitChangesToRepoAsync()
 		{
 			if (!_options.MarkdownReportToRepo && !_options.ExcelReportToRepo) return;
 
@@ -1433,6 +1454,41 @@ namespace Cake.AddinDiscoverer
 				}
 			}
 
+			if (File.Exists(_statsSaveLocation))
+			{
+				var statsBlob = new NewBlob
+				{
+					Encoding = EncodingType.Utf8,
+					Content = await File.ReadAllTextAsync(_statsSaveLocation).ConfigureAwait(false)
+				};
+				var statsBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, statsBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = System.IO.Path.GetFileName(_statsSaveLocation),
+					Mode = FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = statsBlobRef.Sha
+				});
+			}
+
+			if (File.Exists(_graphSaveLocation))
+			{
+				var graphBinary = await File.ReadAllBytesAsync(_graphSaveLocation).ConfigureAwait(false);
+				var graphBlob = new NewBlob
+				{
+					Encoding = EncodingType.Base64,
+					Content = Convert.ToBase64String(graphBinary)
+				};
+				var graphBlobRef = await _githubClient.Git.Blob.Create(owner, repositoryName, graphBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = System.IO.Path.GetFileName(_graphSaveLocation),
+					Mode = FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = graphBlobRef.Sha
+				});
+			}
+
 			// Create a new tree
 			var newTree = await _githubClient.Git.Tree.Create(owner, repositoryName, tree).ConfigureAwait(false);
 
@@ -1453,6 +1509,101 @@ namespace Cake.AddinDiscoverer
 
 			// Save to file
 			File.WriteAllText(_jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
+		}
+
+		private async Task UpdateStatsAsync(IEnumerable<AddinMetadata> normalizedAddins)
+		{
+			// Do not update the stats if we are only auditing a single addin.
+			if (!string.IsNullOrEmpty(_options.AddinName)) return;
+
+			var owner = "cake-contrib";
+			var repositoryName = "Home";
+
+			var content = await _githubClient.Repository.Content.GetAllContents(owner, repositoryName, System.IO.Path.GetFileName(_statsSaveLocation)).ConfigureAwait(false);
+			File.WriteAllText(_statsSaveLocation, content[0].Content);
+
+			using (var fs = new FileStream(_statsSaveLocation, System.IO.FileMode.Append, FileAccess.Write))
+			using (TextWriter writer = new StreamWriter(fs))
+			{
+				var csv = new CsvWriter(writer);
+				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter(CSV_DATE_FORMAT));
+
+				foreach (var cakeVersion in _cakeVersions)
+				{
+					var summary = new AddinProgressSummary
+					{
+						CakeVersion = cakeVersion.Version,
+						Date = DateTime.UtcNow,
+						CompatibleCount = normalizedAddins.Count(addin => IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version)),
+						TotalCount = normalizedAddins.Count()
+					};
+
+					csv.WriteRecord(summary);
+					csv.NextRecord();
+				}
+			}
+		}
+
+		private void GenerateStatsGraph()
+		{
+			var graphPath = System.IO.Path.Combine(_tempFolder, "Audit_progress.png");
+
+			var plotModel = new PlotModel
+			{
+				Title = "Addins compatibility over time",
+				Subtitle = "Percentage of all known addins compatible with a given version of Cake"
+			};
+			var startTime = new DateTime(2018, 3, 21, 0, 0, 0, DateTimeKind.Utc); // We started auditting addins on March 22 2018
+			var minDate = DateTimeAxis.ToDouble(startTime);
+			var maxDate = minDate + (DateTime.UtcNow - startTime).TotalDays + 2;
+
+			plotModel.Axes.Add(new DateTimeAxis
+			{
+				Position = AxisPosition.Bottom,
+				Minimum = minDate,
+				Maximum = maxDate,
+				IntervalType = DateTimeIntervalType.Months,
+				Title = "Date",
+				StringFormat = "yyyy-MM-dd"
+			});
+			plotModel.Axes.Add(new LinearAxis
+			{
+				Position = AxisPosition.Left,
+				Minimum = 0,
+				Maximum = 100,
+				MajorStep = 25,
+				MinorStep = 5,
+				MajorGridlineStyle = LineStyle.Solid,
+				MinorGridlineStyle = LineStyle.Dot,
+				Title = "Percent"
+			});
+
+			using (TextReader reader = new StreamReader(System.IO.Path.Combine(_tempFolder, "Audit_stats.csv")))
+			{
+				var csv = new CsvReader(reader);
+				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter("yyyy-MM-dd HH:mm:ss"));
+
+				var recordsGroupedByCakeVersion = csv
+					.GetRecords<AddinProgressSummary>()
+					.GroupBy(r => r.CakeVersion);
+
+				foreach (var grp in recordsGroupedByCakeVersion)
+				{
+					var series = new LineSeries()
+					{
+						Title = $"Cake {grp.Key}"
+					};
+					foreach (var statsSummary in grp)
+					{
+						series.Points.Add(new DataPoint(DateTimeAxis.ToDouble(statsSummary.Date), (Convert.ToDouble(statsSummary.CompatibleCount) / Convert.ToDouble(statsSummary.TotalCount)) * 100));
+					}
+
+					plotModel.Series.Add(series);
+				}
+			}
+
+			var pngExporter = new PngExporter { Width = 600, Height = 400, Background = OxyColors.White };
+			pngExporter.ExportToFile(plotModel, graphPath);
 		}
 	}
 }
