@@ -25,6 +25,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
@@ -1604,6 +1605,102 @@ namespace Cake.AddinDiscoverer
 
 			var pngExporter = new PngExporter { Width = 600, Height = 400, Background = OxyColors.White };
 			pngExporter.ExportToFile(plotModel, graphPath);
+		}
+
+		private async Task GetHistoricalStatsAsync()
+		{
+			var owner = "cake-contrib";
+			var repositoryName = "Home";
+
+			var saveFolder = System.IO.Path.Combine(_tempFolder, "_history");
+			if (!Directory.Exists(saveFolder)) Directory.CreateDirectory(saveFolder);
+
+			foreach (var desiredFile in new[] { "Audit.md", "Audit_for_Cake_0.26.0.md", "Audit_for_Cake_0.28.0.md" })
+			{
+				var commitsForFile = await _githubClient.Repository.Commit.GetAll(owner, repositoryName, new CommitRequest { Path = desiredFile }).ConfigureAwait(false);
+				await commitsForFile
+					.ForEachAsync(
+						async commit =>
+						{
+							var details = await _githubClient.Repository.Commit.Get(owner, repositoryName, commit.Sha).ConfigureAwait(false);
+							var filePath = System.IO.Path.Combine(saveFolder, $"{System.IO.Path.GetFileNameWithoutExtension(desiredFile)}_{details.Commit.Committer.Date.UtcDateTime:yyyy_MM_dd_HH_mm_ss}.md");
+							if (!File.Exists(filePath))
+							{
+								var contents = await _githubClient.Repository.Content.GetAllContentsByRef(owner, repositoryName, desiredFile, commit.Sha).ConfigureAwait(false);
+								File.WriteAllText(filePath, contents.First().Content);
+							}
+						}, MAX_GITHUB_CONCURENCY)
+					.ConfigureAwait(false);
+			}
+
+			var regEx = new Regex(@"The analysis discovered (?<totalcount>.*?) addins", RegexOptions.Compiled);
+			bool IsPositive(string content)
+			{
+				return string.IsNullOrWhiteSpace(content) ||
+					content.Contains("<span style=\"color: green\">") ||
+					content.Contains(":white_check_mark:");
+			}
+
+			using (TextWriter writer = new StreamWriter(System.IO.Path.Combine(saveFolder, "Audit_stats.csv")))
+			{
+				var csv = new CsvWriter(writer);
+				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter(CSV_DATE_FORMAT));
+
+				csv.WriteHeader<AddinProgressSummary>();
+				csv.NextRecord();
+
+				foreach (var filePath in Directory.EnumerateFiles(saveFolder, "Audit_*.md"))
+				{
+					var file = File.OpenText(filePath);
+					var fileContent = await file.ReadToEndAsync().ConfigureAwait(false);
+					var fileName = System.IO.Path.GetFileNameWithoutExtension(filePath);
+					var cakeVersion = fileName.StartsWith("Audit_for_Cake_0.28.0") ? "0.28.0" : "0.26.0";
+
+					var dateParts = fileName
+						.Replace("Audit_for_Cake_0.28.0_", string.Empty)
+						.Replace("Audit_for_Cake_0.26.0_", string.Empty)
+						.Replace("Audit_", string.Empty)
+						.Split('_', StringSplitOptions.RemoveEmptyEntries)
+						.Select(part => Convert.ToInt32(part))
+						.ToArray();
+					var date = new DateTime(dateParts[0], dateParts[1], dateParts[2], dateParts[3], dateParts[4], dateParts[5], DateTimeKind.Utc);
+
+					var totalCount = 0;
+					var matchResult = regEx.Match(fileContent);
+					if (matchResult.Success)
+					{
+						totalCount = Convert.ToInt32(matchResult.Groups["totalcount"].Value);
+					}
+
+					var sectionContent = Extract("# Addins", "#", fileContent);
+					var lines = sectionContent.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+
+					// It's important to skip the two 'header' rows
+					var addins = lines
+						.Skip(2)
+						.Select(line =>
+						{
+							var cells = line.Split('|', StringSplitOptions.RemoveEmptyEntries);
+							return new
+							{
+								Name = Extract("[", "]", cells[0]),
+								CakeCore = IsPositive(cells[1]),
+								CakeCommon = IsPositive(cells[3])
+							};
+						});
+
+					var summary = new AddinProgressSummary
+					{
+						CakeVersion = cakeVersion,
+						Date = date,
+						CompatibleCount = addins.Count(a => a.CakeCore && a.CakeCommon),
+						TotalCount = totalCount
+					};
+
+					csv.WriteRecord(summary);
+					csv.NextRecord();
+				}
+			}
 		}
 	}
 }
