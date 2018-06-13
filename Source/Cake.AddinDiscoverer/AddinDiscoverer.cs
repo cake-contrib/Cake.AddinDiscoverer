@@ -36,6 +36,8 @@ namespace Cake.AddinDiscoverer
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKE_CONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
+		private const string CAKE_RECIPE_ISSUE_TITLE = "Addin references need to be updated";
+		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
 		private const string UNKNOWN_VERSION = "Unknown";
 		private const int MAX_GITHUB_CONCURENCY = 10;
 		private const int MAX_NUGET_CONCURENCY = 25; // 25 seems like a safe value but I suspect that nuget allows a much large number on concurrent connections.
@@ -257,7 +259,11 @@ namespace Cake.AddinDiscoverer
 				// Update CakeRecipe
 				if (_options.UpdateCakeRecipeReferences)
 				{
-					await UpdateCakeRecipeFilesAsync(normalizedAddins).ConfigureAwait(false);
+					var cakeRecipeIssueId = await FindCakeRecipeGithubIssueAsync().ConfigureAwait(false);
+					if (!cakeRecipeIssueId.HasValue)
+					{
+						await UpdateCakeRecipeFilesAsync(normalizedAddins).ConfigureAwait(false);
+					}
 				}
 			}
 			catch (Exception e)
@@ -1009,6 +1015,7 @@ namespace Cake.AddinDiscoverer
 								{
 									Body = issueBody.ToString()
 								};
+
 								var issue = await _githubClient.Issue.Create(addin.GithubRepoOwner, addin.GithubRepoName, newIssue).ConfigureAwait(false);
 								addin.GithubIssueUrl = new Uri(issue.Url);
 								addin.GithubIssueId = issue.Number;
@@ -1481,6 +1488,29 @@ namespace Cake.AddinDiscoverer
 		}
 
 		private async Task UpdateStatsAsync(IEnumerable<AddinMetadata> addins)
+		private async Task<int?> FindCakeRecipeGithubIssueAsync()
+		{
+			Console.WriteLine("  Finding Cake.Recipe Github issue");
+
+			//var owner = "cake-contrib";
+			//var repositoryName = "Cake.Recipe";
+			var owner = "jericho";
+			var repositoryName = "_testing";
+
+			var request = new RepositoryIssueRequest()
+			{
+				Creator = _options.GithubUsername,
+				State = ItemStateFilter.Open,
+				SortProperty = IssueSort.Created,
+				SortDirection = SortDirection.Descending
+			};
+
+			var issues = await _githubClient.Issue.GetAllForRepository(owner, repositoryName, request).ConfigureAwait(false);
+			var issue = issues.FirstOrDefault(i => i.Title == ISSUE_TITLE);
+
+			return issue?.Number;
+		}
+
 		private async Task UpdateCakeRecipeFilesAsync(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Updating Cake.Recipe");
@@ -1550,18 +1580,21 @@ namespace Cake.AddinDiscoverer
 			{
 				// --------------------------------------------------
 				// STEP 3 - create issue
-				var newIssue = new NewIssue("Addin references need to be updated")
+				var newIssue = new NewIssue(CAKE_RECIPE_ISSUE_TITLE)
 				{
 					Body = "The following cake files contain outdated addin references that should be updated:\r\n" +
 						string.Join("\r\n", modifiedFiles.Select(f => $"- `{f.Key}` contains the following outdated references:\r\n" +
 						string.Join("\r\n", f.Value.AddinNames.Select(n => $"    - {n}"))))
 				};
+				newIssue.Labels.Add("created-by-addin-discoverer");
+
 				var issue = await _githubClient.Issue.Create(owner, repositoryName, newIssue).ConfigureAwait(false);
 
 				// --------------------------------------------------
 				// STEP 4 - commit changes to a new branch
+				const string COMMIT_MESSAGE = "Update addins references";
 				var developBranchName = "develop";
-				var newBranchName = "my_new_branch";
+				var newBranchName = $"update_addins_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 				var developRef = $"heads/{developBranchName}";
 				var newBranchRef = $"heads/{newBranchName}";
 
@@ -1591,14 +1624,14 @@ namespace Cake.AddinDiscoverer
 
 				var newTree = await _githubClient.Git.Tree.Create(owner, repositoryName, tree).ConfigureAwait(false);
 
-				var newCommit = new NewCommit("Update addin references", newTree.Sha, newBranch.Object.Sha);
+				var newCommit = new NewCommit(COMMIT_MESSAGE, newTree.Sha, newBranch.Object.Sha);
 				var commit = await _githubClient.Git.Commit.Create(owner, repositoryName, newCommit).ConfigureAwait(false);
 
 				await _githubClient.Git.Reference.Update(owner, repositoryName, newBranchRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
 
 				// --------------------------------------------------
 				// STEP 5 - submit pull request
-				var newPullRequest = new NewPullRequest("Update addin references", newBranchName, developBranchName)
+				var newPullRequest = new NewPullRequest(COMMIT_MESSAGE, newBranchName, developBranchName)
 				{
 					Body = $"Resolves #{issue.Number}"
 				};
