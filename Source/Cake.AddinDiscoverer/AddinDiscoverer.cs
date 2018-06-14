@@ -44,6 +44,8 @@ namespace Cake.AddinDiscoverer
 		private const string NUGET_METADATA_FILE = "nuget.json";
 		private const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
+		private static SemVersion _unknownVersion = new SemVersion(0, 0, 0);
+
 		private readonly Options _options;
 		private readonly string _tempFolder;
 		private readonly IGitHubClient _githubClient;
@@ -54,8 +56,8 @@ namespace Cake.AddinDiscoverer
 
 		private readonly CakeVersion[] _cakeVersions = new[]
 		{
-			new CakeVersion { Version = "0.26.0", Framework = "netstandard2.0" },
-			new CakeVersion { Version = "0.28.0", Framework = "netstandard2.0" }
+			new CakeVersion { Version = new SemVersion(0, 26, 0), Framework = "netstandard2.0" },
+			new CakeVersion { Version = new SemVersion(0, 28, 0), Framework = "netstandard2.0" }
 		};
 
 #pragma warning disable SA1000 // Keywords should be spaced correctly
@@ -82,32 +84,32 @@ namespace Cake.AddinDiscoverer
 			(
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.CakeCoreVersion,
-				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
+				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreVersion == _unknownVersion ? UNKNOWN_VERSION : addin.AnalysisResult.CakeCoreVersion.ToString(),
+				(addin, cakeVersion) => addin.AnalysisResult.CakeCoreVersion == null ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
 			(
 				"Cake Core IsPrivate",
 				ExcelHorizontalAlignment.Center,
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? string.Empty : addin.AnalysisResult.CakeCoreIsPrivate.ToString().ToLower(),
-				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red),
+				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreIsPrivate.ToString().ToLower(),
+				(addin, cakeVersion) => addin.AnalysisResult.CakeCoreVersion == null ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
 			(
 				"Cake Common Version",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.CakeCommonVersion,
-				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
+				(addin) => addin.AnalysisResult.CakeCommonVersion == null ? string.Empty : addin.AnalysisResult.CakeCommonVersion == _unknownVersion ? UNKNOWN_VERSION : addin.AnalysisResult.CakeCommonVersion.ToString(),
+				(addin, cakeVersion) => addin.AnalysisResult.CakeCommonVersion == null ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
 			(
 				"Cake Common IsPrivate",
 				ExcelHorizontalAlignment.Center,
-				(addin) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? string.Empty : addin.AnalysisResult.CakeCommonIsPrivate.ToString().ToLower(),
-				(addin, cakeVersion) => string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion) ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red),
+				(addin) => addin.AnalysisResult.CakeCommonVersion == null ? string.Empty : addin.AnalysisResult.CakeCommonIsPrivate.ToString().ToLower(),
+				(addin, cakeVersion) => addin.AnalysisResult.CakeCommonVersion == null ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
 			),
@@ -327,21 +329,11 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private static bool IsCakeVersionUpToDate(string currentVersion, string desiredVersion)
+		private static bool IsCakeVersionUpToDate(SemVersion currentVersion, SemVersion desiredVersion)
 		{
-			if (string.IsNullOrEmpty(currentVersion)) return true;
+			if (desiredVersion == null) throw new ArgumentNullException(nameof(desiredVersion));
 
-			var current = currentVersion.Split('.');
-			var desired = desiredVersion.Split('.');
-
-			if (current.Length < desired.Length) return false;
-
-			for (int i = 0; i < desired.Length; i++)
-			{
-				if (int.Parse(current[i]) < int.Parse(desired[i])) return false;
-			}
-
-			return true;
+			return currentVersion == null || currentVersion >= desiredVersion;
 		}
 
 		private static bool IsFrameworkUpToDate(string[] currentFrameworks, string desiredFramework)
@@ -349,17 +341,6 @@ namespace Cake.AddinDiscoverer
 			if (currentFrameworks == null) return false;
 			else if (currentFrameworks.Length != 1) return false;
 			else return currentFrameworks[0].EqualsIgnoreCase(desiredFramework);
-		}
-
-		/// <summary>
-		/// Sometimes the version has 4 parts (eg: 0.26.0.0) but we only care about the first 3
-		/// </summary>
-		/// <param name="version">The string version</param>
-		/// <returns>The first three parts of a version</returns>
-		private static string FormatVersion(string version)
-		{
-			if (string.IsNullOrEmpty(version)) return UNKNOWN_VERSION;
-			return string.Join('.', version.Split('.').Take(3));
 		}
 
 		private async Task<AddinMetadata[]> DiscoverCakeAddinsByYmlAsync()
@@ -685,7 +666,7 @@ namespace Cake.AddinDiscoverer
 			var results = addins
 				.Select(addin =>
 				{
-					var references = new List<(string Id, string Version, bool IsPrivate)>();
+					var references = new List<(string Id, SemVersion Version, bool IsPrivate)>();
 					var folderName = System.IO.Path.Combine(_tempFolder, addin.Name);
 
 					if (Directory.Exists(folderName))
@@ -748,6 +729,7 @@ namespace Cake.AddinDiscoverer
 					}
 
 					addin.Frameworks = frameworks
+						.Where(f => !string.IsNullOrEmpty(f))
 						.GroupBy(f => f)
 						.Select(grp => grp.First())
 						.ToArray();
@@ -841,27 +823,27 @@ namespace Cake.AddinDiscoverer
 						var cakeCommonReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Common"));
 						if (cakeCommonReference.Any())
 						{
-							var cakeCommonVersion = FormatVersion(cakeCommonReference.Min(r => r.Version));
+							var cakeCommonVersion = cakeCommonReference.Min(r => r.Version);
 							var cakeCommonIsPrivate = cakeCommonReference.All(r => r.IsPrivate);
-							addin.AnalysisResult.CakeCommonVersion = cakeCommonVersion;
+							addin.AnalysisResult.CakeCommonVersion = cakeCommonVersion ?? _unknownVersion;
 							addin.AnalysisResult.CakeCommonIsPrivate = cakeCommonIsPrivate;
 						}
 						else
 						{
-							addin.AnalysisResult.CakeCommonVersion = string.Empty;
+							addin.AnalysisResult.CakeCommonVersion = null;
 							addin.AnalysisResult.CakeCommonIsPrivate = true;
 						}
 						var cakeCoreReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Core"));
 						if (cakeCoreReference.Any())
 						{
-							var cakeCoreVersion = FormatVersion(cakeCoreReference.Min(r => r.Version));
+							var cakeCoreVersion = cakeCoreReference.Min(r => r.Version);
 							var cakeCoreIsPrivate = cakeCoreReference.All(r => r.IsPrivate);
-							addin.AnalysisResult.CakeCoreVersion = cakeCoreVersion;
+							addin.AnalysisResult.CakeCoreVersion = cakeCoreVersion ?? _unknownVersion;
 							addin.AnalysisResult.CakeCoreIsPrivate = cakeCoreIsPrivate;
 						}
 						else
 						{
-							addin.AnalysisResult.CakeCoreVersion = string.Empty;
+							addin.AnalysisResult.CakeCoreVersion = null;
 							addin.AnalysisResult.CakeCoreIsPrivate = true;
 						}
 
@@ -874,7 +856,7 @@ namespace Cake.AddinDiscoverer
 					{
 						addin.AnalysisResult.Notes += "We were unable to determine the Github repo URL. Most likely this means that the PackageProjectUrl is missing from the csproj.\r\n";
 					}
-					else if (string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion) && string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion))
+					else if (addin.AnalysisResult.CakeCoreVersion == null && addin.AnalysisResult.CakeCommonVersion == null)
 					{
 						addin.AnalysisResult.Notes += "This addin seem to be referencing neither Cake.Core nor Cake.Common.\r\n";
 					}
@@ -890,9 +872,7 @@ namespace Cake.AddinDiscoverer
 			Console.WriteLine("  Creating Github issues");
 
 			var recommendedCakeVersion = _cakeVersions
-				.OrderByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[0]))
-				.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[1]))
-				.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[2]))
+				.OrderByDescending(cakeVersion => cakeVersion.Version)
 				.First();
 
 			var addinsMetadata = await addins
@@ -902,22 +882,22 @@ namespace Cake.AddinDiscoverer
 						if (addin.GithubRepoUrl != null && !addin.GithubIssueId.HasValue)
 						{
 							var issuesDescription = new StringBuilder();
-							if (addin.AnalysisResult.CakeCoreVersion == UNKNOWN_VERSION)
+							if (addin.AnalysisResult.CakeCoreVersion == _unknownVersion)
 							{
 								issuesDescription.AppendLine($"- [ ] We were unable to determine what version of Cake.Core your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}");
 							}
 							else if (!IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, recommendedCakeVersion.Version))
 							{
-								issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {recommendedCakeVersion.Version}");
+								issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion.ToString()}. Please upgrade to {recommendedCakeVersion.Version.ToString()}");
 							}
 
-							if (addin.AnalysisResult.CakeCommonVersion == UNKNOWN_VERSION)
+							if (addin.AnalysisResult.CakeCommonVersion == _unknownVersion)
 							{
 								issuesDescription.AppendLine($"- [ ] We were unable to determine what version of Cake.Common your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}");
 							}
 							else if (!IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, recommendedCakeVersion.Version))
 							{
-								issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {recommendedCakeVersion.Version}");
+								issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion.ToString()}. Please upgrade to {recommendedCakeVersion.Version.ToString()}");
 							}
 
 							if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Core reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Core\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
@@ -960,8 +940,8 @@ namespace Cake.AddinDiscoverer
 
 			using (var package = new ExcelPackage(file))
 			{
-				var auditedAddins = addins.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes));
-				var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
+				var auditedAddins = addins.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes)).ToArray();
+				var exceptionAddins = addins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes)).ToArray();
 
 				var reportColumns = _reportColumns
 					.Where(column => column.destination.HasFlag(DataDestination.Excel))
@@ -973,9 +953,7 @@ namespace Cake.AddinDiscoverer
 				namedStyle.Style.Font.Color.SetColor(Color.Blue);
 
 				foreach (var cakeVersion in _cakeVersions
-					.OrderByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[0]))
-					.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[1]))
-					.ThenByDescending(cakeVersion => Convert.ToInt32(cakeVersion.Version.Split('.')[2])))
+					.OrderByDescending(cakeVersion => cakeVersion.Version))
 				{
 					// One worksheet per version of Cake
 					var worksheet = package.Workbook.Worksheets.Add($"Cake {cakeVersion.Version}");
@@ -1171,13 +1149,13 @@ namespace Cake.AddinDiscoverer
 				markdown.AppendLine("# Statistics");
 				markdown.AppendLine();
 
-				var addinsReferencingCakeCore = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCoreVersion));
+				var addinsReferencingCakeCore = auditedAddins.Where(addin => addin.AnalysisResult.CakeCoreVersion != null);
 				markdown.AppendLine($"- Of the {addinsReferencingCakeCore.Count()} audited addins that reference Cake.Core:");
 				markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version))} are targeting the desired version of Cake.Core");
 				markdown.AppendLine($"  - {addinsReferencingCakeCore.Count(addin => addin.AnalysisResult.CakeCoreIsPrivate)} have marked the reference to Cake.Core as private");
 				markdown.AppendLine();
 
-				var addinsReferencingCakeCommon = auditedAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.CakeCommonVersion));
+				var addinsReferencingCakeCommon = auditedAddins.Where(addin => addin.AnalysisResult.CakeCommonVersion != null);
 				markdown.AppendLine($"- Of the {addinsReferencingCakeCommon.Count()} audited addins that reference Cake.Common:");
 				markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version))} are targeting the desired version of Cake.Common");
 				markdown.AppendLine($"  - {addinsReferencingCakeCommon.Count(addin => addin.AnalysisResult.CakeCommonIsPrivate)} have marked the reference to Cake.Common as private");
@@ -1323,9 +1301,9 @@ namespace Cake.AddinDiscoverer
 			else return content.Substring(start + startMark.Length, end - start - startMark.Length).Trim();
 		}
 
-		private IEnumerable<(string Id, string Version, bool IsPrivate)> GetProjectReferences(AddinMetadata addin, string projectPath)
+		private IEnumerable<(string Id, SemVersion Version, bool IsPrivate)> GetProjectReferences(AddinMetadata addin, string projectPath)
 		{
-			var references = new List<(string Id, string Version, bool IsPrivate)>();
+			var references = new List<(string Id, SemVersion Version, bool IsPrivate)>();
 
 			var fileSystem = new FileSystem();
 			var projectFile = fileSystem.GetFile(new FilePath(projectPath));
@@ -1339,7 +1317,8 @@ namespace Cake.AddinDiscoverer
 				var id = parts[0];
 				if (!string.IsNullOrEmpty(id))
 				{
-					var version = referenceDetails.FirstOrDefault(d => d[0].EqualsIgnoreCase("Version"))?[1];
+					var versionAsString = referenceDetails.FirstOrDefault(d => d[0].EqualsIgnoreCase("Version"))?[1];
+					var version = ConvertStringToVersion(versionAsString);
 					var isPrivate = reference.Private ?? false;
 					references.Add((id, version, isPrivate));
 				}
@@ -1350,7 +1329,8 @@ namespace Cake.AddinDiscoverer
 				var id = reference.Name;
 				if (!string.IsNullOrEmpty(id))
 				{
-					var version = reference.Version;
+					var versionAsString = reference.Version;
+					var version = ConvertStringToVersion(versionAsString);
 					var isPrivate = reference.PrivateAssets?.Any(a => a.EqualsIgnoreCase("All")) ?? false;
 					references.Add((id, version, isPrivate));
 				}
@@ -1535,7 +1515,7 @@ namespace Cake.AddinDiscoverer
 				{
 					var summary = new AddinProgressSummary
 					{
-						CakeVersion = cakeVersion.Version,
+						CakeVersion = cakeVersion.Version.ToString(),
 						Date = DateTime.UtcNow,
 						CompatibleCount = normalizedAddins.Count(addin => IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version)),
 						TotalCount = normalizedAddins.Count()
@@ -1609,6 +1589,16 @@ namespace Cake.AddinDiscoverer
 
 			var pngExporter = new PngExporter { Width = 600, Height = 400, Background = OxyColors.White };
 			pngExporter.ExportToFile(plotModel, graphPath);
+		}
+
+		private SemVersion ConvertStringToVersion(string versionAsString)
+		{
+			if (string.IsNullOrEmpty(versionAsString)) return null;
+
+			var versionParts = versionAsString.Split('.');
+			if (versionParts.Length < 3) return _unknownVersion;
+
+			return SemVersion.Parse(string.Join('.', versionParts.Take(3)));
 		}
 	}
 }
