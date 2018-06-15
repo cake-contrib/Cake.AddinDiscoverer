@@ -11,7 +11,7 @@ namespace Cake.AddinDiscoverer.Utilities
 	/// Conforms to v2.0.0 of http://semver.org/
 	/// </summary>
 	[Serializable]
-	public sealed class SemVersion : IComparable<SemVersion>, IComparable, ISerializable
+	internal sealed class SemVersion : IComparable<SemVersion>, IComparable, ISerializable
 	{
 		private static Regex parseEx =
 			new Regex(
@@ -43,7 +43,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <summary>
 		/// Initializes a new instance of the <see cref="SemVersion"/> class.
 		/// </summary>
-		/// <param name="version">The <see cref="System.Version"/> that is used to initialize 
+		/// <param name="version">The <see cref="System.Version"/> that is used to initialize
 		/// the Major, Minor, Patch and Build properties.</param>
 		public SemVersion(Version version)
 		{
@@ -73,9 +73,9 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <summary>
 		/// Initializes a new instance of the <see cref="SemVersion" /> class.
 		/// </summary>
-		/// <param name="info"></param>
-		/// <param name="context"></param>
-		/// <exception cref="ArgumentNullException"></exception>
+		/// <param name="info">The serialization info.</param>
+		/// <param name="context">The serialization context.</param>
+		/// <exception cref="ArgumentNullException">If info is null</exception>
 		private SemVersion(SerializationInfo info, StreamingContext context)
 		{
 			if (info == null) throw new ArgumentNullException("info");
@@ -134,8 +134,8 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// Parses the specified string to a semantic version.
 		/// </summary>
 		/// <param name="version">The version string.</param>
-		/// <param name="semver">When the method returns, contains a SemVersion instance equivalent 
-		/// to the version string passed in, if the version string was valid, or <c>null</c> if the 
+		/// <param name="semver">When the method returns, contains a SemVersion instance equivalent
+		/// to the version string passed in, if the version string was valid, or <c>null</c> if the
 		/// version string was not valid.</param>
 		/// <param name="strict">If set to <c>true</c> minor and patch version are required, else they default to 0.</param>
 		/// <returns><c>False</c> when a invalid version string is passed, otherwise <c>true</c>.</returns>
@@ -235,17 +235,34 @@ namespace Cake.AddinDiscoverer.Utilities
 		}
 
 		/// <summary>
-		/// Compares the current instance with another object of the same type and returns an integer that indicates 
-		/// whether the current instance precedes, follows, or occurs in the same position in the sort order as the 
+		/// Returns a <see cref="string" /> that represents this instance.
+		/// </summary>
+		/// <param name="parts">How many parts. Must be between 1 and 4, the fourth part being the PreRelease and/or Build.</param>
+		/// <returns>
+		/// A <see cref="string" /> that represents this instance.
+		/// </returns>
+		public string ToString(int parts)
+		{
+			if (parts < 1 || parts > 4) throw new Exception("Number of parts must be between 1 and 4");
+
+			if (parts == 1) return $"{Major}";
+			else if (parts == 2) return $"{Major}.{Minor}";
+			else if (parts == 3) return $"{Major}.{Minor}.{Patch}";
+			else return ToString();
+		}
+
+		/// <summary>
+		/// Compares the current instance with another object of the same type and returns an integer that indicates
+		/// whether the current instance precedes, follows, or occurs in the same position in the sort order as the
 		/// other object.
 		/// </summary>
 		/// <param name="obj">An object to compare with this instance.</param>
 		/// <returns>
-		/// A value that indicates the relative order of the objects being compared. 
-		/// The return value has these meanings: Value Meaning Less than zero 
-		///  This instance precedes <paramref name="obj" /> in the sort order. 
-		///  Zero This instance occurs in the same position in the sort order as <paramref name="obj" />. i
-		///  Greater than zero This instance follows <paramref name="obj" /> in the sort order.
+		/// A value that indicates the relative order of the objects being compared.
+		/// The return value has these meanings:
+		/// - Less than zero: This instance precedes <paramref name="obj" /> in the sort order.
+		/// - Zero: This instance occurs in the same position in the sort order as <paramref name="obj" />.
+		///  - Greater than zero: This instance follows <paramref name="obj" /> in the sort order.
 		/// </returns>
 		public int CompareTo(object obj)
 		{
@@ -253,8 +270,8 @@ namespace Cake.AddinDiscoverer.Utilities
 		}
 
 		/// <summary>
-		/// Compares the current instance with another object of the same type and returns an integer that indicates 
-		/// whether the current instance precedes, follows, or occurs in the same position in the sort order as the 
+		/// Compares the current instance with another object of the same type and returns an integer that indicates
+		/// whether the current instance precedes, follows, or occurs in the same position in the sort order as the
 		/// other object.
 		/// </summary>
 		/// <param name="other">An object to compare with this instance.</param>
@@ -347,7 +364,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// Returns a hash code for this instance.
 		/// </summary>
 		/// <returns>
-		/// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table. 
+		/// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table.
 		/// </returns>
 		public override int GetHashCode()
 		{
@@ -362,6 +379,11 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 		}
 
+		/// <summary>
+		/// For serialization.
+		/// </summary>
+		/// <param name="info">The serialization info</param>
+		/// <param name="context">The context</param>
 		[SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
 		public void GetObjectData(SerializationInfo info, StreamingContext context)
 		{
@@ -413,7 +435,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		}
 
 		/// <summary>
-		/// The override of the greater than or equal operator. 
+		/// The override of the greater than or equal operator.
 		/// </summary>
 		/// <param name="left">The left value.</param>
 		/// <param name="right">The right value.</param>
@@ -424,7 +446,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		}
 
 		/// <summary>
-		/// The override of the less operator. 
+		/// The override of the less operator.
 		/// </summary>
 		/// <param name="left">The left value.</param>
 		/// <param name="right">The right value.</param>

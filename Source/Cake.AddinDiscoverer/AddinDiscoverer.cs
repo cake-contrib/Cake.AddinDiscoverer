@@ -1,13 +1,12 @@
 ﻿using AngleSharp;
 using Cake.AddinDiscoverer.Utilities;
-using Cake.Common.Solution;
-using Cake.Core;
-using Cake.Core.Diagnostics;
-using Cake.Core.IO;
 using Cake.Incubator;
 using CsvHelper;
 using Newtonsoft.Json;
+using NuGet.Common;
 using NuGet.Configuration;
+using NuGet.Packaging;
+using NuGet.Packaging.Core;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using Octokit;
@@ -24,6 +23,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,7 +41,7 @@ namespace Cake.AddinDiscoverer
 		private const int MAX_GITHUB_CONCURENCY = 10;
 		private const string GREEN_EMOJI = ":white_check_mark: ";
 		private const string RED_EMOJI = ":small_red_triangle: ";
-		private const string NUGET_METADATA_FILE = "nuget.json";
+		private const string NUGET_PACKAGE_FILE = "nuget.nupkg";
 		private const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
 		private static SemVersion _unknownVersion = new SemVersion(0, 0, 0);
@@ -50,6 +50,7 @@ namespace Cake.AddinDiscoverer
 		private readonly string _tempFolder;
 		private readonly IGitHubClient _githubClient;
 		private readonly PackageMetadataResource _nugetPackageMetadataClient;
+		private readonly DownloadResource _nugetPackageDownloadClient;
 		private readonly string _jsonSaveLocation;
 		private readonly string _statsSaveLocation;
 		private readonly string _graphSaveLocation;
@@ -84,7 +85,7 @@ namespace Cake.AddinDiscoverer
 			(
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreVersion == _unknownVersion ? UNKNOWN_VERSION : addin.AnalysisResult.CakeCoreVersion.ToString(),
+				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreVersion == _unknownVersion ? UNKNOWN_VERSION : addin.AnalysisResult.CakeCoreVersion.ToString(3),
 				(addin, cakeVersion) => addin.AnalysisResult.CakeCoreVersion == null ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
@@ -100,7 +101,7 @@ namespace Cake.AddinDiscoverer
 			(
 				"Cake Common Version",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.CakeCommonVersion == null ? string.Empty : addin.AnalysisResult.CakeCommonVersion == _unknownVersion ? UNKNOWN_VERSION : addin.AnalysisResult.CakeCommonVersion.ToString(),
+				(addin) => addin.AnalysisResult.CakeCommonVersion == null ? string.Empty : addin.AnalysisResult.CakeCommonVersion == _unknownVersion ? UNKNOWN_VERSION : addin.AnalysisResult.CakeCommonVersion.ToString(3),
 				(addin, cakeVersion) => addin.AnalysisResult.CakeCommonVersion == null ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				DataDestination.All
@@ -172,6 +173,7 @@ namespace Cake.AddinDiscoverer
 			var packageSource = new PackageSource("https://api.nuget.org/v3/index.json");
 			var sourceRepository = new SourceRepository(packageSource, providers);
 			_nugetPackageMetadataClient = sourceRepository.GetResource<PackageMetadataResource>();
+			_nugetPackageDownloadClient = sourceRepository.GetResource<DownloadResource>();
 		}
 
 		public async Task LaunchDiscoveryAsync()
@@ -259,31 +261,8 @@ namespace Cake.AddinDiscoverer
 				normalizedAddins = await ValidateProjectUrlAsync(normalizedAddins).ConfigureAwait(false);
 				SaveProgress(normalizedAddins);
 
-				// Get the path to the .sln file in the github repo
-				// Please note: we use the first solution file if there is more than one
-				normalizedAddins = await FindSolutionPathAsync(normalizedAddins).ConfigureAwait(false);
-				SaveProgress(normalizedAddins);
-
-				// Download a copy of the sln file which simplyfies parsing this file in subsequent steps
-				await DownloadSolutionFileAsync(normalizedAddins).ConfigureAwait(false);
-
-				// Get the path to the .csproj file(s)
-				normalizedAddins = FindProjectPath(normalizedAddins);
-				SaveProgress(normalizedAddins);
-
-				// Download a copy of the csproj file(s) which simplyfies parsing this file in subsequent steps
-				await DownloadProjectFilesAsync(normalizedAddins).ConfigureAwait(false);
-
-				// Download package metadata from Nuget.org
-				await DownloadNugetMetadataAsync(normalizedAddins).ConfigureAwait(false);
-
-				// Parse the csproj and find all references
-				normalizedAddins = FindReferences(normalizedAddins);
-				SaveProgress(normalizedAddins);
-
-				// Parse the csproj and find targeted framework(s)
-				normalizedAddins = FindFrameworks(normalizedAddins);
-				SaveProgress(normalizedAddins);
+				// Download package from Nuget.org
+				await DownloadNugetPackageAsync(normalizedAddins).ConfigureAwait(false);
 
 				// Determine if an issue already exists in the Github repo
 				if (_options.CreateGithubIssue)
@@ -292,8 +271,8 @@ namespace Cake.AddinDiscoverer
 					SaveProgress(normalizedAddins);
 				}
 
-				// Find the nuget metadata such as icon url, package version, etc.
-				normalizedAddins = FindNugetMetadata(normalizedAddins);
+				// Analyze the nuget metadata
+				normalizedAddins = AnalyzeNugetMetadata(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
 				// Analyze
@@ -341,6 +320,25 @@ namespace Cake.AddinDiscoverer
 			if (currentFrameworks == null) return false;
 			else if (currentFrameworks.Length != 1) return false;
 			else return currentFrameworks[0].EqualsIgnoreCase(desiredFramework);
+		}
+
+		private static Assembly LoadAssemblyFromPackage(IPackageCoreReader package, string assemblyPath)
+		{
+			var cleanPath = assemblyPath.Replace('/', '\\');
+			if (cleanPath.IndexOf('%') > -1)
+			{
+				cleanPath = Uri.UnescapeDataString(cleanPath);
+			}
+
+			using (var assemblyStream = package.GetStream(cleanPath))
+			{
+				using (MemoryStream decompressedStream = new MemoryStream())
+				{
+					assemblyStream.CopyTo(decompressedStream);
+					decompressedStream.Position = 0;
+					return AssemblyLoadContext.Default.LoadFromStream(decompressedStream);
+				}
+			}
 		}
 
 		private async Task<AddinMetadata[]> DiscoverCakeAddinsByYmlAsync()
@@ -480,155 +478,9 @@ namespace Cake.AddinDiscoverer
 			return results.ToArray();
 		}
 
-		private async Task<AddinMetadata[]> FindSolutionPathAsync(IEnumerable<AddinMetadata> addins)
+		private async Task DownloadNugetPackageAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Finding solution files");
-
-			var addinsMetadata = await addins
-				.ForEachAsync(
-					async addin =>
-					{
-						try
-						{
-							if (addin.GithubRepoUrl != null && string.IsNullOrEmpty(addin.SolutionPath))
-							{
-								var solutionFile = await GetSolutionFileAsync(addin).ConfigureAwait(false);
-								addin.SolutionPath = solutionFile.Path;
-							}
-						}
-						catch (NotFoundException)
-						{
-							addin.AnalysisResult.Notes += $"The project does not exist: {addin.GithubRepoUrl}\r\n";
-						}
-						catch (Exception e)
-						{
-							addin.AnalysisResult.Notes += $"FindSolutionPathAsync: {e.GetBaseException().Message}\r\n";
-						}
-
-						return addin;
-					}, MAX_GITHUB_CONCURENCY)
-				.ConfigureAwait(false);
-
-			return addinsMetadata;
-		}
-
-		private AddinMetadata[] FindProjectPath(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Finding project files");
-
-			var addinsMetadata = addins
-				.Select(addin =>
-				{
-					if (!string.IsNullOrEmpty(addin.SolutionPath) && addin.ProjectPaths == null)
-					{
-						try
-						{
-							var folderLocation = System.IO.Path.Combine(_tempFolder, addin.Name);
-							var fileName = System.IO.Path.Combine(folderLocation, System.IO.Path.GetFileName(addin.SolutionPath));
-							if (File.Exists(fileName))
-							{
-								var fileSystem = new FileSystem();
-								var cakeEnvironment = new CakeEnvironment(new CakePlatform(), new CakeRuntime(), new NullLog());
-								var solutionParser = new SolutionParser(fileSystem, cakeEnvironment);
-								var parsedSolution = solutionParser.Parse(fileName);
-
-								if (parsedSolution.Projects != null)
-								{
-									var solutionParts = addin.SolutionPath.Split('/');
-
-									addin.ProjectPaths = parsedSolution
-										.GetProjects()
-										.Where(p => !p.Name.EndsWith(".Tests"))
-										.Select(p => string.Join('/', solutionParts.Take(solutionParts.Length - 1).Concat(new DirectoryPath(folderLocation).GetRelativePath(p.Path).Segments)))
-										.ToArray();
-								}
-								else
-								{
-									addin.AnalysisResult.Notes += $"The solution file does not reference any project: {addin.SolutionPath}\r\n";
-								}
-							}
-						}
-						catch (Exception e)
-						{
-							addin.AnalysisResult.Notes += $"FindProjectPath: {e.GetBaseException().Message}\r\n";
-						}
-					}
-
-					return addin;
-				})
-				.ToArray();
-
-			return addinsMetadata;
-		}
-
-		private async Task DownloadSolutionFileAsync(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Downloading solution files");
-
-			await addins
-				.ForEachAsync(
-					async addin =>
-					{
-						if (!string.IsNullOrEmpty(addin.SolutionPath))
-						{
-							var folderLocation = System.IO.Path.Combine(_tempFolder, addin.Name);
-							Directory.CreateDirectory(folderLocation);
-
-							try
-							{
-								var fileName = System.IO.Path.Combine(folderLocation, System.IO.Path.GetFileName(addin.SolutionPath));
-								if (!File.Exists(fileName))
-								{
-									var content = await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, addin.SolutionPath).ConfigureAwait(false);
-									File.WriteAllText(fileName, content[0].Content);
-								}
-							}
-							catch (Exception e)
-							{
-								addin.AnalysisResult.Notes += $"DownloadSolutionFileAsync: {e.GetBaseException().Message}\r\n";
-							}
-						}
-					}, MAX_GITHUB_CONCURENCY)
-				.ConfigureAwait(false);
-		}
-
-		private async Task DownloadProjectFilesAsync(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Downloading project files");
-
-			await addins
-				.ForEachAsync(
-					async addin =>
-					{
-						if (addin.ProjectPaths != null)
-						{
-							var folderLocation = System.IO.Path.Combine(_tempFolder, addin.Name);
-							Directory.CreateDirectory(folderLocation);
-
-							foreach (var projectPath in addin.ProjectPaths)
-							{
-								try
-								{
-									var fileName = System.IO.Path.Combine(folderLocation, System.IO.Path.GetFileName(projectPath));
-									if (!File.Exists(fileName))
-									{
-										var content = await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, projectPath).ConfigureAwait(false);
-										File.WriteAllText(fileName, content[0].Content);
-									}
-								}
-								catch (Exception e)
-								{
-									addin.AnalysisResult.Notes += $"DownloadProjectFilesAsync: {e.GetBaseException().Message}\r\n";
-								}
-							}
-						}
-					}, MAX_GITHUB_CONCURENCY)
-				.ConfigureAwait(false);
-		}
-
-		private async Task DownloadNugetMetadataAsync(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Downloading Nuget Metadata");
+			Console.WriteLine("  Downloading Nuget metadata and packages");
 
 			var tasks = addins
 				.Select(async addin =>
@@ -638,101 +490,152 @@ namespace Cake.AddinDiscoverer
 
 					try
 					{
-						var fileName = System.IO.Path.Combine(folderLocation, NUGET_METADATA_FILE);
-						if (!File.Exists(fileName))
+						var packageFileName = System.IO.Path.Combine(folderLocation, NUGET_PACKAGE_FILE);
+
+						if (!File.Exists(packageFileName))
 						{
-							var searchMetadata = await _nugetPackageMetadataClient.GetMetadataAsync(addin.Name, true, true, new NoopLogger(), CancellationToken.None);
-							var mostRecentPackage = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
-							if (mostRecentPackage != null)
+							var searchMetadata = await _nugetPackageMetadataClient.GetMetadataAsync(addin.Name, true, true, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+							var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
+							if (mostRecentPackageMetadata != null)
 							{
-								var jsonContent = JsonConvert.SerializeObject(mostRecentPackage, Formatting.Indented, new[] { new NuGetVersionConverter() });
-								File.WriteAllText(fileName, jsonContent);
+								using (var sourceCacheContext = new SourceCacheContext() { NoCache = true })
+								{
+									var context = new PackageDownloadContext(sourceCacheContext, folderLocation, true);
+
+									using (var result = await _nugetPackageDownloadClient.GetDownloadResourceResultAsync(mostRecentPackageMetadata.Identity, context, string.Empty, NullLogger.Instance, CancellationToken.None))
+									{
+										if (result.Status == DownloadResourceResultStatus.Cancelled)
+										{
+											throw new OperationCanceledException();
+										}
+										if (result.Status == DownloadResourceResultStatus.NotFound)
+										{
+											throw new Exception(string.Format("Package '{0} {1}' not found", mostRecentPackageMetadata.Identity.Id, mostRecentPackageMetadata.Identity.Version));
+										}
+
+										using (var fileStream = File.OpenWrite(packageFileName))
+										{
+											await result.PackageStream.CopyToAsync(fileStream);
+										}
+									}
+								}
 							}
 						}
 					}
 					catch (Exception e)
 					{
-						addin.AnalysisResult.Notes += $"DownloadNugetMetadataAsync: {e.GetBaseException().Message}\r\n";
+						addin.AnalysisResult.Notes += $"DownloadNugetPackageAsync: {e.GetBaseException().Message}\r\n";
 					}
 				});
 
 			await Task.WhenAll(tasks).ConfigureAwait(false);
 		}
 
-		private AddinMetadata[] FindReferences(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] AnalyzeNugetMetadata(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Finding references");
+			Console.WriteLine("  Analyzing nuget packages");
 
 			var results = addins
 				.Select(addin =>
 				{
-					var references = new List<(string Id, SemVersion Version, bool IsPrivate)>();
-					var folderName = System.IO.Path.Combine(_tempFolder, addin.Name);
-
-					if (Directory.Exists(folderName))
+					try
 					{
-						var csharpProjectFiles = Directory.EnumerateFiles(folderName, "*.csproj");
-						var fsharpProjectFiles = Directory.EnumerateFiles(folderName, "*.fsproj");
-						var allProjectFiles = csharpProjectFiles.Union(fsharpProjectFiles).ToArray();
-
-						foreach (var projectPath in allProjectFiles)
+						var packageFileName = System.IO.Path.Combine(_tempFolder, addin.Name, NUGET_PACKAGE_FILE);
+						if (File.Exists(packageFileName))
 						{
-							try
+							using (var stream = File.Open(packageFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read))
 							{
-								references.AddRange(GetProjectReferences(addin, projectPath));
-							}
-							catch (Exception e)
-							{
-								addin.AnalysisResult.Notes += $"FindReferences: {e.GetBaseException().Message}\r\n";
+								using (var package = new PackageArchiveReader(stream))
+								{
+									var iconUrl = package.NuspecReader.GetIconUrl();
+									var projectUrl = package.NuspecReader.GetProjectUrl();
+									var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
+									var frameworks = package.GetSupportedFrameworks().Select(f =>
+									{
+										if (f.Framework.EqualsIgnoreCase(".NETStandard"))
+										{
+											return $"netstandard{f.Version.Major}.{f.Version.Minor}";
+										}
+										else if (f.Framework.EqualsIgnoreCase(".NETCore"))
+										{
+											return $"netcoreapp{f.Version.Major}.{f.Version.Minor}";
+										}
+										else if (f.Framework.EqualsIgnoreCase(".NETFramework"))
+										{
+											if (f.Version.Revision == 0)
+											{
+												return $"net{f.Version.Major}{f.Version.Minor}";
+											}
+											else
+											{
+												return $"net{f.Version.Major}{f.Version.Minor}{f.Version.Revision}";
+											}
+										}
+										else
+										{
+											return f.GetFrameworkString();
+										}
+									}).ToArray();
+
+									var packageDependencies = package.GetPackageDependencies()
+										.SelectMany(d => d.Packages)
+										.Select(p =>
+										{
+											var normalizedVersion = (p.VersionRange.HasUpperBound ? p.VersionRange.MaxVersion : p.VersionRange.MinVersion).Version;
+											return new DllReference()
+											{
+												Id = p.Id,
+												IsPrivate = false,
+												Version = new SemVersion(normalizedVersion)
+											};
+										})
+										.ToArray();
+
+									var assemblyPath = package.GetFiles()
+										.FirstOrDefault(f => Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll"));
+
+									if (string.IsNullOrEmpty(assemblyPath))
+									{
+										throw new Exception($"The NuGet package does not contain a DLL named {addin.Name}.dll");
+									}
+
+									var assembly = LoadAssemblyFromPackage(package, assemblyPath);
+									var assemblyReferences = assembly
+										.GetReferencedAssemblies()
+										.Select(r =>
+										{
+											return new DllReference()
+											{
+												Id = r.Name,
+												IsPrivate = true,
+												Version = new SemVersion(r.Version)
+											};
+										})
+										.ToArray();
+
+									var allReferences = packageDependencies.Union(assemblyReferences)
+										.GroupBy(d => d.Id)
+										.Select(grp => new DllReference()
+										{
+											Id = grp.Key,
+											IsPrivate = grp.All(r => r.IsPrivate),
+											Version = grp.Min(r => r.Version)
+										})
+										.ToArray();
+
+									addin.IconUrl = string.IsNullOrEmpty(iconUrl) ? null : new Uri(iconUrl);
+									addin.NugetPackageVersion = packageVersion;
+									addin.Frameworks = frameworks;
+									addin.References = allReferences;
+									if (addin.GithubRepoUrl == null) addin.GithubRepoUrl = string.IsNullOrEmpty(projectUrl) ? null : new Uri(projectUrl);
+								}
 							}
 						}
 					}
-
-					addin.References = references
-						.Select(r => new DllReference()
-						{
-							Id = r.Id,
-							Version = r.Version,
-							IsPrivate = r.IsPrivate
-						})
-						.ToArray();
-
-					return addin;
-				});
-
-			return results.ToArray();
-		}
-
-		private AddinMetadata[] FindFrameworks(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Finding Frameworks");
-
-			var results = addins
-				.Select(addin =>
-				{
-					var frameworks = new List<string>();
-					var folderName = System.IO.Path.Combine(_tempFolder, addin.Name);
-
-					if (Directory.Exists(folderName))
+					catch (Exception e)
 					{
-						foreach (var projectPath in Directory.EnumerateFiles(folderName, "*.csproj"))
-						{
-							try
-							{
-								frameworks.AddRange(GetProjectFrameworks(addin, projectPath));
-							}
-							catch (Exception e)
-							{
-								addin.AnalysisResult.Notes += $"FindFrameworks: {e.GetBaseException().Message}\r\n";
-							}
-						}
+						addin.AnalysisResult.Notes += $"AnalyzeNugetMetadata: {e.GetBaseException().Message}\r\n";
 					}
-
-					addin.Frameworks = frameworks
-						.Where(f => !string.IsNullOrEmpty(f))
-						.GroupBy(f => f)
-						.Select(grp => grp.First())
-						.ToArray();
 
 					return addin;
 				});
@@ -782,35 +685,6 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private AddinMetadata[] FindNugetMetadata(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Finding nuget metadata (icon, version, etc.)");
-
-			var results = addins
-				.Select(addin =>
-				{
-					var fileName = System.IO.Path.Combine(_tempFolder, addin.Name, NUGET_METADATA_FILE);
-
-					try
-					{
-						if (File.Exists(fileName))
-						{
-							var nugetMetadata = JsonConvert.DeserializeObject<PackageSearchMetadata>(File.ReadAllText(fileName), new[] { new NugetVersionConverter() });
-							addin.IconUrl = nugetMetadata.IconUrl;
-							addin.NugetPackageVersion = nugetMetadata.Version.ToNormalizedString();
-						}
-					}
-					catch (Exception e)
-					{
-						addin.AnalysisResult.Notes += $"FindNugetMetadata: {e.GetBaseException().Message}\r\n";
-					}
-
-					return addin;
-				});
-
-			return results.ToArray();
-		}
-
 		private AddinMetadata[] AnalyzeAddin(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Analyzing addins");
@@ -852,11 +726,7 @@ namespace Cake.AddinDiscoverer
 						addin.AnalysisResult.TransferedToCakeContribOrganisation = addin.GithubRepoOwner?.Equals("cake-contrib", StringComparison.OrdinalIgnoreCase) ?? false;
 					}
 
-					if (addin.GithubRepoUrl == null)
-					{
-						addin.AnalysisResult.Notes += "We were unable to determine the Github repo URL. Most likely this means that the PackageProjectUrl is missing from the csproj.\r\n";
-					}
-					else if (addin.AnalysisResult.CakeCoreVersion == null && addin.AnalysisResult.CakeCommonVersion == null)
+					if (addin.AnalysisResult.CakeCoreVersion == null && addin.AnalysisResult.CakeCommonVersion == null)
 					{
 						addin.AnalysisResult.Notes += "This addin seem to be referencing neither Cake.Core nor Cake.Common.\r\n";
 					}
@@ -1216,37 +1086,6 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task<RepositoryContent> GetSolutionFileAsync(AddinMetadata addin, string folderName = null)
-		{
-			var directoryContent = string.IsNullOrEmpty(folderName) ?
-					await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName).ConfigureAwait(false) :
-					await _githubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, folderName).ConfigureAwait(false);
-
-			var solutions = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.File) && c.Name.EndsWith(".sln", StringComparison.OrdinalIgnoreCase));
-			if (solutions.Any()) return solutions.First();
-
-			var subFolders = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.Dir));
-
-			var sourceSubFolders = subFolders.Where(c => c.Name.EqualsIgnoreCase("source") || c.Name.EqualsIgnoreCase("src"));
-			if (sourceSubFolders.Any())
-			{
-				foreach (var subFolder in sourceSubFolders)
-				{
-					var solutionFile = await GetSolutionFileAsync(addin, subFolder.Name).ConfigureAwait(false);
-					if (solutionFile != null) return solutionFile;
-				}
-			}
-
-			var allOtherSubFolders = subFolders.Except(sourceSubFolders);
-			foreach (var subFolder in allOtherSubFolders)
-			{
-				var solutionFile = await GetSolutionFileAsync(addin, subFolder.Path).ConfigureAwait(false);
-				if (solutionFile != null) return solutionFile;
-			}
-
-			return null;
-		}
-
 		/// <summary>
 		/// Searches the markdown content for a table between a section title such as '# Modules' and the next section which begins with the '#' character
 		/// </summary>
@@ -1299,53 +1138,6 @@ namespace Cake.AddinDiscoverer
 			if (start == -1) return string.Empty;
 			else if (end == -1) return content.Substring(start + startMark.Length).Trim();
 			else return content.Substring(start + startMark.Length, end - start - startMark.Length).Trim();
-		}
-
-		private IEnumerable<(string Id, SemVersion Version, bool IsPrivate)> GetProjectReferences(AddinMetadata addin, string projectPath)
-		{
-			var references = new List<(string Id, SemVersion Version, bool IsPrivate)>();
-
-			var fileSystem = new FileSystem();
-			var projectFile = fileSystem.GetFile(new FilePath(projectPath));
-			var parsedProject = projectFile.ParseProjectFile("Release");
-
-			foreach (var reference in parsedProject.References)
-			{
-				var parts = reference.Include.Split(',', StringSplitOptions.RemoveEmptyEntries);
-				var referenceDetails = parts.Skip(1).Select(p => p.Trim().Split('=', StringSplitOptions.RemoveEmptyEntries));
-
-				var id = parts[0];
-				if (!string.IsNullOrEmpty(id))
-				{
-					var versionAsString = referenceDetails.FirstOrDefault(d => d[0].EqualsIgnoreCase("Version"))?[1];
-					var version = ConvertStringToVersion(versionAsString);
-					var isPrivate = reference.Private ?? false;
-					references.Add((id, version, isPrivate));
-				}
-			}
-
-			foreach (var reference in parsedProject.PackageReferences)
-			{
-				var id = reference.Name;
-				if (!string.IsNullOrEmpty(id))
-				{
-					var versionAsString = reference.Version;
-					var version = ConvertStringToVersion(versionAsString);
-					var isPrivate = reference.PrivateAssets?.Any(a => a.EqualsIgnoreCase("All")) ?? false;
-					references.Add((id, version, isPrivate));
-				}
-			}
-
-			return references.ToArray();
-		}
-
-		private IEnumerable<string> GetProjectFrameworks(AddinMetadata addin, string projectPath)
-		{
-			var fileSystem = new FileSystem();
-			var projectFile = fileSystem.GetFile(new FilePath(projectPath));
-			var parsedProject = projectFile.ParseProjectFile("Release");
-
-			return parsedProject.TargetFrameworkVersions;
 		}
 
 		private async Task<Uri> GetNormalizedProjectUrlAsync(Uri projectUri)
@@ -1589,16 +1381,6 @@ namespace Cake.AddinDiscoverer
 
 			var pngExporter = new PngExporter { Width = 600, Height = 400, Background = OxyColors.White };
 			pngExporter.ExportToFile(plotModel, graphPath);
-		}
-
-		private SemVersion ConvertStringToVersion(string versionAsString)
-		{
-			if (string.IsNullOrEmpty(versionAsString)) return null;
-
-			var versionParts = versionAsString.Split('.');
-			if (versionParts.Length < 3) return _unknownVersion;
-
-			return SemVersion.Parse(string.Join('.', versionParts.Take(3)));
 		}
 	}
 }
