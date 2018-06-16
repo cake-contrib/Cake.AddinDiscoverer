@@ -41,13 +41,15 @@ namespace Cake.AddinDiscoverer
 		private const int MAX_GITHUB_CONCURENCY = 10;
 		private const string GREEN_EMOJI = ":white_check_mark: ";
 		private const string RED_EMOJI = ":small_red_triangle: ";
-		private const string NUGET_PACKAGE_FILE = "nuget.nupkg";
 		private const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
 		private static SemVersion _unknownVersion = new SemVersion(0, 0, 0);
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
+		private readonly string _packagesFolder;
+		private readonly string _excelReportPath;
+		private readonly string _markdownReportPath;
 		private readonly IGitHubClient _githubClient;
 		private readonly PackageMetadataResource _nugetPackageMetadataClient;
 		private readonly DownloadResource _nugetPackageDownloadClient;
@@ -154,10 +156,13 @@ namespace Cake.AddinDiscoverer
 		public AddinDiscoverer(Options options)
 		{
 			_options = options;
-			_tempFolder = System.IO.Path.Combine(_options.TemporaryFolder, PRODUCT_NAME);
-			_jsonSaveLocation = System.IO.Path.Combine(_tempFolder, "CakeAddins.json");
-			_statsSaveLocation = System.IO.Path.Combine(_tempFolder, "Audit_stats.csv");
-			_graphSaveLocation = System.IO.Path.Combine(_tempFolder, "Audit_progress.png");
+			_tempFolder = Path.Combine(_options.TemporaryFolder, PRODUCT_NAME);
+			_packagesFolder = Path.Combine(_tempFolder, "packages");
+			_excelReportPath = Path.Combine(_tempFolder, "Audit.xlsx");
+			_markdownReportPath = Path.Combine(_tempFolder, "Audit.md");
+			_jsonSaveLocation = Path.Combine(_tempFolder, "CakeAddins.json");
+			_statsSaveLocation = Path.Combine(_tempFolder, "Audit_stats.csv");
+			_graphSaveLocation = Path.Combine(_tempFolder, "Audit_progress.png");
 
 			// Setup the Github client
 			var credentials = new Credentials(_options.GithubUsername, _options.GithuPassword);
@@ -180,30 +185,8 @@ namespace Cake.AddinDiscoverer
 		{
 			try
 			{
-				var excelReportPath = System.IO.Path.Combine(_tempFolder, "Audit.xlsx");
-				var markdownReportPath = System.IO.Path.Combine(_tempFolder, "Audit.md");
-
-				Console.WriteLine("Clean up");
-
-				if (_options.ClearCache && Directory.Exists(_tempFolder))
-				{
-					Directory.Delete(_tempFolder, true);
-					await Task.Delay(500).ConfigureAwait(false);
-				}
-
-				if (!Directory.Exists(_tempFolder))
-				{
-					Directory.CreateDirectory(_tempFolder);
-					await Task.Delay(500).ConfigureAwait(false);
-				}
-
-				if (File.Exists(excelReportPath)) File.Delete(excelReportPath);
-				if (File.Exists(markdownReportPath)) File.Delete(markdownReportPath);
-
-				foreach (var markdownReport in Directory.EnumerateFiles(_tempFolder, $"{System.IO.Path.GetFileNameWithoutExtension(markdownReportPath)}*.md"))
-				{
-					File.Delete(markdownReport);
-				}
+				// Clean up
+				await Cleanup().ConfigureAwait(false);
 
 				Console.WriteLine("Auditing the Cake Addins");
 
@@ -237,17 +220,7 @@ namespace Cake.AddinDiscoverer
 						.ToArray();
 				}
 
-				if (!normalizedAddins.Any())
-				{
-					if (!string.IsNullOrEmpty(_options.AddinName))
-					{
-						throw new Exception($"Unable to find '{_options.AddinName}'");
-					}
-					else
-					{
-						throw new Exception($"Unable to find any addin");
-					}
-				}
+				EnsureAtLeastOneAddin(normalizedAddins);
 
 				// Reset the summary
 				normalizedAddins = ResetSummary(normalizedAddins);
@@ -275,6 +248,10 @@ namespace Cake.AddinDiscoverer
 				normalizedAddins = AnalyzeNugetMetadata(normalizedAddins);
 				SaveProgress(normalizedAddins);
 
+				// Clean up rejected addins such as addins containing "recipies" for example
+				normalizedAddins = normalizedAddins.Where(a => a != null).ToArray();
+				EnsureAtLeastOneAddin(normalizedAddins);
+
 				// Analyze
 				normalizedAddins = AnalyzeAddin(normalizedAddins);
 				SaveProgress(normalizedAddins);
@@ -287,10 +264,10 @@ namespace Cake.AddinDiscoverer
 				}
 
 				// Generate the excel report and save to a file
-				GenerateExcelReport(normalizedAddins, excelReportPath);
+				GenerateExcelReport(normalizedAddins);
 
 				// Generate the markdown report and write to file
-				await GenerateMarkdownReportAsync(normalizedAddins, markdownReportPath).ConfigureAwait(false);
+				await GenerateMarkdownReportAsync(normalizedAddins).ConfigureAwait(false);
 
 				// Update the CSV file containing historical statistics (used to generate graph)
 				await UpdateStatsAsync(normalizedAddins).ConfigureAwait(false);
@@ -324,20 +301,59 @@ namespace Cake.AddinDiscoverer
 
 		private static Assembly LoadAssemblyFromPackage(IPackageCoreReader package, string assemblyPath)
 		{
-			var cleanPath = assemblyPath.Replace('/', '\\');
-			if (cleanPath.IndexOf('%') > -1)
+			try
 			{
-				cleanPath = Uri.UnescapeDataString(cleanPath);
+				var cleanPath = assemblyPath.Replace('/', '\\');
+				if (cleanPath.IndexOf('%') > -1)
+				{
+					cleanPath = Uri.UnescapeDataString(cleanPath);
+				}
+
+				using (var assemblyStream = package.GetStream(cleanPath))
+				{
+					using (MemoryStream decompressedStream = new MemoryStream())
+					{
+						assemblyStream.CopyTo(decompressedStream);
+						decompressedStream.Position = 0;
+						return AssemblyLoadContext.Default.LoadFromStream(decompressedStream);
+					}
+				}
+			}
+			catch (FileLoadException e)
+			{
+				// Note: intentionally discarding the original exception because I want to ensure the following message is displayed in the 'Exceptions' report
+				throw new FileLoadException($"An error occured while loading {assemblyPath} from its nuget package. {e.Message}");
+			}
+		}
+
+		private async Task Cleanup()
+		{
+			Console.WriteLine("Clean up");
+
+			if (_options.ClearCache && Directory.Exists(_tempFolder))
+			{
+				Directory.Delete(_tempFolder, true);
+				await Task.Delay(500).ConfigureAwait(false);
 			}
 
-			using (var assemblyStream = package.GetStream(cleanPath))
+			if (!Directory.Exists(_tempFolder))
 			{
-				using (MemoryStream decompressedStream = new MemoryStream())
-				{
-					assemblyStream.CopyTo(decompressedStream);
-					decompressedStream.Position = 0;
-					return AssemblyLoadContext.Default.LoadFromStream(decompressedStream);
-				}
+				Directory.CreateDirectory(_tempFolder);
+				await Task.Delay(500).ConfigureAwait(false);
+			}
+
+			if (!Directory.Exists(_packagesFolder))
+			{
+				Directory.CreateDirectory(_packagesFolder);
+				await Task.Delay(500).ConfigureAwait(false);
+			}
+
+			if (File.Exists(_excelReportPath)) File.Delete(_excelReportPath);
+			if (File.Exists(_markdownReportPath)) File.Delete(_markdownReportPath);
+
+			foreach (var markdownReport in Directory.EnumerateFiles(_tempFolder, $"{Path.GetFileNameWithoutExtension(_markdownReportPath)}*.md"))
+			{
+				File.Delete(markdownReport);
 			}
 		}
 
@@ -480,27 +496,27 @@ namespace Cake.AddinDiscoverer
 
 		private async Task DownloadNugetPackageAsync(IEnumerable<AddinMetadata> addins)
 		{
-			Console.WriteLine("  Downloading Nuget metadata and packages");
+			Console.WriteLine("  Downloading Nuget packages");
 
 			var tasks = addins
 				.Select(async addin =>
 				{
-					var folderLocation = System.IO.Path.Combine(_tempFolder, addin.Name);
-					Directory.CreateDirectory(folderLocation);
-
 					try
 					{
-						var packageFileName = System.IO.Path.Combine(folderLocation, NUGET_PACKAGE_FILE);
-
+						var packageFileName = Path.Combine(_packagesFolder, $"{addin.Name}.nupkg");
 						if (!File.Exists(packageFileName))
 						{
 							var searchMetadata = await _nugetPackageMetadataClient.GetMetadataAsync(addin.Name, true, true, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
 							var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
-							if (mostRecentPackageMetadata != null)
+							if (mostRecentPackageMetadata == null)
+							{
+								throw new FileNotFoundException($"Unable to find a package named {addin.Name} on Nuget");
+							}
+							else
 							{
 								using (var sourceCacheContext = new SourceCacheContext() { NoCache = true })
 								{
-									var context = new PackageDownloadContext(sourceCacheContext, folderLocation, true);
+									var context = new PackageDownloadContext(sourceCacheContext, Path.GetTempPath(), true);
 
 									using (var result = await _nugetPackageDownloadClient.GetDownloadResourceResultAsync(mostRecentPackageMetadata.Identity, context, string.Empty, NullLogger.Instance, CancellationToken.None))
 									{
@@ -540,7 +556,7 @@ namespace Cake.AddinDiscoverer
 				{
 					try
 					{
-						var packageFileName = System.IO.Path.Combine(_tempFolder, addin.Name, NUGET_PACKAGE_FILE);
+						var packageFileName = Path.Combine(_packagesFolder, $"{addin.Name}.nupkg");
 						if (File.Exists(packageFileName))
 						{
 							using (var stream = File.Open(packageFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -591,12 +607,42 @@ namespace Cake.AddinDiscoverer
 										})
 										.ToArray();
 
-									var assemblyPath = package.GetFiles()
-										.FirstOrDefault(f => Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll"));
+									var assembliesPath = package.GetFiles()
+										.Where(f =>
+										{
+											return Path.GetExtension(f).EqualsIgnoreCase(".dll") &&
+												!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Core") &&
+												!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Common") &&
+												(
+													string.IsNullOrEmpty(Path.GetDirectoryName(f)) ||
+													f.StartsWith("bin/", StringComparison.OrdinalIgnoreCase) ||
+													f.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)
+												);
+										})
+										.ToArray();
+
+									// Find the DLL that matches the naming convention
+									var assemblyPath = assembliesPath.FirstOrDefault(f => Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll"));
 
 									if (string.IsNullOrEmpty(assemblyPath))
 									{
-										throw new Exception($"The NuGet package does not contain a DLL named {addin.Name}.dll");
+										// Ignore nuget packages that do not contain DLLs (presumably, they contain "recipies" .cake files)
+										if (assembliesPath.Length == 0)
+										{
+											return null;
+										}
+
+										// If a package contains only one DLL, we will analyze this DLL even if it doesn't match the expected naming convention
+										else if (assembliesPath.Length == 1)
+										{
+											assemblyPath = assembliesPath.First();
+										}
+
+										// There are multiple DLLs in this package and none of them match the naming convention
+										else
+										{
+											throw new Exception($"The NuGet package does not contain a DLL named {addin.Name}.dll");
+										}
 									}
 
 									var assembly = LoadAssemblyFromPackage(package, assemblyPath);
@@ -800,13 +846,13 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
-		private void GenerateExcelReport(IEnumerable<AddinMetadata> addins, string saveFilePath)
+		private void GenerateExcelReport(IEnumerable<AddinMetadata> addins)
 		{
 			if (!_options.ExcelReportToFile && !_options.ExcelReportToRepo) return;
 
 			Console.WriteLine("  Generating Excel report");
 
-			var file = new FileInfo(saveFilePath);
+			var file = new FileInfo(_excelReportPath);
 
 			using (var package = new ExcelPackage(file))
 			{
@@ -911,7 +957,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task GenerateMarkdownReportAsync(IEnumerable<AddinMetadata> addins, string saveFilePath)
+		private async Task GenerateMarkdownReportAsync(IEnumerable<AddinMetadata> addins)
 		{
 			if (!_options.MarkdownReportToFile && !_options.MarkdownReportToRepo) return;
 
@@ -959,7 +1005,7 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine();
 			foreach (var cakeVersion in _cakeVersions)
 			{
-				var versionReportName = $"{System.IO.Path.GetFileNameWithoutExtension(saveFilePath)}_for_Cake_{cakeVersion.Version}.md";
+				var versionReportName = $"{Path.GetFileNameWithoutExtension(_markdownReportPath)}_for_Cake_{cakeVersion.Version}.md";
 				markdown.AppendLine($"- Click [here]({versionReportName}) to view the report for Cake {cakeVersion.Version}.");
 			}
 
@@ -980,7 +1026,7 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine();
 			markdown.AppendLine("The following graph shows the percentage of addins that are compatible with Cake over time. For the purpose of this graph, we consider an addin to be compatible with a given version of Cake if it references the desired version of Cake.Core and Cake.Common.");
 			markdown.AppendLine();
-			markdown.AppendLine($"![]({System.IO.Path.GetFileName(_graphSaveLocation)})");
+			markdown.AppendLine($"![]({Path.GetFileName(_graphSaveLocation)})");
 			markdown.AppendLine();
 
 			// Exceptions report
@@ -997,13 +1043,13 @@ namespace Cake.AddinDiscoverer
 			}
 
 			// Save
-			await File.WriteAllTextAsync(saveFilePath, markdown.ToString()).ConfigureAwait(false);
+			await File.WriteAllTextAsync(_markdownReportPath, markdown.ToString()).ConfigureAwait(false);
 
 			// Generate the markdown report for each version of Cake
 			foreach (var cakeVersion in _cakeVersions)
 			{
-				var versionReportName = $"{System.IO.Path.GetFileNameWithoutExtension(saveFilePath)}_for_Cake_{cakeVersion.Version}.md";
-				var versionReportPath = System.IO.Path.Combine(_tempFolder, versionReportName);
+				var versionReportName = $"{Path.GetFileNameWithoutExtension(_markdownReportPath)}_for_Cake_{cakeVersion.Version}.md";
+				var versionReportPath = Path.Combine(_tempFolder, versionReportName);
 
 				markdown.Clear();
 
@@ -1355,7 +1401,7 @@ namespace Cake.AddinDiscoverer
 				Title = "Percent"
 			});
 
-			using (TextReader reader = new StreamReader(System.IO.Path.Combine(_tempFolder, "Audit_stats.csv")))
+			using (TextReader reader = new StreamReader(Path.Combine(_tempFolder, "Audit_stats.csv")))
 			{
 				var csv = new CsvReader(reader);
 				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter("yyyy-MM-dd HH:mm:ss"));
@@ -1381,6 +1427,21 @@ namespace Cake.AddinDiscoverer
 
 			var pngExporter = new PngExporter { Width = 600, Height = 400, Background = OxyColors.White };
 			pngExporter.ExportToFile(plotModel, graphPath);
+		}
+
+		private void EnsureAtLeastOneAddin(IEnumerable<AddinMetadata> normalizedAddins)
+		{
+			if (!normalizedAddins.Any())
+			{
+				if (!string.IsNullOrEmpty(_options.AddinName))
+				{
+					throw new Exception($"Unable to find '{_options.AddinName}'");
+				}
+				else
+				{
+					throw new Exception($"Unable to find any addin");
+				}
+			}
 		}
 	}
 }
