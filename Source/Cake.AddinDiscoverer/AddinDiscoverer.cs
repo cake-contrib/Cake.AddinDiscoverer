@@ -280,7 +280,7 @@ namespace Cake.AddinDiscoverer
 			}
 			catch (Exception e)
 			{
-				Console.WriteLine("\r\n***** AN EXCEPTION HAS OCCURED *****");
+				Console.WriteLine($"{Environment.NewLine}***** AN EXCEPTION HAS OCCURED *****");
 				Console.WriteLine(e.Demystify().ToString());
 			}
 		}
@@ -322,7 +322,7 @@ namespace Cake.AddinDiscoverer
 			catch (FileLoadException e)
 			{
 				// Note: intentionally discarding the original exception because I want to ensure the following message is displayed in the 'Exceptions' report
-				throw new FileLoadException($"An error occured while loading {assemblyPath} from its nuget package. {e.Message}");
+				throw new FileLoadException($"An error occured while loading {Path.GetFileName(assemblyPath)} from the Nuget package. {e.Message}");
 			}
 		}
 
@@ -452,7 +452,7 @@ namespace Cake.AddinDiscoverer
 						}
 						catch (Exception e)
 						{
-							addin.AnalysisResult.Notes += $"GetProjectUrlAsync: {e.GetBaseException().Message}\r\n";
+							addin.AnalysisResult.Notes += $"GetProjectUrlAsync: {e.GetBaseException().Message}{Environment.NewLine}";
 						}
 					}
 					return addin;
@@ -485,7 +485,7 @@ namespace Cake.AddinDiscoverer
 						}
 						catch (Exception e)
 						{
-							addin.AnalysisResult.Notes += $"ValidateProjectUrlAsync: {e.GetBaseException().Message}\r\n";
+							addin.AnalysisResult.Notes += $"ValidateProjectUrlAsync: {e.GetBaseException().Message}{Environment.NewLine}";
 						}
 					}
 					return addin;
@@ -540,7 +540,7 @@ namespace Cake.AddinDiscoverer
 					}
 					catch (Exception e)
 					{
-						addin.AnalysisResult.Notes += $"DownloadNugetPackageAsync: {e.GetBaseException().Message}\r\n";
+						addin.AnalysisResult.Notes += $"DownloadNugetPackageAsync: {e.GetBaseException().Message}{Environment.NewLine}";
 					}
 				});
 
@@ -680,7 +680,7 @@ namespace Cake.AddinDiscoverer
 					}
 					catch (Exception e)
 					{
-						addin.AnalysisResult.Notes += $"AnalyzeNugetMetadata: {e.GetBaseException().Message}\r\n";
+						addin.AnalysisResult.Notes += $"AnalyzeNugetMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
 					}
 
 					return addin;
@@ -720,7 +720,7 @@ namespace Cake.AddinDiscoverer
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"FindGithubIssueAsync: {e.GetBaseException().Message}\r\n";
+								addin.AnalysisResult.Notes += $"FindGithubIssueAsync: {e.GetBaseException().Message}{Environment.NewLine}";
 							}
 						}
 
@@ -774,7 +774,7 @@ namespace Cake.AddinDiscoverer
 
 					if (addin.AnalysisResult.CakeCoreVersion == null && addin.AnalysisResult.CakeCommonVersion == null)
 					{
-						addin.AnalysisResult.Notes += "This addin seem to be referencing neither Cake.Core nor Cake.Common.\r\n";
+						addin.AnalysisResult.Notes += $"This addin seem to be referencing neither Cake.Core nor Cake.Common.{Environment.NewLine}";
 					}
 
 					return addin;
@@ -824,10 +824,11 @@ namespace Cake.AddinDiscoverer
 
 							if (issuesDescription.Length > 0)
 							{
-								var issueBody = "We performed an automated audit of your Cake addin and found that it does not follow all the best practices.\r\n\r\n";
-								issueBody += "We encourage you to make the following modifications:\r\n\r\n";
+								var issueBody = $"We performed an automated audit of your Cake addin and found that it does not follow all the best practices.{Environment.NewLine}{Environment.NewLine}";
+								issueBody += $"We encourage you to make the following modifications:{Environment.NewLine}{Environment.NewLine}";
 								issueBody += issuesDescription.ToString();
-								issueBody += "\r\n\r\n\r\nApologies if this is already being worked on, or if there are existing open issues, this issue was created based on what is currently published for this package on NuGet.org and in the project on github.\r\n";
+								issueBody += $"{Environment.NewLine}{Environment.NewLine}{Environment.NewLine}";
+								issueBody += $"Apologies if this is already being worked on, or if there are existing open issues, this issue was created based on what is currently published for this package on NuGet.org and in the project on github.{Environment.NewLine}";
 
 								var newIssue = new NewIssue(ISSUE_TITLE)
 								{
@@ -944,7 +945,7 @@ namespace Cake.AddinDiscoverer
 					{
 						row++;
 						worksheet.Cells[row, 1].Value = addin.Name;
-						worksheet.Cells[row, 2].Value = addin.AnalysisResult.Notes;
+						worksheet.Cells[row, 2].Value = addin.AnalysisResult.Notes.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)[0];
 					}
 
 					// Resize columns and freeze the top row
@@ -1038,7 +1039,7 @@ namespace Cake.AddinDiscoverer
 
 				foreach (var addin in exceptionAddins.OrderBy(p => p.Name))
 				{
-					markdown.AppendLine($"**{addin.Name}**: {addin.AnalysisResult.Notes}");
+					markdown.AppendLine($"**{addin.Name}**: {addin.AnalysisResult.Notes.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)[0]}{Environment.NewLine}");
 				}
 			}
 
