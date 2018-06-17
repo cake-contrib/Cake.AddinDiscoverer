@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Cake.AddinDiscoverer.Utilities;
 
 namespace Cake.AddinDiscoverer
 {
 	internal class CakeVersion
 	{
-		public string Version { get; set; }
+		public SemVersion Version { get; set; }
 
 		public string Framework { get; set; }
 	}
