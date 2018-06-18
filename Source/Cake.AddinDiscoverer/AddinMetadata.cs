@@ -16,10 +16,6 @@ namespace Cake.AddinDiscoverer
 
 		public string GithubRepoOwner { get; private set; }
 
-		public string SolutionPath { get; set; }
-
-		public string[] ProjectPaths { get; set; }
-
 		public string[] Frameworks { get; set; }
 
 		public DllReference[] References { get; set; }
@@ -60,5 +56,7 @@ namespace Cake.AddinDiscoverer
 		public Uri GithubIssueUrl { get; set; }
 
 		public int? GithubIssueId { get; set; }
+
+		public string YamlFile { get; set; }
 	}
 }

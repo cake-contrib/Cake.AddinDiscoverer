@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using YamlDotNet.RepresentationModel;
 
 namespace Cake.AddinDiscoverer
 {
@@ -56,11 +54,6 @@ namespace Cake.AddinDiscoverer
 			}
 
 			await Task.WhenAll(allTasks).ConfigureAwait(false);
-		}
-
-		public static string GetChildNodeValue(this YamlMappingNode yamlNode, string childNodeName)
-		{
-			return yamlNode.Children.Where(child => ((YamlScalarNode)child.Key).Value == childNodeName).Select(child => ((YamlScalarNode)child.Value).Value).FirstOrDefault();
 		}
 	}
 }

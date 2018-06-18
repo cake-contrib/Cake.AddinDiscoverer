@@ -1,7 +1,4 @@
 ﻿using Cake.AddinDiscoverer.Utilities;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System;
 
 namespace Cake.AddinDiscoverer
 {

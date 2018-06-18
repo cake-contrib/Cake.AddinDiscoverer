@@ -1,8 +1,6 @@
-﻿using AngleSharp;
-using Cake.AddinDiscoverer.Utilities;
+﻿using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator;
 using CsvHelper;
-using Newtonsoft.Json;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Packaging;
@@ -27,7 +25,6 @@ using System.Runtime.Loader;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using YamlDotNet.RepresentationModel;
 
 namespace Cake.AddinDiscoverer
 {
@@ -39,6 +36,7 @@ namespace Cake.AddinDiscoverer
 		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
 		private const string UNKNOWN_VERSION = "Unknown";
 		private const int MAX_GITHUB_CONCURENCY = 10;
+		private const int MAX_NUGET_CONCURENCY = 25; // 25 seems like a safe value but I suspect that nuget allows a much large number on concurrent connections.
 		private const string GREEN_EMOJI = ":white_check_mark: ";
 		private const string RED_EMOJI = ":small_red_triangle: ";
 		private const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
@@ -51,9 +49,6 @@ namespace Cake.AddinDiscoverer
 		private readonly string _excelReportPath;
 		private readonly string _markdownReportPath;
 		private readonly IGitHubClient _githubClient;
-		private readonly PackageMetadataResource _nugetPackageMetadataClient;
-		private readonly DownloadResource _nugetPackageDownloadClient;
-		private readonly string _jsonSaveLocation;
 		private readonly string _statsSaveLocation;
 		private readonly string _graphSaveLocation;
 
@@ -160,7 +155,6 @@ namespace Cake.AddinDiscoverer
 			_packagesFolder = Path.Combine(_tempFolder, "packages");
 			_excelReportPath = Path.Combine(_tempFolder, "Audit.xlsx");
 			_markdownReportPath = Path.Combine(_tempFolder, "Audit.md");
-			_jsonSaveLocation = Path.Combine(_tempFolder, "CakeAddins.json");
 			_statsSaveLocation = Path.Combine(_tempFolder, "Audit_stats.csv");
 			_graphSaveLocation = Path.Combine(_tempFolder, "Audit_progress.png");
 
@@ -171,14 +165,6 @@ namespace Cake.AddinDiscoverer
 				Credentials = credentials,
 			};
 			_githubClient = new GitHubClient(connection);
-
-			// Setup the Nuget client
-			var providers = new List<Lazy<INuGetResourceProvider>>();
-			providers.AddRange(NuGet.Protocol.Core.Types.Repository.Provider.GetCoreV3());  // Add v3 API support
-			var packageSource = new PackageSource("https://api.nuget.org/v3/index.json");
-			var sourceRepository = new SourceRepository(packageSource, providers);
-			_nugetPackageMetadataClient = sourceRepository.GetResource<PackageMetadataResource>();
-			_nugetPackageDownloadClient = sourceRepository.GetResource<DownloadResource>();
 		}
 
 		public async Task LaunchDiscoveryAsync()
@@ -190,87 +176,46 @@ namespace Cake.AddinDiscoverer
 
 				Console.WriteLine("Auditing the Cake Addins");
 
-				var normalizedAddins = File.Exists(_jsonSaveLocation) ?
-					JsonConvert.DeserializeObject<AddinMetadata[]>(File.ReadAllText(_jsonSaveLocation)) :
-					Enumerable.Empty<AddinMetadata>();
-
-				if (!string.IsNullOrEmpty(_options.AddinName)) normalizedAddins = normalizedAddins.Where(a => a.Name == _options.AddinName);
-
-				if (!normalizedAddins.Any())
-				{
-					// Discover Cake Addins by going through the '.yml' files in https://github.com/cake-build/website/tree/develop/addins
-					var addinsDiscoveredByYaml = await DiscoverCakeAddinsByYmlAsync().ConfigureAwait(false);
-
-					// Discover Cake addins by looking at the "Modules" and "Addins" sections in 'https://raw.githubusercontent.com/cake-contrib/Home/master/Status.md'
-					var addinsDiscoveredByWebsiteList = await DiscoverCakeAddinsByWebsiteListAsync().ConfigureAwait(false);
-
-					// Combine all the discovered addins
-					normalizedAddins = addinsDiscoveredByYaml
-						.Union(addinsDiscoveredByWebsiteList)
-						.GroupBy(a => a.Name)
-						.Select(grp => new AddinMetadata()
-						{
-							Name = grp.Key,
-							Author = grp.Where(a => a.Author != null).Select(a => a.Author).FirstOrDefault(),
-							Maintainer = grp.Where(a => a.Maintainer != null).Select(a => a.Maintainer).FirstOrDefault(),
-							GithubRepoUrl = grp.Where(a => a.GithubRepoUrl != null).Select(a => a.GithubRepoUrl).FirstOrDefault(),
-							NugetPackageUrl = grp.Where(a => a.NugetPackageUrl != null).Select(a => a.NugetPackageUrl).FirstOrDefault(),
-							Source = grp.Select(a => a.Source).Aggregate((x, y) => x | y),
-						})
-						.ToArray();
-				}
-
-				EnsureAtLeastOneAddin(normalizedAddins);
-
-				// Reset the summary
-				normalizedAddins = ResetSummary(normalizedAddins);
-				SaveProgress(normalizedAddins);
-
-				// Get the project URL
-				normalizedAddins = await GetProjectUrlAsync(normalizedAddins).ConfigureAwait(false);
-				SaveProgress(normalizedAddins);
+				// Discover Cake Addins by querying Nuget.org (also download the most recent package)
+				var addins = await DiscoverCakeAddinsAsync().ConfigureAwait(false);
+				EnsureAtLeastOneAddin(addins);
 
 				// Validate the project URL
-				normalizedAddins = await ValidateProjectUrlAsync(normalizedAddins).ConfigureAwait(false);
-				SaveProgress(normalizedAddins);
-
-				// Download package from Nuget.org
-				await DownloadNugetPackageAsync(normalizedAddins).ConfigureAwait(false);
+				addins = await ValidateProjectUrlAsync(addins).ConfigureAwait(false);
 
 				// Determine if an issue already exists in the Github repo
 				if (_options.CreateGithubIssue)
 				{
-					normalizedAddins = await FindGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
-					SaveProgress(normalizedAddins);
+					addins = await FindGithubIssueAsync(addins).ConfigureAwait(false);
 				}
 
 				// Analyze the nuget metadata
-				normalizedAddins = AnalyzeNugetMetadata(normalizedAddins);
-				SaveProgress(normalizedAddins);
+				addins = AnalyzeNugetMetadata(addins);
 
-				// Clean up rejected addins such as addins containing "recipies" for example
-				normalizedAddins = normalizedAddins.Where(a => a != null).ToArray();
-				EnsureAtLeastOneAddin(normalizedAddins);
+				// Clean up rejected addins such as addins containing "recipes", for example
+				addins = addins.Where(a => a != null).ToArray();
+				EnsureAtLeastOneAddin(addins);
+
+				// Get the corresponding YAML on the Cake web site (if one exists)
+				addins = await FindYmlFileAsync(addins).ConfigureAwait(false);
 
 				// Analyze
-				normalizedAddins = AnalyzeAddin(normalizedAddins);
-				SaveProgress(normalizedAddins);
+				addins = AnalyzeAddin(addins);
 
 				// Create an issue in the Github repo
 				if (_options.CreateGithubIssue)
 				{
-					normalizedAddins = await CreateGithubIssueAsync(normalizedAddins).ConfigureAwait(false);
-					SaveProgress(normalizedAddins);
+					addins = await CreateGithubIssueAsync(addins).ConfigureAwait(false);
 				}
 
 				// Generate the excel report and save to a file
-				GenerateExcelReport(normalizedAddins);
+				GenerateExcelReport(addins);
 
 				// Generate the markdown report and write to file
-				await GenerateMarkdownReportAsync(normalizedAddins).ConfigureAwait(false);
+				await GenerateMarkdownReportAsync(addins).ConfigureAwait(false);
 
 				// Update the CSV file containing historical statistics (used to generate graph)
-				await UpdateStatsAsync(normalizedAddins).ConfigureAwait(false);
+				await UpdateStatsAsync(addins).ConfigureAwait(false);
 
 				// Generate the graph showing how many addins are compatible with Cake over time
 				GenerateStatsGraph();
@@ -357,109 +302,121 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task<AddinMetadata[]> DiscoverCakeAddinsByYmlAsync()
+		private async Task<AddinMetadata[]> DiscoverCakeAddinsAsync()
 		{
-			// Get the list of yaml files in the 'addins' folder
-			var directoryContent = await _githubClient.Repository.Content.GetAllContents("cake-build", "website", "addins").ConfigureAwait(false);
-			var yamlFiles = directoryContent
-				.Where(file => file.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-				.Where(file => !string.IsNullOrEmpty(_options.AddinName) ? System.IO.Path.GetFileNameWithoutExtension(file.Name) == _options.AddinName : true)
-				.ToArray();
+			if (string.IsNullOrEmpty(_options.AddinName)) Console.WriteLine("  Discovering Cake addins by querying Nuget.org");
+			else Console.WriteLine($"  Discovering {_options.AddinName} by querying Nuget.org");
 
-			Console.WriteLine("  Discovering Cake addins by yml");
+			var providers = new List<Lazy<INuGetResourceProvider>>();
+			providers.AddRange(NuGet.Protocol.Core.Types.Repository.Provider.GetCoreV3());  // Add v3 API support
+			var packageSource = new PackageSource("https://api.nuget.org/v3/index.json");
+			var sourceRepository = new SourceRepository(packageSource, providers);
+			var nugetPackageDownloadClient = sourceRepository.GetResource<DownloadResource>();
 
-			var addinsMetadata = await yamlFiles
-				.ForEachAsync(
-					async file =>
+			var take = 50;
+			var skip = 0;
+			var searchTerm = "Cake";
+			var filters = new SearchFilter(false)
+			{
+				IncludeDelisted = false,
+				OrderBy = SearchOrderBy.Id
+			};
+
+			var addinPackages = new List<IPackageSearchMetadata>(take);
+
+			//--------------------------------------------------
+			// STEP 1 - Get the metadata from Nuget.org
+			if (!string.IsNullOrEmpty(_options.AddinName))
+			{
+				// Get metadata for one specific package
+				var nugetPackageMetadataClient = sourceRepository.GetResource<PackageMetadataResource>();
+				var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(_options.AddinName, true, true, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+				var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
+				addinPackages.Add(mostRecentPackageMetadata);
+			}
+			else
+			{
+				var nugetSearchClient = sourceRepository.GetResource<PackageSearchResource>();
+
+				// Search for all package matching the search term
+				while (true)
+				{
+					var searchResult = await nugetSearchClient.SearchAsync(searchTerm, filters, skip, take, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+					skip += take;
+
+					if (!searchResult.Any())
 					{
-						// Get the content
-						var fileWithContent = await _githubClient.Repository.Content.GetAllContents("cake-build", "website", file.Path).ConfigureAwait(false);
+						break;
+					}
 
-						// Parse the content
-						var yaml = new YamlStream();
-						yaml.Load(new StringReader(fileWithContent[0].Content));
+					addinPackages.AddRange(searchResult.Where(r => r.Identity.Id.StartsWith("Cake.")));
+				}
 
-						// Extract Author, Description, Name and repository URL
-						var yamlRootNode = (YamlMappingNode)yaml.Documents[0].RootNode;
-						var url = new Uri(yamlRootNode.GetChildNodeValue("Repository"));
-						var metadata = new AddinMetadata()
+			}
+
+			//--------------------------------------------------
+			// STEP 2 - Download packages
+			await addinPackages
+				.ForEachAsync(
+					async package =>
+					{
+						var packageFileName = Path.Combine(_packagesFolder, $"{package.Identity.Id}.{package.Identity.Version.ToNormalizedString()}.nupkg");
+						if (!File.Exists(packageFileName))
 						{
-							Source = AddinMetadataSource.Yaml,
-							Name = yamlRootNode["Name"].ToString(),
-							GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
-							NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
-							Author = yamlRootNode.GetChildNodeValue("AuthorGitHubUserName") ?? yamlRootNode.GetChildNodeValue("Author"),
-							Maintainer = null
-						};
+							// Delete prior versions of this package
+							foreach (string f in Directory.EnumerateFiles(_packagesFolder, $"{package.Identity.Id}.*.nupkg"))
+							{
+								File.Delete(f);
+							}
 
-						return metadata;
-					}, MAX_GITHUB_CONCURENCY)
+							// Download the latest version of the package
+							using (var sourceCacheContext = new SourceCacheContext() { NoCache = true })
+							{
+								var context = new PackageDownloadContext(sourceCacheContext, Path.GetTempPath(), true);
+
+								using (var result = await nugetPackageDownloadClient.GetDownloadResourceResultAsync(package.Identity, context, string.Empty, NullLogger.Instance, CancellationToken.None))
+								{
+									if (result.Status == DownloadResourceResultStatus.Cancelled)
+									{
+										throw new OperationCanceledException();
+									}
+									else if (result.Status == DownloadResourceResultStatus.NotFound)
+									{
+										throw new Exception(string.Format("Package '{0} {1}' not found", package.Identity.Id, package.Identity.Version));
+									}
+									else
+									{
+										using (var fileStream = File.OpenWrite(packageFileName))
+										{
+											await result.PackageStream.CopyToAsync(fileStream);
+										}
+									}
+								}
+							}
+						}
+					}, MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
 
-			return addinsMetadata;
-		}
-
-		private async Task<AddinMetadata[]> DiscoverCakeAddinsByWebsiteListAsync()
-		{
-			// Get the content of the 'Status.md' file
-			var statusFile = await _githubClient.Repository.Content.GetAllContents("cake-contrib", "home", "Status.md").ConfigureAwait(false);
-			var statusFileContent = statusFile[0].Content;
-
-			// Get the "modules" and "Addins"
-			Console.WriteLine("  Discovering Cake addins by parsing the list in cake-contrib/Home/master/Status.md");
-
-			/*
-				The status.md file contains several sections such as "Recipes", "Modules", "Websites", "Addins",
-				"Work In Progress", "Needs Investigation" and "Deprecated". I am making the assumption that we
-				only care about 2 of those sections: "Modules" and "Addins".
-			*/
-
-			var modules = GetAddins("Modules", statusFileContent).ToArray();
-			var addins = GetAddins("Addins", statusFileContent).ToArray();
-
-			// Combine the lists
-			return modules
-				.Union(addins)
-				.ToArray();
-		}
-
-		private AddinMetadata[] ResetSummary(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Clearing previous summary");
-
-			var results = addins
-				.Select(addin =>
+			//--------------------------------------------------
+			// STEP 3 - Convert metadata from nuget into our own metadata
+			var addinsMetadata = addinPackages
+				.Select(package =>
 				{
-					addin.AnalysisResult = new AddinAnalysisResult();
-					return addin;
-				});
-
-			return results.ToArray();
-		}
-
-		private async Task<AddinMetadata[]> GetProjectUrlAsync(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Getting Github repo URLs");
-
-			var tasks = addins
-				.Select(async addin =>
-				{
-					if (addin.GithubRepoUrl == null && addin.NugetPackageUrl != null)
+					return new AddinMetadata()
 					{
-						try
-						{
-							addin.GithubRepoUrl = await GetNormalizedProjectUrlAsync(addin.NugetPackageUrl).ConfigureAwait(false);
-						}
-						catch (Exception e)
-						{
-							addin.AnalysisResult.Notes += $"GetProjectUrlAsync: {e.GetBaseException().Message}{Environment.NewLine}";
-						}
-					}
-					return addin;
-				});
+						AnalysisResult = new AddinAnalysisResult(),
+						Author = package.Authors,
+						GithubRepoUrl = package.ProjectUrl != null && package.ProjectUrl.Host.Contains("github.com") ? package.ProjectUrl : null,
+						IconUrl = package.IconUrl,
+						Maintainer = null,
+						Name = package.Identity.Id,
+						NugetPackageUrl = new Uri($"https://www.nuget.org/packages/{package.Identity.Id}/"),
+						NugetPackageVersion = package.Identity.Version.ToNormalizedString(),
+						Source = AddinMetadataSource.Nuget
+					};
+				}).ToArray();
 
-			var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-			return results;
+			return addinsMetadata;
 		}
 
 		private async Task<AddinMetadata[]> ValidateProjectUrlAsync(IEnumerable<AddinMetadata> addins)
@@ -494,59 +451,6 @@ namespace Cake.AddinDiscoverer
 			return results.ToArray();
 		}
 
-		private async Task DownloadNugetPackageAsync(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Downloading Nuget packages");
-
-			var tasks = addins
-				.Select(async addin =>
-				{
-					try
-					{
-						var packageFileName = Path.Combine(_packagesFolder, $"{addin.Name}.nupkg");
-						if (!File.Exists(packageFileName))
-						{
-							var searchMetadata = await _nugetPackageMetadataClient.GetMetadataAsync(addin.Name, true, true, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
-							var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
-							if (mostRecentPackageMetadata == null)
-							{
-								throw new FileNotFoundException($"Unable to find a package named {addin.Name} on Nuget");
-							}
-							else
-							{
-								using (var sourceCacheContext = new SourceCacheContext() { NoCache = true })
-								{
-									var context = new PackageDownloadContext(sourceCacheContext, Path.GetTempPath(), true);
-
-									using (var result = await _nugetPackageDownloadClient.GetDownloadResourceResultAsync(mostRecentPackageMetadata.Identity, context, string.Empty, NullLogger.Instance, CancellationToken.None))
-									{
-										if (result.Status == DownloadResourceResultStatus.Cancelled)
-										{
-											throw new OperationCanceledException();
-										}
-										if (result.Status == DownloadResourceResultStatus.NotFound)
-										{
-											throw new Exception(string.Format("Package '{0} {1}' not found", mostRecentPackageMetadata.Identity.Id, mostRecentPackageMetadata.Identity.Version));
-										}
-
-										using (var fileStream = File.OpenWrite(packageFileName))
-										{
-											await result.PackageStream.CopyToAsync(fileStream);
-										}
-									}
-								}
-							}
-						}
-					}
-					catch (Exception e)
-					{
-						addin.AnalysisResult.Notes += $"DownloadNugetPackageAsync: {e.GetBaseException().Message}{Environment.NewLine}";
-					}
-				});
-
-			await Task.WhenAll(tasks).ConfigureAwait(false);
-		}
-
 		private AddinMetadata[] AnalyzeNugetMetadata(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Analyzing nuget packages");
@@ -556,7 +460,7 @@ namespace Cake.AddinDiscoverer
 				{
 					try
 					{
-						var packageFileName = Path.Combine(_packagesFolder, $"{addin.Name}.nupkg");
+						var packageFileName = Path.Combine(_packagesFolder, $"{addin.Name}.{addin.NugetPackageVersion}.nupkg");
 						if (File.Exists(packageFileName))
 						{
 							using (var stream = File.Open(packageFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -731,6 +635,27 @@ namespace Cake.AddinDiscoverer
 			return addinsMetadata;
 		}
 
+		private async Task<AddinMetadata[]> FindYmlFileAsync(IEnumerable<AddinMetadata> addins)
+		{
+			Console.WriteLine("  Discovering yml files on the Cake web site");
+
+			var directoryContent = await _githubClient.Repository.Content.GetAllContents("cake-build", "website", "addins").ConfigureAwait(false);
+			var yamlFiles = directoryContent
+				.Where(file => file.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+				.Where(file => !string.IsNullOrEmpty(_options.AddinName) ? Path.GetFileNameWithoutExtension(file.Name) == _options.AddinName : true)
+				.ToArray();
+
+			var addinsMetadata = addins
+				.Select(addin =>
+				{
+					addin.YamlFile = yamlFiles.FirstOrDefault(f => Path.GetFileNameWithoutExtension(f.Name).EqualsIgnoreCase(addin.Name))?.Name;
+					return addin;
+				})
+				.ToArray();
+
+			return addinsMetadata;
+		}
+
 		private AddinMetadata[] AnalyzeAddin(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Analyzing addins");
@@ -768,7 +693,7 @@ namespace Cake.AddinDiscoverer
 						}
 
 						addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri.EqualsIgnoreCase(CAKECONTRIB_ICON_URL);
-						addin.AnalysisResult.HasYamlFileOnWebSite = addin.Source.HasFlag(AddinMetadataSource.Yaml);
+						addin.AnalysisResult.HasYamlFileOnWebSite = addin.YamlFile != null;
 						addin.AnalysisResult.TransferedToCakeContribOrganisation = addin.GithubRepoOwner?.Equals("cake-contrib", StringComparison.OrdinalIgnoreCase) ?? false;
 					}
 
@@ -1134,43 +1059,6 @@ namespace Cake.AddinDiscoverer
 		}
 
 		/// <summary>
-		/// Searches the markdown content for a table between a section title such as '# Modules' and the next section which begins with the '#' character
-		/// </summary>
-		/// <param name="title">The section title</param>
-		/// <param name="content">The markdown content</param>
-		/// <returns>An array of addin metadata</returns>
-		private AddinMetadata[] GetAddins(string title, string content)
-		{
-			var sectionContent = Extract($"# {title}", "#", content);
-			var lines = sectionContent.Trim('\n').Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-			Console.WriteLine($"    Discovering {title}");
-
-			// It's important to skip the two 'header' rows
-			var results = lines
-				.Skip(2)
-				.Select(line =>
-				{
-					var cells = line.Split('|', StringSplitOptions.RemoveEmptyEntries);
-					var url = new Uri(Extract("(", ")", cells[0]));
-					var metadata = new AddinMetadata()
-					{
-						Source = AddinMetadataSource.WebsiteList,
-						Name = Extract("[", "]", cells[0]),
-						GithubRepoUrl = url.Host.Contains("github.com") ? url : null,
-						NugetPackageUrl = url.Host.Contains("nuget.org") ? url : null,
-						Author = null,
-						Maintainer = cells[1].Trim()
-					};
-
-					return metadata;
-				})
-				.Where(addin => !string.IsNullOrEmpty(_options.AddinName) ? System.IO.Path.GetFileNameWithoutExtension(addin.Name) == _options.AddinName : true)
-				.ToArray();
-			return results;
-		}
-
-		/// <summary>
 		/// Extract a substring between two markers. For example, Extract("[", "]", "Hello [firstname]") returns "firstname".
 		/// </summary>
 		/// <param name="startMark">The start marker</param>
@@ -1185,36 +1073,6 @@ namespace Cake.AddinDiscoverer
 			if (start == -1) return string.Empty;
 			else if (end == -1) return content.Substring(start + startMark.Length).Trim();
 			else return content.Substring(start + startMark.Length, end - start - startMark.Length).Trim();
-		}
-
-		private async Task<Uri> GetNormalizedProjectUrlAsync(Uri projectUri)
-		{
-			if (projectUri.Host.Contains("nuget.org"))
-			{
-				/*
-					Fetch the package page from nuget and look for the "Project Site" link.
-					Please note that some packages omit this information unfortunately.
-				*/
-
-				var config = Configuration.Default.WithDefaultLoader();
-				var document = await BrowsingContext.New(config).OpenAsync(Url.Convert(projectUri));
-
-				var outboundProjectUrl = document
-					.QuerySelectorAll("a")
-					.Where(a =>
-					{
-						var dataTrackAttrib = a.Attributes["data-track"];
-						if (dataTrackAttrib == null) return false;
-						return dataTrackAttrib.Value.EqualsIgnoreCase("outbound-project-url");
-					});
-				if (!outboundProjectUrl.Any()) return null;
-
-				return new Uri(outboundProjectUrl.First().Attributes["href"].Value);
-			}
-			else
-			{
-				return projectUri;
-			}
 		}
 
 		private async Task CommitChangesToRepoAsync()
@@ -1319,16 +1177,6 @@ namespace Cake.AddinDiscoverer
 			// Update the reference of master branch with the SHA of the commit
 			// Update HEAD with the commit
 			await _githubClient.Git.Reference.Update(owner, repositoryName, headMasterRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
-		}
-
-		private void SaveProgress(IEnumerable<AddinMetadata> normalizedAddins)
-		{
-			// Do not save progress if we are only auditing a single addin.
-			// This is to avoid overwriting the progress file that may have been created by previous audit process.
-			if (!string.IsNullOrEmpty(_options.AddinName)) return;
-
-			// Save to file
-			File.WriteAllText(_jsonSaveLocation, JsonConvert.SerializeObject(normalizedAddins));
 		}
 
 		private async Task UpdateStatsAsync(IEnumerable<AddinMetadata> normalizedAddins)
