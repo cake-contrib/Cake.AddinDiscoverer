@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace Cake.AddinDiscoverer
 {
+	[DebuggerDisplay("Name = {Name}")]
 	internal class AddinMetadata
 	{
 		private Uri repositoryUrl;
@@ -21,8 +23,6 @@ namespace Cake.AddinDiscoverer
 		public DllReference[] References { get; set; }
 
 		public AddinAnalysisResult AnalysisResult { get; set; }
-
-		public AddinMetadataSource Source { get; set; }
 
 		public Uri IconUrl { get; set; }
 
@@ -58,5 +58,9 @@ namespace Cake.AddinDiscoverer
 		public int? GithubIssueId { get; set; }
 
 		public string YamlFile { get; set; }
+
+		public AddinType Type { get; set; }
+
+		public bool IsDeprecated { get; set; }
 	}
 }
