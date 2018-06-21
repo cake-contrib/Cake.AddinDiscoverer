@@ -98,7 +98,7 @@ namespace Cake.AddinDiscoverer
 				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreVersion == _unknownVersion ? UNKNOWN_VERSION : addin.AnalysisResult.CakeCoreVersion.ToString(3),
 				(addin, cakeVersion) => addin.AnalysisResult.CakeCoreVersion == null ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
-				AddinType.Addin,
+				AddinType.Addin | AddinType.Module,
 				DataDestination.All
 			),
 			(
@@ -107,7 +107,7 @@ namespace Cake.AddinDiscoverer
 				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreIsPrivate.ToString().ToLower(),
 				(addin, cakeVersion) => addin.AnalysisResult.CakeCoreVersion == null ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red),
 				(addin) => null,
-				AddinType.Addin,
+				AddinType.Addin | AddinType.Module,
 				DataDestination.All
 			),
 			(
@@ -116,7 +116,7 @@ namespace Cake.AddinDiscoverer
 				(addin) => addin.AnalysisResult.CakeCommonVersion == null ? string.Empty : addin.AnalysisResult.CakeCommonVersion == _unknownVersion ? UNKNOWN_VERSION : addin.AnalysisResult.CakeCommonVersion.ToString(3),
 				(addin, cakeVersion) => addin.AnalysisResult.CakeCommonVersion == null ? Color.Empty : (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, cakeVersion.Version) ? Color.LightGreen : Color.Red),
 				(addin) => null,
-				AddinType.Addin,
+				AddinType.Addin | AddinType.Module,
 				DataDestination.All
 			),
 			(
@@ -134,7 +134,7 @@ namespace Cake.AddinDiscoverer
 				(addin) => string.Join(", ", addin.Frameworks),
 				(addin, cakeVersion) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (IsFrameworkUpToDate(addin.Frameworks, cakeVersion.Framework) ? Color.LightGreen : Color.Red),
 				(addin) => null,
-				AddinType.Addin,
+				AddinType.Addin | AddinType.Module,
 				DataDestination.All
 			),
 			(
@@ -152,7 +152,7 @@ namespace Cake.AddinDiscoverer
 				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite.ToString().ToLower(),
 				(addin, cakeVersion) => addin.AnalysisResult.HasYamlFileOnWebSite ? Color.LightGreen : Color.Red,
 				(addin) => null,
-				AddinType.All,
+				AddinType.Addin | AddinType.Recipes,
 				DataDestination.Excel
 			),
 			(
@@ -623,6 +623,7 @@ namespace Cake.AddinDiscoverer
 									addin.Frameworks = frameworks;
 									addin.References = dllReferences;
 									if (addin.GithubRepoUrl == null) addin.GithubRepoUrl = string.IsNullOrEmpty(projectUrl) ? null : new Uri(projectUrl);
+									if (addin.Name.EndsWith(".Module", StringComparison.OrdinalIgnoreCase)) addin.Type = AddinType.Module;
 									if (addin.Type == AddinType.Unknown && !string.IsNullOrEmpty(assemblyPath)) addin.Type = AddinType.Addin;
 
 									if (addin.Type == AddinType.Unknown)
@@ -842,7 +843,7 @@ namespace Cake.AddinDiscoverer
 				// One worksheet per version of Cake
 				foreach (var cakeVersion in _cakeVersions.OrderByDescending(cakeVersion => cakeVersion.Version))
 				{
-					GenerateExcelWorksheet(auditedAddins, cakeVersion, AddinType.Addin, $"Cake {cakeVersion.Version}", excel);
+					GenerateExcelWorksheet(auditedAddins, cakeVersion, AddinType.Addin | AddinType.Module, $"Cake {cakeVersion.Version}", excel);
 				}
 
 				// One worksheet for recipes
@@ -862,13 +863,12 @@ namespace Cake.AddinDiscoverer
 		private void GenerateExcelWorksheet(IEnumerable<AddinMetadata> addins, CakeVersion cakeVersion, AddinType type, string caption, ExcelPackage excel)
 		{
 			var filteredAddins = addins
-				.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
-				.Where(addin => addin.Type == type)
+				.Where(addin => addin.Type.IsFlagSet(type))
 				.ToArray();
 
 			var reportColumns = _reportColumns
 				.Where(column => column.Destination.HasFlag(DataDestination.Excel))
-				.Where(column => column.ApplicableTo.HasFlag(type))
+				.Where(column => column.ApplicableTo.IsFlagSet(type))
 				.Select((data, index) => new { Index = index, Data = data })
 				.ToArray();
 
@@ -889,21 +889,24 @@ namespace Cake.AddinDiscoverer
 
 				foreach (var column in reportColumns)
 				{
-					var cell = worksheet.Cells[row, column.Index + 1];
-					cell.Value = column.Data.GetContent(addin);
-
-					var color = column.Data.GetCellColor(addin, cakeVersion);
-					if (color != Color.Empty)
+					if (column.Data.ApplicableTo.IsFlagSet(addin.Type))
 					{
-						cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
-						cell.Style.Fill.BackgroundColor.SetColor(color);
-					}
+						var cell = worksheet.Cells[row, column.Index + 1];
+						cell.Value = column.Data.GetContent(addin);
 
-					var hyperlink = column.Data.GetHyperLink(addin);
-					if (hyperlink != null)
-					{
-						cell.Hyperlink = hyperlink;
-						cell.StyleName = "HyperLink";
+						var color = column.Data.GetCellColor(addin, cakeVersion);
+						if (color != Color.Empty)
+						{
+							cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+							cell.Style.Fill.BackgroundColor.SetColor(color);
+						}
+
+						var hyperlink = column.Data.GetHyperLink(addin);
+						if (hyperlink != null)
+						{
+							cell.Hyperlink = hyperlink;
+							cell.StyleName = "HyperLink";
+						}
 					}
 				}
 			}
@@ -1032,7 +1035,7 @@ namespace Cake.AddinDiscoverer
 			{
 				var reportName = $"{Path.GetFileNameWithoutExtension(_markdownReportPath)}_for_Cake_{cakeVersion.Version}.md";
 				var reportPath = Path.Combine(_tempFolder, reportName);
-				var markdownReportForCakeVersion = GenerateMarkdown(auditedAddins, cakeVersion, AddinType.Addin);
+				var markdownReportForCakeVersion = GenerateMarkdown(auditedAddins, cakeVersion, AddinType.Addin | AddinType.Module);
 				await File.WriteAllTextAsync(reportPath, markdownReportForCakeVersion).ConfigureAwait(false);
 			}
 		}
@@ -1041,12 +1044,12 @@ namespace Cake.AddinDiscoverer
 		{
 			var filteredAddins = addins
 				.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
-				.Where(addin => addin.Type == type)
+				.Where(addin => addin.Type.IsFlagSet(type))
 				.ToArray();
 
 			var reportColumns = _reportColumns
 				.Where(column => column.Destination.HasFlag(DataDestination.Excel))
-				.Where(column => column.ApplicableTo.HasFlag(type))
+				.Where(column => column.ApplicableTo.IsFlagSet(type))
 				.Select((data, index) => new { Index = index, Data = data })
 				.ToArray();
 
@@ -1117,21 +1120,28 @@ namespace Cake.AddinDiscoverer
 			{
 				foreach (var column in reportColumns)
 				{
-					var content = column.Data.GetContent(addin);
-					var hyperlink = column.Data.GetHyperLink(addin);
-					var color = column.Data.GetCellColor(addin, cakeVersion);
-
-					var emoji = string.Empty;
-					if (color == Color.LightGreen) emoji = GREEN_EMOJI;
-					else if (color == Color.Red) emoji = RED_EMOJI;
-
-					if (hyperlink == null)
+					if (column.Data.ApplicableTo.IsFlagSet(addin.Type))
 					{
-						markdown.Append($"| {content} {emoji}");
+						var content = column.Data.GetContent(addin);
+						var hyperlink = column.Data.GetHyperLink(addin);
+						var color = column.Data.GetCellColor(addin, cakeVersion);
+
+						var emoji = string.Empty;
+						if (color == Color.LightGreen) emoji = GREEN_EMOJI;
+						else if (color == Color.Red) emoji = RED_EMOJI;
+
+						if (hyperlink == null)
+						{
+							markdown.Append($"| {content} {emoji}");
+						}
+						else
+						{
+							markdown.Append($"| [{content}]({hyperlink.AbsoluteUri}) {emoji}");
+						}
 					}
 					else
 					{
-						markdown.Append($"| [{content}]({hyperlink.AbsoluteUri}) {emoji}");
+						markdown.Append("| ");
 					}
 				}
 

@@ -8,6 +8,7 @@ namespace Cake.AddinDiscoverer
 		Unknown = 0,
 		Addin = 1 << 0,
 		Recipes = 1 << 1,
-		All = Addin | Recipes
+		Module = 1 << 2,
+		All = Addin | Recipes | Module
 	}
 }
