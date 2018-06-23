@@ -152,15 +152,6 @@ namespace Cake.AddinDiscoverer
 				DataDestination.Excel
 			),
 			(
-				"YAML",
-				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.HasYamlFileOnWebSite.ToString().ToLower(),
-				(addin, cakeVersion) => addin.AnalysisResult.HasYamlFileOnWebSite ? Color.LightGreen : Color.Red,
-				(addin) => null,
-				AddinType.Addin | AddinType.Recipes,
-				DataDestination.Excel
-			),
-			(
 				"Transferred to cake-contrib",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.TransferedToCakeContribOrganisation.ToString().ToLower(),
@@ -231,15 +222,6 @@ namespace Cake.AddinDiscoverer
 				// Analyze the nuget metadata
 				addins = AnalyzeNugetMetadata(addins);
 
-				// Synchronize the YAML files on the Cake web site with packages discovered on Nuget.org
-				if (_options.SynchronizeYaml)
-				{
-					await SynchronizeYmlFilesAsync(addins).ConfigureAwait(false);
-				}
-
-				// Find the corresponding YAML on the Cake web site (if one exists)
-				addins = await FindYmlFileAsync(addins).ConfigureAwait(false);
-
 				// Analyze
 				addins = AnalyzeAddin(addins);
 
@@ -263,6 +245,12 @@ namespace Cake.AddinDiscoverer
 
 				// Commit the changed files (such as reports, stats CSV, graph, etc.) to the cake-contrib repo
 				await CommitChangesToRepoAsync().ConfigureAwait(false);
+
+				// Synchronize the YAML files on the Cake web site with packages discovered on Nuget.org
+				if (_options.SynchronizeYaml)
+				{
+					await SynchronizeYmlFilesAsync(addins).ConfigureAwait(false);
+				}
 			}
 			catch (Exception e)
 			{
@@ -884,27 +872,6 @@ namespace Cake.AddinDiscoverer
 			await _githubClient.PullRequest.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newPullRequest).ConfigureAwait(false);
 		}
 
-		private async Task<AddinMetadata[]> FindYmlFileAsync(IEnumerable<AddinMetadata> addins)
-		{
-			Console.WriteLine("  Discovering yml files on the Cake web site");
-
-			var directoryContent = await _githubClient.Repository.Content.GetAllContents(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, "addins").ConfigureAwait(false);
-			var yamlFiles = directoryContent
-				.Where(file => file.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-				.Where(file => !string.IsNullOrEmpty(_options.AddinName) ? Path.GetFileNameWithoutExtension(file.Name) == _options.AddinName : true)
-				.ToArray();
-
-			var addinsMetadata = addins
-				.Select(addin =>
-				{
-					addin.YamlFile = yamlFiles.FirstOrDefault(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name)?.Name;
-					return addin;
-				})
-				.ToArray();
-
-			return addinsMetadata;
-		}
-
 		private AddinMetadata[] AnalyzeAddin(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Analyzing addins");
@@ -948,7 +915,6 @@ namespace Cake.AddinDiscoverer
 					}
 
 					addin.AnalysisResult.UsingCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri.EqualsIgnoreCase(CAKE_CONTRIB_ICON_URL);
-					addin.AnalysisResult.HasYamlFileOnWebSite = addin.YamlFile != null;
 					addin.AnalysisResult.TransferedToCakeContribOrganisation = addin.GithubRepoOwner?.Equals(CAKE_CONTRIB_REPO_OWNER, StringComparison.OrdinalIgnoreCase) ?? false;
 
 					return addin;
@@ -994,7 +960,6 @@ namespace Cake.AddinDiscoverer
 							if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Common reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Common\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
 							if (!IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion.Framework)) issuesDescription.AppendLine($"- [ ] Your addin should target {recommendedCakeVersion.Framework}. Please note that there is no need to multi-target, {recommendedCakeVersion.Framework} is sufficient.");
 							if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.AppendLine($"- [ ] The nuget package for your addin should use the cake-contrib icon. Specifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{CAKE_CONTRIB_ICON_URL}</PackageIconUrl>`.");
-							if (!addin.AnalysisResult.HasYamlFileOnWebSite) issuesDescription.AppendLine("- [ ] There should be a YAML file describing your addin on the cake web site. Specifically, you should add a `.yml` file in this [repo](https://github.com/cake-build/website/tree/develop/addins)");
 
 							if (issuesDescription.Length > 0)
 							{
@@ -1180,7 +1145,6 @@ namespace Cake.AddinDiscoverer
 
 			markdown.AppendLine($"- Of the {auditedAddins.Count()} audited addins:");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingCakeContribIcon)} are using the cake-contrib icon");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.HasYamlFileOnWebSite)} have a YAML file on the cake web site");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferedToCakeContribOrganisation)} have been transfered to the cake-contrib organisation");
 			markdown.AppendLine();
 
@@ -1199,7 +1163,6 @@ namespace Cake.AddinDiscoverer
 			markdown.AppendLine("Due to space constraints we couldn't fit all audit information in this report so we generated an Excel spreadsheet that contains the following additional information:");
 			markdown.AppendLine("- The `Maintainer` column indicates who is maintaining the source for this project");
 			markdown.AppendLine("- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon.");
-			markdown.AppendLine("- The `YAML` column indicates if there is a `.yml` file describing the addin in this [repo](https://github.com/cake-build/website/tree/develop/addins).");
 			markdown.AppendLine("- The `Transferred to cake-contrib` column indicates if the project has been moved to the cake-contrib github organisation.");
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");

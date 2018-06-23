@@ -56,8 +56,6 @@ namespace Cake.AddinDiscoverer
 
 		public int? GithubIssueId { get; set; }
 
-		public string YamlFile { get; set; }
-
 		public AddinType Type { get; set; }
 
 		public bool IsDeprecated { get; set; }
