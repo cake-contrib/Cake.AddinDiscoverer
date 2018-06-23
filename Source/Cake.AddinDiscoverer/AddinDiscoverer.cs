@@ -311,6 +311,7 @@ namespace Cake.AddinDiscoverer
 			yamlContent.AppendLine($"Repository: {addin.GithubRepoUrl ?? addin.NugetPackageUrl}");
 			yamlContent.AppendLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendLine($"Description: \"{addin.Description}\"");
+			if (addin.IsPrerelease) yamlContent.AppendLine("Prerelease: \"true\"");
 			yamlContent.AppendLine("Categories:");
 			yamlContent.AppendLine(string.Join(Environment.NewLine, addin.Tags.Select(tag => $"- {tag}")));
 
@@ -364,7 +365,7 @@ namespace Cake.AddinDiscoverer
 			var take = 50;
 			var skip = 0;
 			var searchTerm = "Cake";
-			var filters = new SearchFilter(false)
+			var filters = new SearchFilter(true)
 			{
 				IncludeDelisted = false,
 				OrderBy = SearchOrderBy.Id
@@ -378,9 +379,12 @@ namespace Cake.AddinDiscoverer
 			{
 				// Get metadata for one specific package
 				var nugetPackageMetadataClient = sourceRepository.GetResource<PackageMetadataResource>();
-				var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(_options.AddinName, true, true, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+				var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(_options.AddinName, true, false, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
 				var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
-				addinPackages.Add(mostRecentPackageMetadata);
+				if (mostRecentPackageMetadata != null)
+				{
+					addinPackages.Add(mostRecentPackageMetadata);
+				}
 			}
 			else
 			{
@@ -460,6 +464,7 @@ namespace Cake.AddinDiscoverer
 						NugetPackageUrl = new Uri($"https://www.nuget.org/packages/{package.Identity.Id}/"),
 						NugetPackageVersion = package.Identity.Version.ToNormalizedString(),
 						IsDeprecated = false,
+						IsPrerelease = package.Identity.Version.IsPrerelease,
 						Tags = package.Tags
 							.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
 							.Select(tag => tag.Trim())
@@ -736,6 +741,12 @@ namespace Cake.AddinDiscoverer
 
 			var yamlToBeDeleted = yamlFiles
 				.Where(f => !addins.Any(a => a.Name == Path.GetFileNameWithoutExtension(f.Name)))
+				.OrderBy(f => f.Name)
+				.ToArray();
+
+			yamlToBeDeleted = yamlFiles
+				.Where(f => !addins.Any(a => a.Name == Path.GetFileNameWithoutExtension(f.Name)))
+				.Where(f => f.Name != "Magic-Chunks.yml") // Ensure that MagicChunk's yaml file is not deleted despite the fact that is doesn't follow the naming convention. See: https://github.com/cake-build/website/issues/535#issuecomment-399692891
 				.OrderBy(f => f.Name)
 				.ToArray();
 

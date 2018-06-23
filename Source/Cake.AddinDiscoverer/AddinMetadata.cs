@@ -64,6 +64,8 @@ namespace Cake.AddinDiscoverer
 
 		public string[] Tags { get; set; }
 
+		public bool IsPrerelease { get; set; }
+
 		public string GetMaintainerName()
 		{
 			var maintainer = GithubRepoOwner ?? Maintainer;
