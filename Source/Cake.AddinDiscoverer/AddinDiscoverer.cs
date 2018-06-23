@@ -723,8 +723,23 @@ namespace Cake.AddinDiscoverer
 		{
 			Console.WriteLine("  Synchronizing yml files on the Cake web site");
 
+			const string ISSUE_TITLE = "Synchronizing YAML files";
+
 			// --------------------------------------------------
-			// STEP 1 - Discover if any files need to be added/deleted/modified
+			// Check if there is already an open issue
+			var request = new RepositoryIssueRequest()
+			{
+				Creator = _options.GithubUsername,
+				State = ItemStateFilter.Open,
+				SortProperty = IssueSort.Created,
+				SortDirection = SortDirection.Descending
+			};
+
+			var issues = await _githubClient.Issue.GetAllForRepository(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, request).ConfigureAwait(false);
+			if (issues.Any(i => i.Title == ISSUE_TITLE)) return;
+
+			// --------------------------------------------------
+			// Discover if any files need to be added/deleted/modified
 			var directoryContent = await _githubClient.Repository.Content.GetAllContents(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, "addins").ConfigureAwait(false);
 			var yamlFiles = directoryContent
 				.Where(file => file.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
@@ -749,8 +764,8 @@ namespace Cake.AddinDiscoverer
 			if (!yamlToBeDeleted.Any() && !addinsWithoutYaml.Any()) return;
 
 			// --------------------------------------------------
-			// STEP 2 - create issue
-			var newIssue = new NewIssue("Synchronizing YAML files")
+			// Create issue
+			var newIssue = new NewIssue(ISSUE_TITLE)
 			{
 				Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on Nuget.org:{Environment.NewLine}" +
 					$"{Environment.NewLine}YAML files to be deleted:{Environment.NewLine}{string.Join(Environment.NewLine, yamlToBeDeleted.Select(f => $"- {f.Name}"))}{Environment.NewLine}" +
@@ -759,9 +774,9 @@ namespace Cake.AddinDiscoverer
 			var issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
 
 			// --------------------------------------------------
-			// STEP 3 - commit changes to a new branch
+			// Commit changes to a new branch
 			var developBranchName = "develop";
-			var newBranchName = "delete_test";
+			var newBranchName = $"synchronize_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 
 			var developReference = await _githubClient.Git.Reference.Get(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, $"heads/{developBranchName}").ConfigureAwait(false);
 			var newReference = new NewReference($"heads/{newBranchName}", developReference.Object.Sha);
@@ -861,7 +876,7 @@ namespace Cake.AddinDiscoverer
 			await _githubClient.Git.Reference.Update(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha));
 
 			// --------------------------------------------------
-			// STEP 5 - submit pull request
+			// Submit pull request
 			var newPullRequest = new NewPullRequest("Update YAML files", newBranchName, developBranchName)
 			{
 				Body = $"Resolves #{issue.Number}"
