@@ -740,19 +740,33 @@ namespace Cake.AddinDiscoverer
 				.ToArray();
 
 			var yamlToBeDeleted = yamlFiles
-				.Where(f => !addins.Any(a => a.Name == Path.GetFileNameWithoutExtension(f.Name)))
-				.OrderBy(f => f.Name)
-				.ToArray();
-
-			yamlToBeDeleted = yamlFiles
-				.Where(f => !addins.Any(a => a.Name == Path.GetFileNameWithoutExtension(f.Name)))
+				.Where(f =>
+				{
+					var addin = addins.FirstOrDefault(a => a.Name == Path.GetFileNameWithoutExtension(f.Name));
+					return addin == null || addin.IsDeprecated;
+				})
 				.Where(f => f.Name != "Magic-Chunks.yml") // Ensure that MagicChunk's yaml file is not deleted despite the fact that is doesn't follow the naming convention. See: https://github.com/cake-build/website/issues/535#issuecomment-399692891
 				.OrderBy(f => f.Name)
 				.ToArray();
 
 			var addinsToBeUpdated = addins
 				.Where(a => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == a.Name))
-				.OrderBy(f => f.Name)
+				.Select(async a =>
+				{
+					var contents = await _githubClient.Repository.Content.GetAllContents(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, $"addins/{a.Name}.yml").ConfigureAwait(false);
+					return new
+					{
+						Addin = a,
+						CurrentContent = contents[0].Content
+							.Replace("\r\n", "\n")
+							.Replace("\r", "\n")
+							.Replace("\n", Environment.NewLine),
+						NewContent = GenerateYamlFile(a)
+					};
+				})
+				.Select(a => a.Result)
+				.Where(a => a.CurrentContent != a.NewContent)
+				.OrderBy(a => a.Addin.Name)
 				.ToArray();
 
 			var addinsWithoutYaml = addins
@@ -760,7 +774,7 @@ namespace Cake.AddinDiscoverer
 				.OrderBy(a => a.Name)
 				.ToArray();
 
-			if (!yamlToBeDeleted.Any() && !addinsWithoutYaml.Any()) return;
+			if (!yamlToBeDeleted.Any() && !addinsWithoutYaml.Any() && !addinsToBeUpdated.Any()) return;
 
 			// --------------------------------------------------
 			// Create issue
@@ -768,7 +782,8 @@ namespace Cake.AddinDiscoverer
 			{
 				Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on Nuget.org:{Environment.NewLine}" +
 					$"{Environment.NewLine}YAML files to be deleted:{Environment.NewLine}{string.Join(Environment.NewLine, yamlToBeDeleted.Select(f => $"- {f.Name}"))}{Environment.NewLine}" +
-					$"{Environment.NewLine}YAML files to be created:{Environment.NewLine}{string.Join(Environment.NewLine, addinsWithoutYaml.Select(a => $"- {a.Name}"))}{Environment.NewLine}"
+					$"{Environment.NewLine}YAML files to be created:{Environment.NewLine}{string.Join(Environment.NewLine, addinsWithoutYaml.Select(a => $"- {a.Name}"))}{Environment.NewLine}" +
+					$"{Environment.NewLine}YAML files to be updated:{Environment.NewLine}{string.Join(Environment.NewLine, addinsToBeUpdated.Select(a => $"- {a.Addin.Name}"))}{Environment.NewLine}"
 			};
 			var issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
 
@@ -842,29 +857,19 @@ namespace Cake.AddinDiscoverer
 
 				foreach (var addin in addinsToBeUpdated)
 				{
-					var contents = await _githubClient.Repository.Content.GetAllContents(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, $"addins/{addin.Name}.yml").ConfigureAwait(false);
-					var currentContent = contents[0].Content
-						.Replace("\r\n", "\n")
-						.Replace("\r", "\n")
-						.Replace("\n", Environment.NewLine);
-					var newContent = GenerateYamlFile(addin);
-
-					if (currentContent != newContent)
+					var yamlFileBlob = new NewBlob
 					{
-						var yamlFileBlob = new NewBlob
-						{
-							Encoding = EncodingType.Utf8,
-							Content = newContent
-						};
-						var yamlFileBlobRef = await _githubClient.Git.Blob.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, yamlFileBlob).ConfigureAwait(false);
-						nt.Tree.Add(new NewTreeItem
-						{
-							Path = $"addins/{addin.Name}.yml",
-							Mode = FILE_MODE,
-							Type = TreeType.Blob,
-							Sha = yamlFileBlobRef.Sha
-						});
-					}
+						Encoding = EncodingType.Utf8,
+						Content = addin.NewContent
+					};
+					var yamlFileBlobRef = await _githubClient.Git.Blob.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, yamlFileBlob).ConfigureAwait(false);
+					nt.Tree.Add(new NewTreeItem
+					{
+						Path = $"addins/{addin.Addin.Name}.yml",
+						Mode = FILE_MODE,
+						Type = TreeType.Blob,
+						Sha = yamlFileBlobRef.Sha
+					});
 				}
 
 				var newTree = await _githubClient.Git.Tree.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, nt);
