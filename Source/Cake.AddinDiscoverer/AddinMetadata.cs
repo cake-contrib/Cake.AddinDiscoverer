@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Cake.Incubator;
+using System;
 using System.Diagnostics;
 
 namespace Cake.AddinDiscoverer
@@ -9,8 +10,6 @@ namespace Cake.AddinDiscoverer
 		private Uri repositoryUrl;
 
 		public string Name { get; set; }
-
-		public string Author { get; set; }
 
 		public string Maintainer { get; set; }
 
@@ -62,5 +61,16 @@ namespace Cake.AddinDiscoverer
 		public AddinType Type { get; set; }
 
 		public bool IsDeprecated { get; set; }
+
+		public string Description { get; set; }
+
+		public string[] Tags { get; set; }
+
+		public string GetMaintainerName()
+		{
+			var maintainer = GithubRepoOwner ?? Maintainer;
+			if (maintainer.EqualsIgnoreCase("cake-contrib")) maintainer = Maintainer;
+			return maintainer;
+		}
 	}
 }
