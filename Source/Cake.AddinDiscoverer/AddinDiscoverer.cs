@@ -749,25 +749,28 @@ namespace Cake.AddinDiscoverer
 				.OrderBy(f => f.Name)
 				.ToArray();
 
-			var addinsToBeUpdated = addins
+			var addinsWithContent = await addins
 				.Where(a => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == a.Name))
-				.Select(async a =>
-				{
-					var contents = await _githubClient.Repository.Content.GetAllContents(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, $"addins/{a.Name}.yml").ConfigureAwait(false);
-					return new
+				.ForEachAsync(
+					async addin =>
 					{
-						Addin = a,
-						CurrentContent = contents[0].Content
-							.Replace("\r\n", "\n")
-							.Replace("\r", "\n")
-							.Replace("\n", Environment.NewLine),
-						NewContent = GenerateYamlFile(a)
-					};
-				})
-				.Select(a => a.Result)
-				.Where(a => a.CurrentContent != a.NewContent)
-				.OrderBy(a => a.Addin.Name)
-				.ToArray();
+						var contents = await _githubClient.Repository.Content.GetAllContents(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, $"addins/{addin.Name}.yml").ConfigureAwait(false);
+						return new
+						{
+							Addin = addin,
+							CurrentContent = contents[0].Content
+								.Replace("\r\n", "\n")
+								.Replace("\r", "\n")
+								.Replace("\n", Environment.NewLine),
+							NewContent = GenerateYamlFile(addin)
+						};
+					}, MAX_NUGET_CONCURENCY)
+				.ConfigureAwait(false);
+
+			var addinsToBeUpdated = addinsWithContent
+					.Where(addin => addin.CurrentContent != addin.NewContent)
+					.OrderBy(addin => addin.Addin.Name)
+					.ToArray();
 
 			var addinsWithoutYaml = addins
 				.Where(a => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == a.Name))
