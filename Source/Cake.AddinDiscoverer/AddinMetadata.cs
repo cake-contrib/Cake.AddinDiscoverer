@@ -1,14 +1,15 @@
-﻿using System;
+﻿using Cake.Incubator;
+using System;
+using System.Diagnostics;
 
 namespace Cake.AddinDiscoverer
 {
+	[DebuggerDisplay("Name = {Name}")]
 	internal class AddinMetadata
 	{
 		private Uri repositoryUrl;
 
 		public string Name { get; set; }
-
-		public string Author { get; set; }
 
 		public string Maintainer { get; set; }
 
@@ -16,17 +17,11 @@ namespace Cake.AddinDiscoverer
 
 		public string GithubRepoOwner { get; private set; }
 
-		public string SolutionPath { get; set; }
-
-		public string[] ProjectPaths { get; set; }
-
 		public string[] Frameworks { get; set; }
 
 		public DllReference[] References { get; set; }
 
 		public AddinAnalysisResult AnalysisResult { get; set; }
-
-		public AddinMetadataSource Source { get; set; }
 
 		public Uri IconUrl { get; set; }
 
@@ -60,5 +55,22 @@ namespace Cake.AddinDiscoverer
 		public Uri GithubIssueUrl { get; set; }
 
 		public int? GithubIssueId { get; set; }
+
+		public AddinType Type { get; set; }
+
+		public bool IsDeprecated { get; set; }
+
+		public string Description { get; set; }
+
+		public string[] Tags { get; set; }
+
+		public bool IsPrerelease { get; set; }
+
+		public string GetMaintainerName()
+		{
+			var maintainer = GithubRepoOwner ?? Maintainer;
+			if (maintainer.EqualsIgnoreCase("cake-contrib")) maintainer = Maintainer;
+			return maintainer;
+		}
 	}
 }

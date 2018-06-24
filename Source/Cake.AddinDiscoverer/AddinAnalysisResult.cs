@@ -1,7 +1,4 @@
 ﻿using Cake.AddinDiscoverer.Utilities;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System;
 
 namespace Cake.AddinDiscoverer
 {
@@ -34,11 +31,6 @@ namespace Cake.AddinDiscoverer
 		/// Gets or sets a value indicating whether the addin references the cake-contrib icon
 		/// </summary>
 		public bool UsingCakeContribIcon { get; set; }
-
-		/// <summary>
-		/// Gets or sets a value indicating whether the addin has a YAML file on the Cake website
-		/// </summary>
-		public bool HasYamlFileOnWebSite { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether the addin was transfered to the cake-contrib github organisation
