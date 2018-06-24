@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using YamlDotNet.RepresentationModel;
 
 namespace Cake.AddinDiscoverer
 {
@@ -58,9 +56,21 @@ namespace Cake.AddinDiscoverer
 			await Task.WhenAll(allTasks).ConfigureAwait(false);
 		}
 
-		public static string GetChildNodeValue(this YamlMappingNode yamlNode, string childNodeName)
+		public static bool IsFlagSet<T>(this T value, T flag)
+			where T : struct
 		{
-			return yamlNode.Children.Where(child => ((YamlScalarNode)child.Key).Value == childNodeName).Select(child => ((YamlScalarNode)child.Value).Value).FirstOrDefault();
+			CheckIsEnum<T>(true);
+			long lValue = Convert.ToInt64(value);
+			long lFlag = Convert.ToInt64(flag);
+			return (lValue & lFlag) != 0;
+		}
+
+		private static void CheckIsEnum<T>(bool withFlags)
+		{
+			if (!typeof(T).IsEnum)
+				throw new ArgumentException(string.Format("Type '{0}' is not an enum", typeof(T).FullName));
+			if (withFlags && !Attribute.IsDefined(typeof(T), typeof(FlagsAttribute)))
+				throw new ArgumentException(string.Format("Type '{0}' doesn't have the 'Flags' attribute", typeof(T).FullName));
 		}
 	}
 }

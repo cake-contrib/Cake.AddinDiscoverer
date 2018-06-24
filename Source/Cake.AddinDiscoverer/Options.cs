@@ -33,5 +33,8 @@ namespace Cake.AddinDiscoverer
 
 		[Option('r', "markdowntorepo", Default = false, HelpText = "Generate the Markdown report and commit to cake-contrib repo.")]
 		public bool MarkdownReportToRepo { get; set; }
+
+		[Option('s', "syncyaml", Default = false, HelpText = "Synchronize the yaml files on Cake's web site with the packages discovered on Nuget.")]
+		public bool SynchronizeYaml { get; set; }
 	}
 }

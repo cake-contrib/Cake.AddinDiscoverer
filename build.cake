@@ -155,6 +155,7 @@ Task("Run")
 {
 	var args = new Dictionary<string, string>()
 	{
+		{ "-s", null },
 		{ "-m", null },
 		{ "-e", null },
 		{ "-t", $"\"{outputDir}\"" },
