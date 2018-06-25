@@ -46,7 +46,7 @@ namespace Cake.AddinDiscoverer
 		private const string CAKE_CONTRIB_REPO_OWNER = "cake-contrib";
 		private const string CAKE_CONTRIB_REPO_NAME = "Home";
 
-		private static SemVersion _unknownVersion = new SemVersion(0, 0, 0);
+		private static readonly SemVersion _unknownVersion = new SemVersion(0, 0, 0);
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
@@ -768,13 +768,15 @@ namespace Cake.AddinDiscoverer
 				.ConfigureAwait(false);
 
 			var addinsToBeUpdated = addinsWithContent
-					.Where(addin => addin.CurrentContent != addin.NewContent)
-					.OrderBy(addin => addin.Addin.Name)
-					.ToArray();
+				.Where(addin => addin.CurrentContent != addin.NewContent)
+				.Where(addin => !addin.Addin.IsDeprecated)
+				.OrderBy(addin => addin.Addin.Name)
+				.ToArray();
 
 			var addinsWithoutYaml = addins
-				.Where(a => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == a.Name))
-				.OrderBy(a => a.Name)
+				.Where(addin => !addin.IsDeprecated)
+				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
+				.OrderBy(addin => addin.Name)
 				.ToArray();
 
 			if (!yamlToBeDeleted.Any() && !addinsWithoutYaml.Any() && !addinsToBeUpdated.Any()) return;
