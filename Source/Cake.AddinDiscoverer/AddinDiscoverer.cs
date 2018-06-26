@@ -856,19 +856,19 @@ namespace Cake.AddinDiscoverer
 			if (yamlToBeDeleted.Any())
 			{
 				var filesToDelete = yamlToBeDeleted.Select(y => y.Path);
-				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, null, "Delete YAML files that do not have a corresponding Nuget package").ConfigureAwait(false);
+				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, null, $"(GH-{issue.Number}) Delete YAML files that do not have a corresponding Nuget package").ConfigureAwait(false);
 			}
 
 			if (addinsToBeCreated.Any())
 			{
 				var filesToAdd = addinsToBeCreated.ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
-				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToAdd, "Add YAML files for Nuget packages we discovered").ConfigureAwait(false);
+				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToAdd, $"(GH-{issue.Number}) Add YAML files for Nuget packages we discovered").ConfigureAwait(false);
 			}
 
 			if (addinsToBeUpdated.Any())
 			{
 				var filesToUpdate = addinsToBeUpdated.ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
-				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToUpdate, "Update YAML files to match metadata from Nuget").ConfigureAwait(false);
+				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToUpdate, $"(GH-{issue.Number}) Update YAML files to match metadata from Nuget").ConfigureAwait(false);
 			}
 
 			await _githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha));
