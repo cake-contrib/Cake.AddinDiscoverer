@@ -639,12 +639,6 @@ namespace Cake.AddinDiscoverer
 										{
 											assemblyPath = assembliesPath.First();
 										}
-
-										// There are multiple DLLs in this package and none of them match the naming convention
-										else
-										{
-											throw new Exception($"The NuGet package does not contain a DLL named {addin.Name}.dll");
-										}
 									}
 
 									// Find the DLL references
@@ -687,7 +681,7 @@ namespace Cake.AddinDiscoverer
 
 									if (addin.Type == AddinType.Unknown)
 									{
-										throw new Exception("The Nuget package for this addin contains neither '.dll' nor '.cake' files. Therefore we are unable to determine the type of this addin.");
+										throw new Exception("We are unable to determine the type of this addin. One likely reason is that it contains multiple DLLs but none of them respect the naming convention.");
 									}
 								}
 							}
@@ -825,6 +819,8 @@ namespace Cake.AddinDiscoverer
 				})
 				.ToArray();
 
+			var cbm = addins.Single(a => a.Name == "Cake.BuildSystems.Module");
+
 			if (!yamlToBeDeleted.Any() && !addinsToBeCreated.Any() && !addinsToBeUpdated.Any()) return;
 
 			// --------------------------------------------------
@@ -840,7 +836,7 @@ namespace Cake.AddinDiscoverer
 
 			// --------------------------------------------------
 			// Ensure our fork of the "cake-build/website" repo is up-to-date
-			var fork = await _githubClient.Repository.Get(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
+			var fork = await _githubClient.Repository.Get("jericho", CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
 			var compareResult = await _githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}").ConfigureAwait(false);
 			if (compareResult.BehindBy > 0)
