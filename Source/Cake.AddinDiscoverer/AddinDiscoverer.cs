@@ -878,7 +878,7 @@ namespace Cake.AddinDiscoverer
 
 			// --------------------------------------------------
 			// Submit pull request
-			var newPullRequest = new NewPullRequest("Update YAML files", $"{fork.Owner.Login}/{newBranchName}", $"{upstream.Owner.Login}:{upstream.DefaultBranch}")
+			var newPullRequest = new NewPullRequest("Update YAML files", $"{fork.Owner.Login}:{newBranchName}", upstream.DefaultBranch)
 			{
 				Body = $"Resolves #{issue.Number}"
 			};
