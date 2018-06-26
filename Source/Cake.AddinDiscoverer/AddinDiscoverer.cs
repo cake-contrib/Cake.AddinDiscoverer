@@ -800,8 +800,8 @@ namespace Cake.AddinDiscoverer
 				.ConfigureAwait(false);
 
 			var addinsToBeUpdated = addinsWithContent
-				.Where(addin => addin.CurrentContent != addin.NewContent)
 				.Where(addin => !addin.Addin.IsDeprecated)
+				.Where(addin => addin.CurrentContent != addin.NewContent)
 				.OrderBy(addin => addin.Addin.Name)
 				.ToArray();
 
@@ -838,15 +838,15 @@ namespace Cake.AddinDiscoverer
 			// --------------------------------------------------
 			// Commit changes to a new branch
 			var newBranchName = $"synchronize_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-			var defaultBranchReference = await _githubClient.Git.Reference.Get(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, $"heads/{fork.DefaultBranch}").ConfigureAwait(false);
+			var defaultBranchReference = await _githubClient.Git.Reference.Get(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}").ConfigureAwait(false);
 			var newReference = new NewReference($"heads/{fork.DefaultBranch}", defaultBranchReference.Object.Sha);
-			var newBranch = await _githubClient.Git.Reference.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newReference).ConfigureAwait(false);
-			var latestCommit = await _githubClient.Git.Commit.Get(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newBranch.Object.Sha);
+			var newBranch = await _githubClient.Git.Reference.Create(fork.Owner.Login, fork.Name, newReference).ConfigureAwait(false);
+			var latestCommit = await _githubClient.Git.Commit.Get(fork.Owner.Login, fork.Name, newBranch.Object.Sha);
 
 			if (yamlToBeDeleted.Any())
 			{
 				var nt = new NewTree();
-				var currentTree = await _githubClient.Git.Tree.GetRecursive(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, latestCommit.Tree.Sha).ConfigureAwait(false);
+				var currentTree = await _githubClient.Git.Tree.GetRecursive(fork.Owner.Login, fork.Name, latestCommit.Tree.Sha).ConfigureAwait(false);
 				currentTree.Tree
 					.Where(x => x.Type != TreeType.Tree)
 					.Select(x => new NewTreeItem
@@ -865,9 +865,9 @@ namespace Cake.AddinDiscoverer
 				}
 
 				// Commit changes
-				var newTree = await _githubClient.Git.Tree.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, nt);
+				var newTree = await _githubClient.Git.Tree.Create(fork.Owner.Login, fork.Name, nt);
 				var newCommit = new NewCommit($"Delete YAML files that do not have a corresponding Nuget package", newTree.Sha, newBranch.Object.Sha);
-				latestCommit = await _githubClient.Git.Commit.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newCommit);
+				latestCommit = await _githubClient.Git.Commit.Create(fork.Owner.Login, fork.Name, newCommit);
 			}
 
 			if (addinsWithoutYaml.Any())
@@ -881,7 +881,7 @@ namespace Cake.AddinDiscoverer
 						Encoding = EncodingType.Utf8,
 						Content = GenerateYamlFile(addin)
 					};
-					var yamlFileBlobRef = await _githubClient.Git.Blob.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, yamlFileBlob).ConfigureAwait(false);
+					var yamlFileBlobRef = await _githubClient.Git.Blob.Create(fork.Owner.Login, fork.Name, yamlFileBlob).ConfigureAwait(false);
 					nt.Tree.Add(new NewTreeItem
 					{
 						Path = $"addins/{addin.Name}.yml",
@@ -891,9 +891,9 @@ namespace Cake.AddinDiscoverer
 					});
 				}
 
-				var newTree = await _githubClient.Git.Tree.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, nt);
+				var newTree = await _githubClient.Git.Tree.Create(fork.Owner.Login, fork.Name, nt);
 				var newCommit = new NewCommit($"Add YAML files for Nuget packages we discovered", newTree.Sha, newBranch.Object.Sha);
-				latestCommit = await _githubClient.Git.Commit.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newCommit);
+				latestCommit = await _githubClient.Git.Commit.Create(fork.Owner.Login, fork.Name, newCommit);
 			}
 
 			if (addinsToBeUpdated.Any())
@@ -907,7 +907,7 @@ namespace Cake.AddinDiscoverer
 						Encoding = EncodingType.Utf8,
 						Content = addin.NewContent
 					};
-					var yamlFileBlobRef = await _githubClient.Git.Blob.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, yamlFileBlob).ConfigureAwait(false);
+					var yamlFileBlobRef = await _githubClient.Git.Blob.Create(fork.Owner.Login, fork.Name, yamlFileBlob).ConfigureAwait(false);
 					nt.Tree.Add(new NewTreeItem
 					{
 						Path = $"addins/{addin.Addin.Name}.yml",
@@ -917,20 +917,20 @@ namespace Cake.AddinDiscoverer
 					});
 				}
 
-				var newTree = await _githubClient.Git.Tree.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, nt);
+				var newTree = await _githubClient.Git.Tree.Create(fork.Owner.Login, fork.Name, nt);
 				var newCommit = new NewCommit($"Update YAML files to match metadata from Nuget", newTree.Sha, newBranch.Object.Sha);
-				latestCommit = await _githubClient.Git.Commit.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newCommit);
+				latestCommit = await _githubClient.Git.Commit.Create(fork.Owner.Login, fork.Name, newCommit);
 			}
 
-			await _githubClient.Git.Reference.Update(CAKE_CONTRIB_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha));
+			await _githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha));
 
 			// --------------------------------------------------
 			// Submit pull request
-			var newPullRequest = new NewPullRequest("Update YAML files", $"{CAKE_CONTRIB_REPO_OWNER}/{newBranchName}", $"{CAKE_REPO_OWNER}:{fork.Parent.DefaultBranch}")
+			var newPullRequest = new NewPullRequest("Update YAML files", $"{fork.Owner.Login}/{newBranchName}", $"{upstream.Owner.Login}:{upstream.DefaultBranch}")
 			{
 				Body = $"Resolves #{issue.Number}"
 			};
-			await _githubClient.PullRequest.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newPullRequest).ConfigureAwait(false);
+			await _githubClient.PullRequest.Create(upstream.Owner.Login, upstream.Name, newPullRequest).ConfigureAwait(false);
 		}
 
 		private AddinMetadata[] AnalyzeAddins(IEnumerable<AddinMetadata> addins)
