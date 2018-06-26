@@ -33,7 +33,8 @@ namespace Cake.AddinDiscoverer
 {
 	internal class AddinDiscoverer
 	{
-		private const string FILE_MODE = "100644";
+		public const string FILE_MODE = "100644";
+
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKE_CONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
@@ -326,16 +327,16 @@ namespace Cake.AddinDiscoverer
 		{
 			var yamlContent = new StringBuilder();
 
-			yamlContent.AppendLine($"Name: {addin.Name}");
-			yamlContent.AppendLine($"Nuget: {addin.Name}");
-			yamlContent.AppendLine("Assemblies:");
-			yamlContent.AppendLine($"- \"/**/{addin.Name}.dll\"");
-			yamlContent.AppendLine($"Repository: {addin.GithubRepoUrl ?? addin.NugetPackageUrl}");
-			yamlContent.AppendLine($"Author: {addin.GetMaintainerName()}");
-			yamlContent.AppendLine($"Description: \"{addin.Description}\"");
-			if (addin.IsPrerelease) yamlContent.AppendLine("Prerelease: \"true\"");
-			yamlContent.AppendLine("Categories:");
-			yamlContent.AppendLine(string.Join(Environment.NewLine, addin.Tags.Select(tag => $"- {tag}")));
+			yamlContent.AppendUnixLine($"Name: {addin.Name}");
+			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
+			yamlContent.AppendUnixLine("Assemblies:");
+			yamlContent.AppendUnixLine($"- \"/**/{addin.Name}.dll\"");
+			yamlContent.AppendUnixLine($"Repository: {addin.GithubRepoUrl ?? addin.NugetPackageUrl}");
+			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
+			yamlContent.AppendUnixLine($"Description: \"{addin.Description}\"");
+			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
+			yamlContent.AppendUnixLine("Categories:");
+			yamlContent.AppendUnixLine(string.Join(Environment.NewLine, addin.Tags.Select(tag => $"- {tag}")));
 
 			return yamlContent.ToString();
 		}
@@ -750,6 +751,10 @@ namespace Cake.AddinDiscoverer
 
 			const string ISSUE_TITLE = "Synchronizing YAML files";
 
+			// Arbitrary max number of files to delete. add and modify in a given PR.
+			// This is to avoid AbuseException when commiting too many files.
+			const int MAX_FILES_TO_COMMIT = 50;
+
 			// --------------------------------------------------
 			// Check if there is already an open issue
 			var request = new RepositoryIssueRequest()
@@ -782,7 +787,8 @@ namespace Cake.AddinDiscoverer
 				.ToArray();
 
 			var addinsWithContent = await addins
-				.Where(a => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == a.Name))
+				.Where(addin => !addin.IsDeprecated)
+				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
 				.ForEachAsync(
 					async addin =>
 					{
@@ -790,28 +796,30 @@ namespace Cake.AddinDiscoverer
 						return new
 						{
 							Addin = addin,
-							CurrentContent = contents[0].Content
-								.Replace("\r\n", "\n")
-								.Replace("\r", "\n")
-								.Replace("\n", Environment.NewLine),
+							CurrentContent = contents[0].Content,
 							NewContent = GenerateYamlFile(addin)
 						};
 					}, MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
 
 			var addinsToBeUpdated = addinsWithContent
-				.Where(addin => !addin.Addin.IsDeprecated)
 				.Where(addin => addin.CurrentContent != addin.NewContent)
 				.OrderBy(addin => addin.Addin.Name)
 				.ToArray();
 
-			var addinsWithoutYaml = addins
+			var addinsToBeCreated = addins
 				.Where(addin => !addin.IsDeprecated)
 				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
 				.OrderBy(addin => addin.Name)
+				.Select(addin => new
+				{
+					Addin = addin,
+					CurrentContent = string.Empty,
+					NewContent = GenerateYamlFile(addin)
+				})
 				.ToArray();
 
-			if (!yamlToBeDeleted.Any() && !addinsWithoutYaml.Any() && !addinsToBeUpdated.Any()) return;
+			if (!yamlToBeDeleted.Any() && !addinsToBeCreated.Any() && !addinsToBeUpdated.Any()) return;
 
 			// --------------------------------------------------
 			// Create issue
@@ -845,81 +853,20 @@ namespace Cake.AddinDiscoverer
 
 			if (yamlToBeDeleted.Any())
 			{
-				var nt = new NewTree();
-				var currentTree = await _githubClient.Git.Tree.GetRecursive(fork.Owner.Login, fork.Name, latestCommit.Tree.Sha).ConfigureAwait(false);
-				currentTree.Tree
-					.Where(x => x.Type != TreeType.Tree)
-					.Select(x => new NewTreeItem
-					{
-						Path = x.Path,
-						Mode = x.Mode,
-						Type = x.Type.Value,
-						Sha = x.Sha
-					})
-					.ToList()
-					.ForEach(x => nt.Tree.Add(x));
-
-				foreach (var yamlFile in yamlToBeDeleted)
-				{
-					nt.Tree.Remove(nt.Tree.Where(x => x.Path.Equals(yamlFile.Path)).First());
-				}
-
-				// Commit changes
-				var newTree = await _githubClient.Git.Tree.Create(fork.Owner.Login, fork.Name, nt);
-				var newCommit = new NewCommit($"Delete YAML files that do not have a corresponding Nuget package", newTree.Sha, newBranch.Object.Sha);
-				latestCommit = await _githubClient.Git.Commit.Create(fork.Owner.Login, fork.Name, newCommit);
+				var filesToDelete = yamlToBeDeleted.Take(MAX_FILES_TO_COMMIT).Select(y => y.Path);
+				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, null, "Delete YAML files that do not have a corresponding Nuget package").ConfigureAwait(false);
 			}
 
-			if (addinsWithoutYaml.Any())
+			if (addinsToBeCreated.Any())
 			{
-				var nt = new NewTree();
-
-				foreach (var addin in addinsWithoutYaml)
-				{
-					var yamlFileBlob = new NewBlob
-					{
-						Encoding = EncodingType.Utf8,
-						Content = GenerateYamlFile(addin)
-					};
-					var yamlFileBlobRef = await _githubClient.Git.Blob.Create(fork.Owner.Login, fork.Name, yamlFileBlob).ConfigureAwait(false);
-					nt.Tree.Add(new NewTreeItem
-					{
-						Path = $"addins/{addin.Name}.yml",
-						Mode = FILE_MODE,
-						Type = TreeType.Blob,
-						Sha = yamlFileBlobRef.Sha
-					});
-				}
-
-				var newTree = await _githubClient.Git.Tree.Create(fork.Owner.Login, fork.Name, nt);
-				var newCommit = new NewCommit($"Add YAML files for Nuget packages we discovered", newTree.Sha, newBranch.Object.Sha);
-				latestCommit = await _githubClient.Git.Commit.Create(fork.Owner.Login, fork.Name, newCommit);
+				var filesToAdd = addinsToBeCreated.Take(MAX_FILES_TO_COMMIT).ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
+				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToAdd, "Add YAML files for Nuget packages we discovered").ConfigureAwait(false);
 			}
 
 			if (addinsToBeUpdated.Any())
 			{
-				var nt = new NewTree();
-
-				foreach (var addin in addinsToBeUpdated)
-				{
-					var yamlFileBlob = new NewBlob
-					{
-						Encoding = EncodingType.Utf8,
-						Content = addin.NewContent
-					};
-					var yamlFileBlobRef = await _githubClient.Git.Blob.Create(fork.Owner.Login, fork.Name, yamlFileBlob).ConfigureAwait(false);
-					nt.Tree.Add(new NewTreeItem
-					{
-						Path = $"addins/{addin.Addin.Name}.yml",
-						Mode = FILE_MODE,
-						Type = TreeType.Blob,
-						Sha = yamlFileBlobRef.Sha
-					});
-				}
-
-				var newTree = await _githubClient.Git.Tree.Create(fork.Owner.Login, fork.Name, nt);
-				var newCommit = new NewCommit($"Update YAML files to match metadata from Nuget", newTree.Sha, newBranch.Object.Sha);
-				latestCommit = await _githubClient.Git.Commit.Create(fork.Owner.Login, fork.Name, newCommit);
+				var filesToUpdate = addinsToBeUpdated.Take(MAX_FILES_TO_COMMIT).ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
+				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToUpdate, "Update YAML files to match metadata from Nuget").ConfigureAwait(false);
 			}
 
 			await _githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha));

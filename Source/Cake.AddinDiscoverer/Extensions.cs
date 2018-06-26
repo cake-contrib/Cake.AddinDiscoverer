@@ -1,6 +1,8 @@
 ﻿using Octokit;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,6 +10,71 @@ namespace Cake.AddinDiscoverer
 {
 	internal static class Extensions
 	{
+		public static void AppendUnixLine(this StringBuilder sb, string value)
+		{
+			sb.Append($"{value}\n");
+		}
+
+		public static async Task<Commit> ModifyFilesAsync(this IGitHubClient githubClient, Repository repo, Commit parentCommit, IEnumerable<string> filesToDelete, IDictionary<string, string> filesToAddOrModify, string commitMessage)
+		{
+			if (filesToDelete == null && filesToAddOrModify == null) throw new ArgumentNullException("You must specify at least one file to delete or one file to add/modify");
+
+			// Build the tree with the existing items
+			var nt = new NewTree();
+			var currentTree = await githubClient.Git.Tree.GetRecursive(repo.Owner.Login, repo.Name, parentCommit.Tree.Sha).ConfigureAwait(false);
+			currentTree.Tree
+				.Where(x => x.Type != TreeType.Tree)
+				.Select(x => new NewTreeItem
+				{
+					Path = x.Path,
+					Mode = x.Mode,
+					Type = x.Type.Value,
+					Sha = x.Sha
+				})
+				.ToList()
+				.ForEach(x => nt.Tree.Add(x));
+
+			// Remove items from the tree
+			if (filesToDelete != null)
+			{
+				foreach (var filePath in filesToDelete)
+				{
+					nt.Tree.Remove(nt.Tree.Where(x => x.Path.Equals(filePath)).First());
+				}
+			}
+
+			// Add or update items in the tree
+			if (filesToAddOrModify != null)
+			{
+				foreach (var file in filesToAddOrModify)
+				{
+					var existingTreeItem = nt.Tree.Where(x => x.Path.Equals(file.Key)).FirstOrDefault();
+					if (existingTreeItem != null) nt.Tree.Remove(nt.Tree.Where(x => x.Path.Equals(file.Key)).First());
+
+					var fileBlob = new NewBlob
+					{
+						Encoding = EncodingType.Utf8,
+						Content = file.Value
+					};
+					var fileBlobRef = await githubClient.Git.Blob.Create(repo.Owner.Login, repo.Name, fileBlob).ConfigureAwait(false);
+					nt.Tree.Add(new NewTreeItem
+					{
+						Path = file.Key,
+						Mode = AddinDiscoverer.FILE_MODE,
+						Type = TreeType.Blob,
+						Sha = fileBlobRef.Sha
+					});
+				}
+			}
+
+			// Commit changes
+			var newTree = await githubClient.Git.Tree.Create(repo.Owner.Login, repo.Name, nt);
+			var newCommit = new NewCommit(commitMessage, newTree.Sha, parentCommit.Sha);
+			var latestCommit = await githubClient.Git.Commit.Create(repo.Owner.Login, repo.Name, newCommit);
+
+			return latestCommit;
+		}
+
 		public static async Task<TResult[]> ForEachAsync<T, TResult>(this IEnumerable<T> items, Func<T, Task<TResult>> action, int maxDegreeOfParalellism)
 		{
 			var allTasks = new List<Task<TResult>>();
