@@ -839,7 +839,7 @@ namespace Cake.AddinDiscoverer
 			// Commit changes to a new branch
 			var newBranchName = $"synchronize_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 			var defaultBranchReference = await _githubClient.Git.Reference.Get(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}").ConfigureAwait(false);
-			var newReference = new NewReference($"heads/{fork.DefaultBranch}", defaultBranchReference.Object.Sha);
+			var newReference = new NewReference($"heads/{newBranchName}", defaultBranchReference.Object.Sha);
 			var newBranch = await _githubClient.Git.Reference.Create(fork.Owner.Login, fork.Name, newReference).ConfigureAwait(false);
 			var latestCommit = await _githubClient.Git.Commit.Get(fork.Owner.Login, fork.Name, newBranch.Object.Sha);
 
