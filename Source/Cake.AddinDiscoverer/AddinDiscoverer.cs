@@ -789,6 +789,7 @@ namespace Cake.AddinDiscoverer
 
 			var addinsWithContent = await addins
 				.Where(addin => !addin.IsDeprecated)
+				.Where(addin => addin.Type != AddinType.Module)
 				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
 				.Take(MAX_FILES_TO_COMMIT)
 				.ForEachAsync(
@@ -811,6 +812,7 @@ namespace Cake.AddinDiscoverer
 
 			var addinsToBeCreated = addins
 				.Where(addin => !addin.IsDeprecated)
+				.Where(addin => addin.Type != AddinType.Module)
 				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
 				.Take(MAX_FILES_TO_COMMIT)
 				.OrderBy(addin => addin.Name)
