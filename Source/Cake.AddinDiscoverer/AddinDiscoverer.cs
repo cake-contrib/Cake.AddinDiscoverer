@@ -8,6 +8,7 @@ using NuGet.Packaging.Core;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using Octokit;
+using Octokit.Internal;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using OxyPlot;
@@ -183,8 +184,9 @@ namespace Cake.AddinDiscoverer
 			_graphSaveLocation = Path.Combine(_tempFolder, "Audit_progress.png");
 
 			// Setup the Github client
+			var proxy = string.IsNullOrEmpty(_options.ProxyUrl) ? null : new WebProxy(_options.ProxyUrl);
 			var credentials = new Credentials(_options.GithubUsername, _options.GithuPassword);
-			var connection = new Connection(new ProductHeaderValue(PRODUCT_NAME))
+			var connection = new Connection(new ProductHeaderValue(PRODUCT_NAME), new HttpClientAdapter(() => HttpMessageHandlerFactory.CreateDefault(proxy)))
 			{
 				Credentials = credentials,
 			};
