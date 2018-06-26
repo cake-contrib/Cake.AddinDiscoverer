@@ -751,9 +751,9 @@ namespace Cake.AddinDiscoverer
 
 			const string ISSUE_TITLE = "Synchronizing YAML files";
 
-			// Arbitrary max number of files to delete. add and modify in a given PR.
+			// Arbitrary max number of files to delete. add and modify in a given commit.
 			// This is to avoid AbuseException when commiting too many files.
-			const int MAX_FILES_TO_COMMIT = 50;
+			const int MAX_FILES_TO_COMMIT = 75;
 
 			// --------------------------------------------------
 			// Check if there is already an open issue
@@ -783,12 +783,14 @@ namespace Cake.AddinDiscoverer
 					return addin == null || addin.IsDeprecated;
 				})
 				.Where(f => f.Name != "Magic-Chunks.yml") // Ensure that MagicChunk's yaml file is not deleted despite the fact that is doesn't follow the naming convention. See: https://github.com/cake-build/website/issues/535#issuecomment-399692891
+				.Take(MAX_FILES_TO_COMMIT)
 				.OrderBy(f => f.Name)
 				.ToArray();
 
 			var addinsWithContent = await addins
 				.Where(addin => !addin.IsDeprecated)
 				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
+				.Take(MAX_FILES_TO_COMMIT)
 				.ForEachAsync(
 					async addin =>
 					{
@@ -810,6 +812,7 @@ namespace Cake.AddinDiscoverer
 			var addinsToBeCreated = addins
 				.Where(addin => !addin.IsDeprecated)
 				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
+				.Take(MAX_FILES_TO_COMMIT)
 				.OrderBy(addin => addin.Name)
 				.Select(addin => new
 				{
@@ -827,7 +830,7 @@ namespace Cake.AddinDiscoverer
 			{
 				Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on Nuget.org:{Environment.NewLine}" +
 					$"{Environment.NewLine}YAML files to be deleted:{Environment.NewLine}{string.Join(Environment.NewLine, yamlToBeDeleted.Select(f => $"- {f.Name}"))}{Environment.NewLine}" +
-					$"{Environment.NewLine}YAML files to be created:{Environment.NewLine}{string.Join(Environment.NewLine, addinsWithoutYaml.Select(a => $"- {a.Name}"))}{Environment.NewLine}" +
+					$"{Environment.NewLine}YAML files to be created:{Environment.NewLine}{string.Join(Environment.NewLine, addinsToBeCreated.Select(a => $"- {a.Addin.Name}"))}{Environment.NewLine}" +
 					$"{Environment.NewLine}YAML files to be updated:{Environment.NewLine}{string.Join(Environment.NewLine, addinsToBeUpdated.Select(a => $"- {a.Addin.Name}"))}{Environment.NewLine}"
 			};
 			var issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
@@ -853,19 +856,19 @@ namespace Cake.AddinDiscoverer
 
 			if (yamlToBeDeleted.Any())
 			{
-				var filesToDelete = yamlToBeDeleted.Take(MAX_FILES_TO_COMMIT).Select(y => y.Path);
+				var filesToDelete = yamlToBeDeleted.Select(y => y.Path);
 				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, null, "Delete YAML files that do not have a corresponding Nuget package").ConfigureAwait(false);
 			}
 
 			if (addinsToBeCreated.Any())
 			{
-				var filesToAdd = addinsToBeCreated.Take(MAX_FILES_TO_COMMIT).ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
+				var filesToAdd = addinsToBeCreated.ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
 				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToAdd, "Add YAML files for Nuget packages we discovered").ConfigureAwait(false);
 			}
 
 			if (addinsToBeUpdated.Any())
 			{
-				var filesToUpdate = addinsToBeUpdated.Take(MAX_FILES_TO_COMMIT).ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
+				var filesToUpdate = addinsToBeUpdated.ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
 				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToUpdate, "Update YAML files to match metadata from Nuget").ConfigureAwait(false);
 			}
 
