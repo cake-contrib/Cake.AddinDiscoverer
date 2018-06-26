@@ -190,12 +190,8 @@ namespace Cake.AddinDiscoverer
 			};
 			_githubClient = new GitHubClient(connection);
 
-			var assemblyVersion = typeof(AddinDiscoverer).GetTypeInfo().Assembly.GetName().Version;
-#if DEBUG
-			_addinDiscovererVersion = "DEBUG";
-#else
-			_addinDiscovererVersion = $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
-#endif
+			// Get assembly version
+			_addinDiscovererVersion = typeof(AddinDiscoverer).GetTypeInfo().Assembly.GetName().Version.ToString(3);
 		}
 
 		public async Task LaunchDiscoveryAsync()
