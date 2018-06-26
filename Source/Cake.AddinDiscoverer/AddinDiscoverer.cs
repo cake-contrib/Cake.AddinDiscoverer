@@ -1229,7 +1229,7 @@ namespace Cake.AddinDiscoverer
 				.ToArray();
 
 			var reportColumns = _reportColumns
-				.Where(column => column.Destination.HasFlag(DataDestination.Excel))
+				.Where(column => column.Destination.HasFlag(DataDestination.Markdown))
 				.Where(column => column.ApplicableTo.HasFlag(type))
 				.Select((data, index) => new { Index = index, Data = data })
 				.ToArray();
