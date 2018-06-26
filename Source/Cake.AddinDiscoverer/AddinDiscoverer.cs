@@ -80,7 +80,8 @@ namespace Cake.AddinDiscoverer
 			"Cake.Common",
 			"Cake.Core",
 			"Cake.CoreCLR",
-			"Cake.Email.Common"
+			"Cake.Email.Common",
+			"Cake.Frosting.Template"
 		};
 
 #pragma warning disable SA1000 // Keywords should be spaced correctly
