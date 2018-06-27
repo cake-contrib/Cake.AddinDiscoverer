@@ -616,6 +616,7 @@ namespace Cake.AddinDiscoverer
 												!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Core") &&
 												!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Common") &&
 												(
+													Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll") ||
 													string.IsNullOrEmpty(Path.GetDirectoryName(f)) ||
 													f.StartsWith("bin/", StringComparison.OrdinalIgnoreCase) ||
 													f.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)
