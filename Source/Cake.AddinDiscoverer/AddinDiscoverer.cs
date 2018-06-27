@@ -819,8 +819,6 @@ namespace Cake.AddinDiscoverer
 				})
 				.ToArray();
 
-			var cbm = addins.Single(a => a.Name == "Cake.BuildSystems.Module");
-
 			if (!yamlToBeDeleted.Any() && !addinsToBeCreated.Any() && !addinsToBeUpdated.Any()) return;
 
 			// --------------------------------------------------
