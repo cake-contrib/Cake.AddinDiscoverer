@@ -57,6 +57,15 @@ namespace Cake.AddinDiscoverer
 
 		private static readonly SemVersion _unknownVersion = new SemVersion(0, 0, 0);
 
+		// This is a hardcoded list of tags to be filtered out when generating an addin's YAML
+		private static readonly string[] _blackListedTags = new string[]
+		{
+			"Addin",
+			"Build",
+			"Cake",
+			"Script"
+		};
+
 		// This is a hardcoded list of addins that we specifically want to exclude from our reports
 		private static readonly string[] _blackListedAddins = new string[]
 		{
@@ -347,7 +356,7 @@ namespace Cake.AddinDiscoverer
 			yamlContent.AppendUnixLine($"Description: \"{addin.Description}\"");
 			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
-			yamlContent.AppendUnixLine(string.Join(Environment.NewLine, addin.Tags.Select(tag => $"- {tag}")));
+			yamlContent.AppendUnixLine(GetCategoriesForYaml(addin.Tags));
 
 			return yamlContent.ToString();
 		}
@@ -357,6 +366,19 @@ namespace Cake.AddinDiscoverer
 			if (type == AddinType.Addin) return DataDestination.MarkdownForAddins;
 			else if (type == AddinType.Recipes) return DataDestination.MarkdownForRecipes;
 			else throw new ArgumentException($"Unable to determine the DataDestination for type {type}");
+		}
+
+		private static string GetCategoriesForYaml(IEnumerable<string> tags)
+		{
+			var filteredAndFormatedTags = tags
+				.Except(_blackListedTags)
+				.Select(tag => tag.TrimStart("Cake-", StringComparison.OrdinalIgnoreCase))
+				.Distinct(tag => tag)
+				.Select(tag => $"- {tag}");
+
+			var categories = string.Join(Environment.NewLine, filteredAndFormatedTags);
+
+			return categories;
 		}
 
 		private async Task Cleanup()
