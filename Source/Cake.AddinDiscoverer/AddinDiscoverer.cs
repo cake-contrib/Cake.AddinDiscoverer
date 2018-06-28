@@ -57,6 +57,27 @@ namespace Cake.AddinDiscoverer
 
 		private static readonly SemVersion _unknownVersion = new SemVersion(0, 0, 0);
 
+		// This is a hardcoded list of addins that we specifically want to exclude from our reports
+		private static readonly string[] _blackListedAddins = new string[]
+		{
+			"Cake.Bakery",
+			"Cake.Bridge",
+			"Cake.Common",
+			"Cake.Core",
+			"Cake.CoreCLR",
+			"Cake.Email.Common",
+			"Cake.Frosting.Template",
+			"Cake.Mix",
+			"Cake.NuGet",
+			"Cake.Scripting.Abstractions",
+			"Cake.Scripting.Transport",
+			"Cake.ServiceOrchestration",
+			"Cake.Testing",
+			"Cake.Tin",
+			"Cake.Xamarin.Build",
+			"Cake.Xamarin.Build.CakeBuilder"
+		};
+
 		private readonly Options _options;
 		private readonly string _tempFolder;
 		private readonly string _packagesFolder;
@@ -71,17 +92,6 @@ namespace Cake.AddinDiscoverer
 		{
 			new CakeVersion { Version = new SemVersion(0, 26, 0), Framework = "netstandard2.0" },
 			new CakeVersion { Version = new SemVersion(0, 28, 0), Framework = "netstandard2.0" }
-		};
-
-		// This is a hardcoded list of addins that we specifically want to exclude from our reports
-		private readonly string[] _blackListedAddins = new string[]
-		{
-			"Cake.Bakery",
-			"Cake.Common",
-			"Cake.Core",
-			"Cake.CoreCLR",
-			"Cake.Email.Common",
-			"Cake.Frosting.Template"
 		};
 
 #pragma warning disable SA1000 // Keywords should be spaced correctly
