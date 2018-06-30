@@ -374,7 +374,7 @@ namespace Cake.AddinDiscoverer
 				.Except(_blackListedTags)
 				.Select(tag => tag.TrimStart("Cake-", StringComparison.OrdinalIgnoreCase))
 				.Distinct(tag => tag)
-				.Select(tag => $"- {tag}");
+				.Select(tag => $"-- {tag}");
 
 			var categories = string.Join(Environment.NewLine, filteredAndFormatedTags);
 
