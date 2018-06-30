@@ -1,6 +1,7 @@
 ﻿using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator;
 using CsvHelper;
+using Newtonsoft.Json.Linq;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Packaging;
@@ -57,35 +58,11 @@ namespace Cake.AddinDiscoverer
 
 		private static readonly SemVersion _unknownVersion = new SemVersion(0, 0, 0);
 
-		// This is a hardcoded list of tags to be filtered out when generating an addin's YAML
-		private static readonly string[] _blackListedTags = new string[]
-		{
-			"Addin",
-			"Build",
-			"Cake",
-			"Script"
-		};
+		// List of tags to be filtered out when generating an addin's YAML
+		private static readonly string[] _blackListedTags;
 
-		// This is a hardcoded list of addins that we specifically want to exclude from our reports
-		private static readonly string[] _blackListedAddins = new string[]
-		{
-			"Cake.Bakery",
-			"Cake.Bridge",
-			"Cake.Common",
-			"Cake.Core",
-			"Cake.CoreCLR",
-			"Cake.Email.Common",
-			"Cake.Frosting.Template",
-			"Cake.Mix",
-			"Cake.NuGet",
-			"Cake.Scripting.Abstractions",
-			"Cake.Scripting.Transport",
-			"Cake.ServiceOrchestration",
-			"Cake.Testing",
-			"Cake.Tin",
-			"Cake.Xamarin.Build",
-			"Cake.Xamarin.Build.CakeBuilder"
-		};
+		// List of addins that we specifically want to exclude from our reports
+		private static readonly string[] _blackListedAddins;
 
 		private readonly Options _options;
 		private readonly string _tempFolder;
@@ -193,6 +170,24 @@ namespace Cake.AddinDiscoverer
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 #pragma warning restore SA1008 // Opening parenthesis should be spaced correctly
 #pragma warning restore SA1000 // Keywords should be spaced correctly
+
+		static AddinDiscoverer()
+		{
+			// Using '.CodeBase' because it returns where the assembly is located when not executing (in other words, the 'permanent' path of the assembly).
+			// '.Location' would seem more intuitive but in the case of shadow copying assemblies, it would return a path in a temp directory.
+			var currentPath = new Uri(System.Reflection.Assembly.GetExecutingAssembly().CodeBase).LocalPath;
+			var currentFolder = Path.GetDirectoryName(currentPath);
+			var blacklistFilePath = Path.Combine(currentFolder, "blacklist.json");
+
+			using (var sr = new StreamReader(blacklistFilePath))
+			{
+				var json = sr.ReadToEnd();
+				var jObject = JObject.Parse(json);
+
+				_blackListedAddins = jObject.Property("packages").Value.ToObject<string[]>();
+				_blackListedTags = jObject.Property("labels").Value.ToObject<string[]>();
+			}
+		}
 
 		public AddinDiscoverer(Options options)
 		{

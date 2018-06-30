@@ -41,6 +41,12 @@
     <AdditionalFiles Include="$(SolutionDir)stylecop.json" Link="stylecop.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="blacklist.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <PropertyGroup>
     <CodeAnalysisRuleSet>$(SolutionDir)Cake.AddinDiscoverer.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>

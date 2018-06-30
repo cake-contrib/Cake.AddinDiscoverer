@@ -1,0 +1,26 @@
+{
+  "packages": [
+    "Cake.Bakery",
+    "Cake.Bridge",
+    "Cake.Common",
+    "Cake.Core",
+    "Cake.CoreCLR",
+    "Cake.Email.Common",
+    "Cake.Frosting.Template",
+    "Cake.Mix",
+    "Cake.NuGet",
+    "Cake.Scripting.Abstractions",
+    "Cake.Scripting.Transport",
+    "Cake.ServiceOrchestration",
+    "Cake.Testing",
+    "Cake.Tin",
+    "Cake.Xamarin.Build",
+    "Cake.Xamarin.Build.CakeBuilder"
+  ],
+  "labels": [
+    "Addin",
+    "Build",
+    "Cake",
+    "Script"
+  ]
+}
