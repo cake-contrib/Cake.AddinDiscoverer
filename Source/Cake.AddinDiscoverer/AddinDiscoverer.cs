@@ -345,7 +345,7 @@ namespace Cake.AddinDiscoverer
 			yamlContent.AppendUnixLine($"Name: {addin.Name}");
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
 			yamlContent.AppendUnixLine("Assemblies:");
-			yamlContent.AppendUnixLine($"- \"/**/{addin.Name}.dll\"");
+			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
 			yamlContent.AppendUnixLine($"Repository: {addin.GithubRepoUrl ?? addin.NugetPackageUrl}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendUnixLine($"Description: \"{addin.Description}\"");
@@ -621,16 +621,27 @@ namespace Cake.AddinDiscoverer
 										}
 									}).ToArray();
 
-									var packageDependencies = package.GetPackageDependencies()
+									var normalizedPackageDependencies = package.GetPackageDependencies()
 										.SelectMany(d => d.Packages)
-										.Select(p =>
+										.Select(d =>
 										{
-											var normalizedVersion = (p.VersionRange.HasUpperBound ? p.VersionRange.MaxVersion : p.VersionRange.MinVersion).Version;
+											return new
+											{
+												Id = d.Id,
+												NuGetVersion = d.VersionRange.HasUpperBound ? d.VersionRange.MaxVersion : d.VersionRange.MinVersion
+											};
+										});
+
+									var isPreRelease = normalizedPackageDependencies.Any(d => d.NuGetVersion.IsPrerelease);
+
+									var packageDependencies = normalizedPackageDependencies
+										.Select(d =>
+										{
 											return new DllReference()
 											{
-												Id = p.Id,
+												Id = d.Id,
 												IsPrivate = false,
-												Version = new SemVersion(normalizedVersion)
+												Version = new SemVersion(d.NuGetVersion.Version)
 											};
 										})
 										.ToArray();
@@ -703,9 +714,11 @@ namespace Cake.AddinDiscoverer
 									addin.NugetPackageVersion = packageVersion;
 									addin.Frameworks = frameworks;
 									addin.References = dllReferences;
+									addin.IsPrerelease |= isPreRelease;
 									if (addin.GithubRepoUrl == null) addin.GithubRepoUrl = string.IsNullOrEmpty(projectUrl) ? null : new Uri(projectUrl);
 									if (addin.Name.EndsWith(".Module", StringComparison.OrdinalIgnoreCase)) addin.Type = AddinType.Module;
 									if (addin.Type == AddinType.Unknown && !string.IsNullOrEmpty(assemblyPath)) addin.Type = AddinType.Addin;
+									if (!string.IsNullOrEmpty(assemblyPath)) addin.DllName = Path.GetFileName(assemblyPath);
 
 									if (addin.Type == AddinType.Unknown)
 									{
