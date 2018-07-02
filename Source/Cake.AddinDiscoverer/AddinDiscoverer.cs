@@ -49,6 +49,7 @@ namespace Cake.AddinDiscoverer
 		private const string CAKE_WEBSITE_REPO_NAME = "website";
 		private const string CAKE_CONTRIB_REPO_OWNER = "cake-contrib";
 		private const string CAKE_CONTRIB_REPO_NAME = "Home";
+		private const string CAKE_RECIPE_REPO_NAME = "Cake.Recipe";
 
 		private static readonly SemVersion _unknownVersion = new SemVersion(0, 0, 0);
 
@@ -262,7 +263,7 @@ namespace Cake.AddinDiscoverer
 					var cakeRecipeIssueId = await FindCakeRecipeGithubIssueAsync().ConfigureAwait(false);
 					if (!cakeRecipeIssueId.HasValue)
 					{
-						await UpdateCakeRecipeFilesAsync(normalizedAddins).ConfigureAwait(false);
+						await UpdateCakeRecipeFilesAsync(addins).ConfigureAwait(false);
 					}
 				}
 			}
@@ -1487,15 +1488,9 @@ namespace Cake.AddinDiscoverer
 			await _githubClient.Git.Reference.Update(CAKE_CONTRIB_REPO_OWNER, CAKE_CONTRIB_REPO_NAME, headMasterRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
 		}
 
-		private async Task UpdateStatsAsync(IEnumerable<AddinMetadata> addins)
 		private async Task<int?> FindCakeRecipeGithubIssueAsync()
 		{
 			Console.WriteLine("  Finding Cake.Recipe Github issue");
-
-			//var owner = "cake-contrib";
-			//var repositoryName = "Cake.Recipe";
-			var owner = "jericho";
-			var repositoryName = "_testing";
 
 			var request = new RepositoryIssueRequest()
 			{
@@ -1505,7 +1500,7 @@ namespace Cake.AddinDiscoverer
 				SortDirection = SortDirection.Descending
 			};
 
-			var issues = await _githubClient.Issue.GetAllForRepository(owner, repositoryName, request).ConfigureAwait(false);
+			var issues = await _githubClient.Issue.GetAllForRepository(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, request).ConfigureAwait(false);
 			var issue = issues.FirstOrDefault(i => i.Title == ISSUE_TITLE);
 
 			return issue?.Number;
@@ -1639,7 +1634,7 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private void SaveProgress(IEnumerable<AddinMetadata> normalizedAddins)
+		private async Task UpdateStatsAsync(IEnumerable<AddinMetadata> addins)
 		{
 			// Do not update the stats if we are only auditing a single addin.
 			if (!string.IsNullOrEmpty(_options.AddinName)) return;
