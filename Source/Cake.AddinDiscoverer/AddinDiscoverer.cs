@@ -149,7 +149,7 @@ namespace Cake.AddinDiscoverer
 				(addin, cakeVersion) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.All,
-				DataDestination.Excel
+				DataDestination.Excel | DataDestination.MarkdownForRecipes
 			),
 			(
 				"Transferred to cake-contrib",
@@ -158,7 +158,7 @@ namespace Cake.AddinDiscoverer
 				(addin, cakeVersion) => addin.AnalysisResult.TransferedToCakeContribOrganisation ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.All,
-				DataDestination.Excel
+				DataDestination.Excel | DataDestination.MarkdownForRecipes
 			),
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
@@ -316,6 +316,13 @@ namespace Cake.AddinDiscoverer
 			yamlContent.AppendLine(string.Join(Environment.NewLine, addin.Tags.Select(tag => $"- {tag}")));
 
 			return yamlContent.ToString();
+		}
+
+		private static DataDestination GetMarkdownDestinationForType(AddinType type)
+		{
+			if (type == AddinType.Addin) return DataDestination.MarkdownForAddins;
+			else if (type == AddinType.Recipes) return DataDestination.MarkdownForRecipes;
+			else throw new ArgumentException($"Unable to determine the DataDestination for type {type}");
 		}
 
 		private async Task Cleanup()
@@ -1229,7 +1236,7 @@ namespace Cake.AddinDiscoverer
 				.ToArray();
 
 			var reportColumns = _reportColumns
-				.Where(column => column.Destination.HasFlag(DataDestination.Markdown))
+				.Where(column => column.Destination.HasFlag(GetMarkdownDestinationForType(type)))
 				.Where(column => column.ApplicableTo.HasFlag(type))
 				.Select((data, index) => new { Index = index, Data = data })
 				.ToArray();
