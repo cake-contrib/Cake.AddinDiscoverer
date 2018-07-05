@@ -313,10 +313,10 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <param name="other">The semantic version.</param>
 		/// <returns>
 		/// A value that indicates the relative order of the objects being compared.
-		/// The return value has these meanings: Value Meaning Less than zero
-		///  This instance precedes <paramref name="other" /> in the version precedence.
-		///  Zero This instance has the same precedence as <paramref name="other" />. i
-		///  Greater than zero This instance has creater precedence as <paramref name="other" />.
+		/// The return value has these meanings:
+		/// - Less than zero: This instance precedes <paramref name="other" /> in the version precedence.
+		/// - Zero: This instance has the same precedence as <paramref name="other" />.
+		/// - Greater than zero: This instance has creater precedence as <paramref name="other" />.
 		/// </returns>
 		public int CompareByPrecedence(SemVersion other)
 		{
