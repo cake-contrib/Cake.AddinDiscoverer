@@ -95,7 +95,7 @@ namespace Cake.AddinDiscoverer
 				(addin, cakeVersion) => Color.Empty,
 				(addin) => null,
 				AddinType.All,
-				DataDestination.Excel
+				DataDestination.Excel | DataDestination.MarkdownForRecipes
 			),
 			(
 				"Cake Core Version",
