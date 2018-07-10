@@ -1529,8 +1529,8 @@ namespace Cake.AddinDiscoverer
 			var modifiedFiles = new ConcurrentDictionary<string, (IEnumerable<(string Name, string PreviousVersion, string NewVersion)> Addins, string Content)>();
 			var regEx = new Regex(@"(?<lineprefix>.*?)(?<packageprefix>\#addin nuget:\?package=)(?<packagename>.*)(?<versionprefix>&version=)(?<packageversion>.*)", RegexOptions.Compiled);
 
-			var minDesiredVersion = _cakeVersions.Where(v => v.Version <= cakeVersionUsedInRecipe).Max();
-			var notToExceedCakeVersion = _cakeVersions.Where(v => v.Version > cakeVersionUsedInRecipe).Min();
+			var versionGreatherThanOrEqual = _cakeVersions.Where(v => v.Version <= cakeVersionUsedInRecipe).Max();
+			var versionLessThan = _cakeVersions.Where(v => v.Version > cakeVersionUsedInRecipe).Min();
 
 			// --------------------------------------------------
 			// STEP 1 - get the list of ".cake" files
@@ -1562,10 +1562,9 @@ namespace Cake.AddinDiscoverer
 								{
 									var package = addins.SingleOrDefault(addin =>
 									{
-										var packageVersion = SemVersion.Parse(m.Groups["packageversion"].Value); //< --Sometimes too many parts
 										return addin.Name.Equals(m.Groups["packagename"].Value, StringComparison.OrdinalIgnoreCase) &&
-											(minDesiredVersion == null || IsCakeVersionUpToDate(minDesiredVersion.Version, packageVersion)) &&
-											(notToExceedCakeVersion == null || !IsCakeVersionUpToDate(notToExceedCakeVersion.Version, packageVersion));
+											(versionGreatherThanOrEqual == null || (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, versionGreatherThanOrEqual.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, versionGreatherThanOrEqual.Version))) &&
+											(versionLessThan == null || !(IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, versionLessThan.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, versionLessThan.Version)));
 									});
 
 									if (package == null) return m.Groups[0].Value;
