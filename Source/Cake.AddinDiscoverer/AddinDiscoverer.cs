@@ -24,7 +24,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -261,12 +260,8 @@ namespace Cake.AddinDiscoverer
 				// Update CakeRecipe
 				if (_options.UpdateCakeRecipeReferences)
 				{
-					var cakeRecipeIssueId = await FindCakeRecipeGithubIssueAsync().ConfigureAwait(false);
-					if (!cakeRecipeIssueId.HasValue)
-					{
-						var cakeVersionUsedByRecipe = await FindCakeVersionUsedByRecipe().ConfigureAwait(false);
-						await UpdateCakeRecipeFilesAsync(addins, cakeVersionUsedByRecipe).ConfigureAwait(false);
-					}
+					var cakeVersionUsedByRecipe = await FindCakeVersionUsedByRecipe().ConfigureAwait(false);
+					await UpdateCakeRecipeFilesAsync(addins, cakeVersionUsedByRecipe).ConfigureAwait(false);
 				}
 			}
 			catch (Exception e)
@@ -601,6 +596,7 @@ namespace Cake.AddinDiscoverer
 										})
 										.ToArray();
 
+#pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
 									var assembliesPath = package.GetFiles()
 										.Where(f =>
 										{
@@ -614,6 +610,7 @@ namespace Cake.AddinDiscoverer
 												);
 										})
 										.ToArray();
+#pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 
 									// Find the DLL that matches the naming convention
 									var assemblyPath = assembliesPath.FirstOrDefault(f => Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll"));
@@ -1373,23 +1370,6 @@ namespace Cake.AddinDiscoverer
 			return markdown.ToString();
 		}
 
-		/// <summary>
-		/// Extract a substring between two markers. For example, Extract("[", "]", "Hello [firstname]") returns "firstname".
-		/// </summary>
-		/// <param name="startMark">The start marker</param>
-		/// <param name="endMark">The end marker</param>
-		/// <param name="content">The content</param>
-		/// <returns>The substring</returns>
-		private string Extract(string startMark, string endMark, string content)
-		{
-			var start = content.IndexOf(startMark, StringComparison.OrdinalIgnoreCase);
-			var end = content.IndexOf(endMark, start + startMark.Length);
-
-			if (start == -1) return string.Empty;
-			else if (end == -1) return content.Substring(start + startMark.Length).Trim();
-			else return content.Substring(start + startMark.Length, end - start - startMark.Length).Trim();
-		}
-
 		private async Task CommitChangesToRepoAsync()
 		{
 			if (!_options.MarkdownReportToRepo && !_options.ExcelReportToRepo) return;
@@ -1402,7 +1382,7 @@ namespace Cake.AddinDiscoverer
 			var latestCommit = await _githubClient.Git.Commit.Get(CAKE_CONTRIB_REPO_OWNER, CAKE_CONTRIB_REPO_NAME, masterReference.Object.Sha).ConfigureAwait(false); // Get the laster commit of this branch
 			var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
 
-			// Create the blobs corresponding corresponding to the reports and add them to the tree
+			// Create the blobs corresponding to the reports and add them to the tree
 			if (_options.ExcelReportToRepo)
 			{
 				foreach (var excelReport in Directory.EnumerateFiles(_tempFolder, $"*.xlsx"))
@@ -1525,134 +1505,131 @@ namespace Cake.AddinDiscoverer
 		{
 			Console.WriteLine("  Updating Cake.Recipe");
 
-			var folderName = "Cake.Recipe/Content";
-			var modifiedFiles = new ConcurrentDictionary<string, (IEnumerable<(string Name, string PreviousVersion, string NewVersion)> Addins, string Content)>();
-			var regEx = new Regex(@"(?<lineprefix>.*?)(?<packageprefix>\#addin nuget:\?package=)(?<packagename>.*)(?<versionprefix>&version=)(?<packageversion>.*)", RegexOptions.Compiled);
+			var allReferencedAddins = new ConcurrentDictionary<string, IEnumerable<(string Name, string CurrentVersion, string NewVersion)>>();
 
 			var versionGreatherThanOrEqual = _cakeVersions.Where(v => v.Version <= cakeVersionUsedInRecipe).Max();
 			var versionLessThan = _cakeVersions.Where(v => v.Version > cakeVersionUsedInRecipe).Min();
+			var latestCakeVersion = _cakeVersions.Where(v => v.Version > cakeVersionUsedInRecipe).Max();
+
+			// Get the ".cake" files
+			var recipeFiles = await GetRecipeFilesAsync(addins, versionGreatherThanOrEqual, versionLessThan, latestCakeVersion).ConfigureAwait(false);
+
+			// Submit a PR if any addin reference is outdated
+			await SubmitPullRequestForOutdatedRecipeFilesAsync(recipeFiles).ConfigureAwait(false);
+		}
+
+		private async Task SubmitPullRequestForOutdatedRecipeFilesAsync(RecipeFile[] recipeFiles)
+		{
+			// Make sure there is at least one outdated addin reference
+			var outdatedRecipeFiles = recipeFiles.Where(f => f.AddinReferences.Any(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake));
+			if (!outdatedRecipeFiles.Any()) return;
+
+			// Check if an issue already exists
+			var cakeRecipeIssueId = await FindCakeRecipeGithubIssueAsync().ConfigureAwait(false);
+			if (cakeRecipeIssueId.HasValue) return;
+
+			// Create the issue
+			var newIssue = new NewIssue(CAKE_RECIPE_ISSUE_TITLE)
+			{
+				Body = "The following cake files contain outdated addin references that should be updated:\r\n" +
+				string.Join(
+					Environment.NewLine,
+					outdatedRecipeFiles.Select(f => $"- `{f.Name}` contains the following outdated references:\r\n" +
+						string.Join(
+							Environment.NewLine,
+							f.AddinReferences
+								.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake)
+								.Select(r => $"    - {r.Name} {r.ReferencedVersion} --> {r.LatestVersionForCurrentCake}"))))
+			};
+			var issue = await _githubClient.Issue.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newIssue).ConfigureAwait(false);
+
+			// Commit changes to a new branch
+			const string COMMIT_MESSAGE = "Update addins references";
+			var commitMessage = $"(GH-{issue.Number}) {COMMIT_MESSAGE}";
+			var developBranchName = "develop";
+			var newBranchName = $"update_addins_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+			var developRef = $"heads/{developBranchName}";
+			var newBranchRef = $"heads/{newBranchName}";
+
+			var developReference = await _githubClient.Git.Reference.Get(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, developRef).ConfigureAwait(false);
+
+			var newReference = new NewReference(newBranchRef, developReference.Object.Sha);
+			var newBranch = await _githubClient.Git.Reference.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newReference).ConfigureAwait(false);
+
+			var latestCommit = await _githubClient.Git.Commit.Get(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newBranch.Object.Sha).ConfigureAwait(false);
+			var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
+			foreach (var outdatedRecipeFile in outdatedRecipeFiles)
+			{
+				var cakeFileBlob = new NewBlob
+				{
+					Encoding = EncodingType.Utf8,
+					Content = outdatedRecipeFile.GetContentForCurrentCake()
+				};
+				var cakeFileBlobRef = await _githubClient.Git.Blob.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, cakeFileBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = outdatedRecipeFile.Path,
+					Mode = FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = cakeFileBlobRef.Sha
+				});
+			}
+
+			var newTree = await _githubClient.Git.Tree.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, tree).ConfigureAwait(false);
+
+			var newCommit = new NewCommit(commitMessage, newTree.Sha, newBranch.Object.Sha);
+			var commit = await _githubClient.Git.Commit.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newCommit).ConfigureAwait(false);
+
+			await _githubClient.Git.Reference.Update(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newBranchRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
 
 			// --------------------------------------------------
-			// STEP 1 - get the list of ".cake" files
-			var directoryContent = await _githubClient.Repository.Content.GetAllContents(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, folderName).ConfigureAwait(false);
+			// STEP 5 - submit pull request
+			var newPullRequest = new NewPullRequest(COMMIT_MESSAGE, newBranchName, developBranchName)
+			{
+				Body = $"Resolves #{issue.Number}"
+			};
+			await _githubClient.PullRequest.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newPullRequest).ConfigureAwait(false);
+		}
+
+		private async Task<RecipeFile[]> GetRecipeFilesAsync(IEnumerable<AddinMetadata> addins, CakeVersion versionGreatherThanOrEqual, CakeVersion versionLessThan, CakeVersion latestCakeVersion)
+		{
+			var directoryContent = await _githubClient.Repository.Content.GetAllContents(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, "Cake.Recipe/Content").ConfigureAwait(false);
 			var cakeFiles = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.File) && c.Name.EndsWith(".cake", StringComparison.OrdinalIgnoreCase));
 
-			// --------------------------------------------------
-			// STEP 2 - update the addin references in the ".cake" files
-			await cakeFiles
+			var recipeFiles = await cakeFiles
 				.ForEachAsync(
 					async cakeFile =>
 					{
 						var contents = await _githubClient.Repository.Content.GetAllContents(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, cakeFile.Path).ConfigureAwait(false);
-						var fileContent = contents[0].Content;
 
-						var contentModified = false;
-						var newFileContent = new StringBuilder();
-						var updatedAddinReference = new List<(string Name, string PreviousVersion, string NewVersion)>();
-
-						foreach (var line in fileContent.Split('\n'))
+						var recipeFile = new RecipeFile()
 						{
-							var matchResult = regEx.Match(line);
-							if (matchResult.Success)
+							Name = cakeFile.Name,
+							Path = cakeFile.Path,
+							Content = contents[0].Content
+						};
+
+						foreach (var addinReference in recipeFile.AddinReferences)
+						{
+							addinReference.LatestVersionForCurrentCake = addins.SingleOrDefault(addin =>
 							{
-								var packageName = matchResult.Groups["packagename"].Value;
-								var packageCurrentVersion = matchResult.Groups["packageversion"].Value;
+								return addin.Name.Equals(addinReference.Name, StringComparison.OrdinalIgnoreCase) &&
+									(versionGreatherThanOrEqual == null || (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, versionGreatherThanOrEqual.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, versionGreatherThanOrEqual.Version))) &&
+									(versionLessThan == null || !(IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, versionLessThan.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, versionLessThan.Version)));
+							})?.NugetPackageVersion;
 
-								var newLine = regEx.Replace(line, m =>
-								{
-									var package = addins.SingleOrDefault(addin =>
-									{
-										return addin.Name.Equals(m.Groups["packagename"].Value, StringComparison.OrdinalIgnoreCase) &&
-											(versionGreatherThanOrEqual == null || (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, versionGreatherThanOrEqual.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, versionGreatherThanOrEqual.Version))) &&
-											(versionLessThan == null || !(IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, versionLessThan.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, versionLessThan.Version)));
-									});
-
-									if (package == null) return m.Groups[0].Value;
-									if (m.Groups["packageversion"].Value == package.NugetPackageVersion) return m.Groups[0].Value;
-
-									updatedAddinReference.Add((m.Groups["packagename"].Value, m.Groups["packageversion"].Value, package.NugetPackageVersion));
-									return m.Groups["lineprefix"].Value + m.Groups["packageprefix"].Value + m.Groups["packagename"].Value + m.Groups["versionprefix"].Value + package.NugetPackageVersion;
-								});
-
-								newFileContent.Append(newLine + '\n');
-								contentModified |= newLine != line;
-							}
-							else
+							addinReference.LatestVersionForLatestCake = addins.SingleOrDefault(addin =>
 							{
-								newFileContent.Append(line + '\n');
-							}
+								return addin.Name.Equals(addinReference.Name, StringComparison.OrdinalIgnoreCase) &&
+									(latestCakeVersion != null && (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, latestCakeVersion.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, latestCakeVersion.Version)));
+							})?.NugetPackageVersion;
 						}
 
-						if (contentModified)
-						{
-							modifiedFiles.TryAdd(cakeFile.Name, (updatedAddinReference.ToArray(), newFileContent.ToString()));
-						}
+						return recipeFile;
 					}, MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
-			if (modifiedFiles.Any())
-			{
-				// --------------------------------------------------
-				// STEP 3 - create issue
-				var newIssue = new NewIssue(CAKE_RECIPE_ISSUE_TITLE)
-				{
-					Body = "The following cake files contain outdated addin references that should be updated:\r\n" +
-						string.Join(
-							Environment.NewLine,
-							modifiedFiles.Select(f => $"- `{f.Key}` contains the following outdated references:\r\n" +
-								string.Join(
-									Environment.NewLine,
-									f.Value.Addins.Select(a => $"    - {a.Name} {a.PreviousVersion} --> {a.NewVersion}"))))
-				};
-				var issue = await _githubClient.Issue.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newIssue).ConfigureAwait(false);
-
-				// --------------------------------------------------
-				// STEP 4 - commit changes to a new branch
-				const string COMMIT_MESSAGE = "Update addins references";
-				var developBranchName = "develop";
-				var newBranchName = $"update_addins_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-				var developRef = $"heads/{developBranchName}";
-				var newBranchRef = $"heads/{newBranchName}";
-
-				var developReference = await _githubClient.Git.Reference.Get(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, developRef).ConfigureAwait(false);
-
-				var newReference = new NewReference(newBranchRef, developReference.Object.Sha);
-				var newBranch = await _githubClient.Git.Reference.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newReference).ConfigureAwait(false);
-
-				var latestCommit = await _githubClient.Git.Commit.Get(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newBranch.Object.Sha).ConfigureAwait(false);
-				var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
-				foreach (var modifiedFile in modifiedFiles)
-				{
-					var cakeFileBlob = new NewBlob
-					{
-						Encoding = EncodingType.Utf8,
-						Content = modifiedFile.Value.Content
-					};
-					var cakeFileBlobRef = await _githubClient.Git.Blob.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, cakeFileBlob).ConfigureAwait(false);
-					tree.Tree.Add(new NewTreeItem
-					{
-						Path = $"{folderName}/{modifiedFile.Key}",
-						Mode = FILE_MODE,
-						Type = TreeType.Blob,
-						Sha = cakeFileBlobRef.Sha
-					});
-				}
-
-				var newTree = await _githubClient.Git.Tree.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, tree).ConfigureAwait(false);
-
-				var newCommit = new NewCommit(COMMIT_MESSAGE, newTree.Sha, newBranch.Object.Sha);
-				var commit = await _githubClient.Git.Commit.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newCommit).ConfigureAwait(false);
-
-				await _githubClient.Git.Reference.Update(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newBranchRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
-
-				// --------------------------------------------------
-				// STEP 5 - submit pull request
-				var newPullRequest = new NewPullRequest(COMMIT_MESSAGE, newBranchName, developBranchName)
-				{
-					Body = $"Resolves #{issue.Number}"
-				};
-				await _githubClient.PullRequest.Create(CAKE_CONTRIB_REPO_OWNER, CAKE_RECIPE_REPO_NAME, newPullRequest).ConfigureAwait(false);
-			}
+			return recipeFiles;
 		}
 
 		private async Task UpdateStatsAsync(IEnumerable<AddinMetadata> addins)
