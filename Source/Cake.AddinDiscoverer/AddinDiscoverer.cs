@@ -1630,8 +1630,9 @@ namespace Cake.AddinDiscoverer
 				packagesConfig.Append("</packages>");
 
 				var filesToUpdate = recipeFilesWithAtLeastOneReference
-					.Select(recipeFile => (EncodingType: EncodingType.Utf8, Path: recipeFile.Path, Content: recipeFile.GetContentForCurrentCake()))
-					.Union(new[] { (EncodingType: EncodingType.Utf8, Path: PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) });
+					.Select(recipeFile => (EncodingType: EncodingType.Utf8, Path: recipeFile.Path, Content: recipeFile.GetContentForLatestCake()))
+					.Union(new[] { (EncodingType: EncodingType.Utf8, Path: PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
+					.ToArray();
 
 				await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, filesToUpdate).ConfigureAwait(false);
 			}
