@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Octokit;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,6 +55,21 @@ namespace Cake.AddinDiscoverer
 			}
 
 			await Task.WhenAll(allTasks).ConfigureAwait(false);
+		}
+
+		public static async Task<Repository> RefreshFork(this IGitHubClient githubClient, string forkOwner, string forkName)
+		{
+			var fork = await githubClient.Repository.Get(forkOwner, forkName).ConfigureAwait(false);
+			var upstream = fork.Parent;
+
+			var compareResult = await githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}").ConfigureAwait(false);
+			if (compareResult.BehindBy > 0)
+			{
+				var upstreamBranchReference = await githubClient.Git.Reference.Get(upstream.Owner.Login, upstream.Name, $"heads/{upstream.DefaultBranch}").ConfigureAwait(false);
+				await githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}", new ReferenceUpdate(upstreamBranchReference.Object.Sha)).ConfigureAwait(false);
+			}
+
+			return fork;
 		}
 
 		public static bool IsFlagSet<T>(this T value, T flag)

@@ -39,7 +39,9 @@ namespace Cake.AddinDiscoverer
 						});
 					}
 
-					_addinReferences = references.ToArray();
+					_addinReferences = references
+						.OrderBy(r => r.Name)
+						.ToArray();
 				}
 
 				return _addinReferences;
