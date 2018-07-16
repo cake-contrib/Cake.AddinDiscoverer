@@ -214,6 +214,7 @@ namespace Cake.AddinDiscoverer
 				// Clean black listed addins
 				addins = addins
 					.Where(addin => !_blackListedAddins.Any(blackListedAddinName => blackListedAddinName == addin.Name))
+					.OrderBy(addin => addin.Name)
 					.ToArray();
 				EnsureAtLeastOneAddin(addins);
 
@@ -230,13 +231,19 @@ namespace Cake.AddinDiscoverer
 				addins = AnalyzeNugetMetadata(addins);
 
 				// Analyze
-				addins = AnalyzeAddin(addins);
+				addins = AnalyzeAddins(addins);
 
 				// Generate the excel report and save to a file
-				GenerateExcelReport(addins);
+				if (!_options.ExcelReportToFile && !_options.ExcelReportToRepo)
+				{
+					GenerateExcelReport(addins);
+				}
 
 				// Generate the markdown report and write to file
-				await GenerateMarkdownReportAsync(addins).ConfigureAwait(false);
+				if (!_options.MarkdownReportToFile && !_options.MarkdownReportToRepo)
+				{
+					await GenerateMarkdownReportAsync(addins).ConfigureAwait(false);
+				}
 
 				// Update the CSV file containing historical statistics (used to generate graph)
 				await UpdateStatsAsync(addins).ConfigureAwait(false);
@@ -245,7 +252,10 @@ namespace Cake.AddinDiscoverer
 				GenerateStatsGraph();
 
 				// Commit the changed files (such as reports, stats CSV, graph, etc.) to the cake-contrib repo
-				await CommitChangesToRepoAsync().ConfigureAwait(false);
+				if (_options.MarkdownReportToRepo || _options.ExcelReportToRepo)
+				{
+					await CommitChangesToRepoAsync().ConfigureAwait(false);
+				}
 
 				// Create an issue in the Github repo
 				if (_options.CreateGithubIssue)
@@ -916,7 +926,7 @@ namespace Cake.AddinDiscoverer
 			await _githubClient.PullRequest.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newPullRequest).ConfigureAwait(false);
 		}
 
-		private AddinMetadata[] AnalyzeAddin(IEnumerable<AddinMetadata> addins)
+		private AddinMetadata[] AnalyzeAddins(IEnumerable<AddinMetadata> addins)
 		{
 			Console.WriteLine("  Analyzing addins");
 
@@ -1033,8 +1043,6 @@ namespace Cake.AddinDiscoverer
 
 		private void GenerateExcelReport(IEnumerable<AddinMetadata> addins)
 		{
-			if (!_options.ExcelReportToFile && !_options.ExcelReportToRepo) return;
-
 			Console.WriteLine("  Generating Excel report");
 
 			using (var excel = new ExcelPackage(new FileInfo(_excelReportPath)))
@@ -1164,8 +1172,6 @@ namespace Cake.AddinDiscoverer
 
 		private async Task GenerateMarkdownReportAsync(IEnumerable<AddinMetadata> addins)
 		{
-			if (!_options.MarkdownReportToFile && !_options.MarkdownReportToRepo) return;
-
 			Console.WriteLine("  Generating markdown report");
 
 			var deprecatedAddins = addins.Where(addin => addin.IsDeprecated).ToArray();
@@ -1374,8 +1380,6 @@ namespace Cake.AddinDiscoverer
 
 		private async Task CommitChangesToRepoAsync()
 		{
-			if (!_options.MarkdownReportToRepo && !_options.ExcelReportToRepo) return;
-
 			Console.WriteLine($"  Committing changes to {CAKE_CONTRIB_REPO_OWNER}/{CAKE_CONTRIB_REPO_NAME} repo");
 
 			// Get the SHA of the latest commit of the master branch.
@@ -1559,7 +1563,9 @@ namespace Cake.AddinDiscoverer
 			// Commit changes to a new branch and submit PR
 			var commitMessage = "Update addins references";
 			var newBranchName = $"update_addins_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-			var filesToUpdate = outdatedRecipeFiles.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, Path: outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake()));
+			var filesToUpdate = outdatedRecipeFiles
+				.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, Path: outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake()))
+				.ToArray();
 			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, filesToUpdate).ConfigureAwait(false);
 		}
 
@@ -1728,6 +1734,9 @@ namespace Cake.AddinDiscoverer
 
 		private void GenerateStatsGraph()
 		{
+			// Do not update the stats if we are only auditing a single addin.
+			if (!string.IsNullOrEmpty(_options.AddinName)) return;
+
 			Console.WriteLine("  Generating graph");
 
 			var graphPath = Path.Combine(_tempFolder, "Audit_progress.png");
