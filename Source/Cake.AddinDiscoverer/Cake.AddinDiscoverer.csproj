@@ -33,6 +33,7 @@
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="System.Memory" Version="4.5.0" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
   </ItemGroup>
 

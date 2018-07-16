@@ -36,5 +36,8 @@ namespace Cake.AddinDiscoverer
 
 		[Option('s', "syncyaml", Default = false, HelpText = "Synchronize the yaml files on Cake's web site with the packages discovered on Nuget.")]
 		public bool SynchronizeYaml { get; set; }
+
+		[Option('k', "updatecakerecipe", Default = false, HelpText = "Update addin references in CakeRecipe.")]
+		public bool UpdateCakeRecipeReferences { get; set; }
 	}
 }
