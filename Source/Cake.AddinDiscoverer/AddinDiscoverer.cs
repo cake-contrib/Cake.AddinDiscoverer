@@ -1625,10 +1625,10 @@ namespace Cake.AddinDiscoverer
 				var newBranchName = $"upgrade_cake_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 
 				var packagesConfig = new StringBuilder();
-				packagesConfig.Append("<? xml version=\"1.0\" encoding=\"utf-8\"?>\n");
-				packagesConfig.Append("<packages>\n");
-				packagesConfig.Append($"    <package id=\"Cake\" version=\"{latestCakeVersion.Version.ToString(3)}\" />\n");
-				packagesConfig.Append("</packages>");
+				packagesConfig.AppendUnixLine("<? xml version=\"1.0\" encoding=\"utf-8\"?>");
+				packagesConfig.AppendUnixLine("<packages>");
+				packagesConfig.AppendUnixLine($"    <package id=\"Cake\" version=\"{latestCakeVersion.Version.ToString(3)}\" />");
+				packagesConfig.AppendUnixLine("</packages>");
 
 				var filesToUpdate = recipeFilesWithAtLeastOneReference
 					.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake()))
