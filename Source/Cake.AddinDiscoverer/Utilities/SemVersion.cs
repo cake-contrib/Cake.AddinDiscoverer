@@ -45,6 +45,9 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </summary>
 		/// <param name="version">The <see cref="System.Version"/> that is used to initialize
 		/// the Major, Minor, Patch and Build properties.</param>
+		/// <remarks>
+		/// Counter-intuitively, the 'Build' property of the Version does not correspond to the 'Build property of the SemVersion.
+		/// </remarks>
 		public SemVersion(Version version)
 		{
 			if (version == null)
@@ -52,22 +55,9 @@ namespace Cake.AddinDiscoverer.Utilities
 
 			this.Major = version.Major;
 			this.Minor = version.Minor;
-
-			if (version.Revision >= 0)
-			{
-				this.Patch = version.Revision;
-			}
-
+			this.Patch = version.Build;
+			this.Build = version.Revision > 0 ? version.Revision.ToString() : string.Empty;
 			this.Prerelease = string.Empty;
-
-			if (version.Build > 0)
-			{
-				this.Build = version.Build.ToString();
-			}
-			else
-			{
-				this.Build = string.Empty;
-			}
 		}
 
 		/// <summary>
