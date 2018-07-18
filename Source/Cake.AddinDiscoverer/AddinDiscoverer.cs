@@ -234,13 +234,13 @@ namespace Cake.AddinDiscoverer
 				addins = AnalyzeAddins(addins);
 
 				// Generate the excel report and save to a file
-				if (!_options.ExcelReportToFile && !_options.ExcelReportToRepo)
+				if (_options.ExcelReportToFile || _options.ExcelReportToRepo)
 				{
 					GenerateExcelReport(addins);
 				}
 
 				// Generate the markdown report and write to file
-				if (!_options.MarkdownReportToFile && !_options.MarkdownReportToRepo)
+				if (_options.MarkdownReportToFile || _options.MarkdownReportToRepo)
 				{
 					await GenerateMarkdownReportAsync(addins).ConfigureAwait(false);
 				}
