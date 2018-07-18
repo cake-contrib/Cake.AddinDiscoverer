@@ -156,8 +156,6 @@ Task("Run")
 	var args = new Dictionary<string, string>()
 	{
 		{ "-s", null },
-		{ "-m", null },
-		{ "-e", null },
 		{ "-t", $"\"{outputDir}\"" },
 		{ "-u", $"\"{gitHubUserName}\"" },
 		{ "-p", $"\"{gitHubPassword}\"" },
@@ -167,6 +165,11 @@ Task("Run")
 	{
 		args.Add("-r", null);
 		args.Add("-x", null);
+	}
+	else
+	{
+		args.Add("-m", null);
+		args.Add("-e", null);
 	}
 
 	// Display the command we are about to execute (be careful to avoid displaying the password)
