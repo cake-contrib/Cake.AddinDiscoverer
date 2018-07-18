@@ -1549,10 +1549,10 @@ namespace Cake.AddinDiscoverer
 			// Create the issue
 			var newIssue = new NewIssue(CAKE_RECIPE_UPDATE_ADDINS_REFERENCES_ISSUE_TITLE)
 			{
-				Body = "The following cake files contain outdated addin references that should be updated:\r\n" +
+				Body = $"The following cake files contain outdated addin references that should be updated:{Environment.NewLine}" +
 				string.Join(
 					Environment.NewLine,
-					outdatedRecipeFiles.Select(f => $"- `{f.RecipeFile.Name}` contains the following outdated references:\r\n" +
+					outdatedRecipeFiles.Select(f => $"- `{f.RecipeFile.Name}` contains the following outdated references:{Environment.NewLine}" +
 						string.Join(
 							Environment.NewLine,
 							f.OutdatedReferences
@@ -1587,7 +1587,7 @@ namespace Cake.AddinDiscoverer
 			issueBody.AppendFormat("In order for Cake.Recipe to be compatible with Cake version {0}, each and every referenced addin must support Cake {0}. ", latestCakeVersion.Version.ToString(3));
 			issueBody.AppendFormat("This issue will be used to track the full list of addins referenced in Cake.Recipe and whether or not they support Cake {0}. ", latestCakeVersion.Version.ToString(3));
 			issueBody.AppendFormat("When all referenced addins are upgraded to support Cake {0}, we will automatically submit a PR to upgrade Cake.Recipe. ", latestCakeVersion.Version.ToString(3));
-			issueBody.AppendFormat("In the mean time, this issue will be regularly updated when addins are updated with Cake {0} support.\r\n", latestCakeVersion.Version.ToString(3));
+			issueBody.AppendFormat("In the mean time, this issue will be regularly updated when addins are updated with Cake {0} support.{1}", latestCakeVersion.Version.ToString(3), Environment.NewLine);
 			issueBody.AppendLine();
 			issueBody.AppendLine("Referenced Addins:");
 			foreach (var recipeFile in recipeFilesWithAtLeastOneReference)
