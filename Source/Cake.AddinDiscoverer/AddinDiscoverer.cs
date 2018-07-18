@@ -787,22 +787,17 @@ namespace Cake.AddinDiscoverer
 
 			const string ISSUE_TITLE = "Synchronizing YAML files";
 
-			// Arbitrary max number of files to delete. add and modify in a given commit.
+			// Arbitrary max number of files to delete, add and modify in a given commit.
 			// This is to avoid AbuseException when commiting too many files.
 			const int MAX_FILES_TO_COMMIT = 75;
 
-			// --------------------------------------------------
-			// Check if there is already an open issue
-			var request = new RepositoryIssueRequest()
-			{
-				Creator = _options.GithubUsername,
-				State = ItemStateFilter.Open,
-				SortProperty = IssueSort.Created,
-				SortDirection = SortDirection.Descending
-			};
+			// Ensure the fork is up-to-date
+			var fork = await _githubClient.RefreshFork(_options.GithubUsername, CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
+			var upstream = fork.Parent;
 
-			var issues = await _githubClient.Issue.GetAllForRepository(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, request).ConfigureAwait(false);
-			if (issues.Any(i => i.Title == ISSUE_TITLE)) return;
+			// Check if an issue already exists
+			var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, ISSUE_TITLE).ConfigureAwait(false);
+			if (issue != null) return;
 
 			// --------------------------------------------------
 			// Discover if any files need to be added/deleted/modified
@@ -862,7 +857,6 @@ namespace Cake.AddinDiscoverer
 
 			if (!yamlToBeDeleted.Any() && !addinsToBeCreated.Any() && !addinsToBeUpdated.Any()) return;
 
-			// --------------------------------------------------
 			// Create issue
 			var newIssue = new NewIssue(ISSUE_TITLE)
 			{
@@ -871,54 +865,17 @@ namespace Cake.AddinDiscoverer
 					$"{Environment.NewLine}YAML files to be created:{Environment.NewLine}{string.Join(Environment.NewLine, addinsToBeCreated.Select(a => $"- {a.Addin.Name}"))}{Environment.NewLine}" +
 					$"{Environment.NewLine}YAML files to be updated:{Environment.NewLine}{string.Join(Environment.NewLine, addinsToBeUpdated.Select(a => $"- {a.Addin.Name}"))}{Environment.NewLine}"
 			};
-			var issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+			issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
 
-			// --------------------------------------------------
-			// Ensure our fork of the "cake-build/website" repo is up-to-date
-			var fork = await _githubClient.Repository.Get("jericho", CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
-			var upstream = fork.Parent;
-			var compareResult = await _githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}").ConfigureAwait(false);
-			if (compareResult.BehindBy > 0)
-			{
-				var upstreamBranchReference = await _githubClient.Git.Reference.Get(upstream.Owner.Login, upstream.Name, $"heads/{upstream.DefaultBranch}").ConfigureAwait(false);
-				var updatedForkReference = await _githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}", new ReferenceUpdate(upstreamBranchReference.Object.Sha)).ConfigureAwait(false);
-			}
-
-			// --------------------------------------------------
-			// Commit changes to a new branch
+			// Commit changes to a new branch and submit PR
+			var commitMessage = "Synchronize YAML files";
 			var newBranchName = $"synchronize_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-			var defaultBranchReference = await _githubClient.Git.Reference.Get(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}").ConfigureAwait(false);
-			var newReference = new NewReference($"heads/{newBranchName}", defaultBranchReference.Object.Sha);
-			var newBranch = await _githubClient.Git.Reference.Create(fork.Owner.Login, fork.Name, newReference).ConfigureAwait(false);
-			var latestCommit = await _githubClient.Git.Commit.Get(fork.Owner.Login, fork.Name, newBranch.Object.Sha);
+			var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
+			if (yamlToBeDeleted.Any()) commits.Add((CommitMessage: "Delete YAML files that do not have a corresponding Nuget package", FilesToDelete: yamlToBeDeleted.Select(y => y.Path).ToArray(), FilesToUpsert: null));
+			if (addinsToBeCreated.Any()) commits.Add((CommitMessage: "Add YAML files for Nuget packages we discovered", FilesToDelete: null, FilesToUpsert: addinsToBeCreated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray()));
+			if (addinsToBeUpdated.Any()) commits.Add((CommitMessage: "Update YAML files to match metadata from Nuget", FilesToDelete: null, FilesToUpsert: addinsToBeUpdated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray()));
 
-			if (yamlToBeDeleted.Any())
-			{
-				var filesToDelete = yamlToBeDeleted.Select(y => y.Path);
-				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, null, $"(GH-{issue.Number}) Delete YAML files that do not have a corresponding Nuget package").ConfigureAwait(false);
-			}
-
-			if (addinsToBeCreated.Any())
-			{
-				var filesToAdd = addinsToBeCreated.ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
-				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToAdd, $"(GH-{issue.Number}) Add YAML files for Nuget packages we discovered").ConfigureAwait(false);
-			}
-
-			if (addinsToBeUpdated.Any())
-			{
-				var filesToUpdate = addinsToBeUpdated.ToDictionary(addin => $"addins/{addin.Addin.Name}.yml", addin => addin.NewContent);
-				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, null, filesToUpdate, $"(GH-{issue.Number}) Update YAML files to match metadata from Nuget").ConfigureAwait(false);
-			}
-
-			await _githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha));
-
-			// --------------------------------------------------
-			// Submit pull request
-			var newPullRequest = new NewPullRequest("Update YAML files", $"{fork.Owner.Login}:{newBranchName}", upstream.DefaultBranch)
-			{
-				Body = $"Resolves #{issue.Number}"
-			};
-			await _githubClient.PullRequest.Create(upstream.Owner.Login, upstream.Name, newPullRequest).ConfigureAwait(false);
+			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, commits).ConfigureAwait(false);
 		}
 
 		private AddinMetadata[] AnalyzeAddins(IEnumerable<AddinMetadata> addins)
@@ -1635,7 +1592,7 @@ namespace Cake.AddinDiscoverer
 					.Union(new[] { (EncodingType: EncodingType.Utf8, Path: PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
 					.ToArray();
 
-				await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, filesToUpdate).ConfigureAwait(false);
+				await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, commits).ConfigureAwait(false);
 			}
 		}
 
@@ -1809,8 +1766,10 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		private async Task CommitToNewBranchAndSubmitPullRequestAsync(Octokit.Repository fork, Issue issue, string newBranchName, string commitMessage, IEnumerable<(EncodingType Encoding, string Path, string Content)> filesToUpsert)
+		private async Task CommitToNewBranchAndSubmitPullRequestAsync(Octokit.Repository fork, Issue issue, string newBranchName, string pullRequestCommitMessage, IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
+			if (commits == null || !commits.Any()) throw new ArgumentNullException("You must provide at least one commit", nameof(commits));
+
 			var upstream = fork.Parent;
 			var developReference = await _githubClient.Git.Reference.Get(_options.GithubUsername, fork.Name, $"heads/{fork.DefaultBranch}").ConfigureAwait(false);
 			var newReference = new NewReference($"heads/{newBranchName}", developReference.Object.Sha);
@@ -1819,36 +1778,14 @@ namespace Cake.AddinDiscoverer
 			var latestCommit = await _githubClient.Git.Commit.Get(_options.GithubUsername, fork.Name, newBranch.Object.Sha).ConfigureAwait(false);
 			var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
 
-			if (filesToUpsert != null && filesToUpsert.Any())
+			foreach (var commitInfo in commits)
 			{
-				foreach (var fileToUpsert in filesToUpsert)
-				{
-					var fileBlob = new NewBlob
-					{
-						Encoding = fileToUpsert.Encoding,
-						Content = fileToUpsert.Content
-					};
-					var fileBlobRef = await _githubClient.Git.Blob.Create(_options.GithubUsername, fork.Name, fileBlob).ConfigureAwait(false);
-					tree.Tree.Add(new NewTreeItem
-					{
-						Path = fileToUpsert.Path,
-						Mode = FILE_MODE,
-						Type = TreeType.Blob,
-						Sha = fileBlobRef.Sha
-					});
-				}
+				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, commitInfo.FilesToDelete, commitInfo.FilesToUpsert, $"(GH-{issue.Number}) {commitInfo.CommitMessage}").ConfigureAwait(false);
 			}
 
-			var newTree = await _githubClient.Git.Tree.Create(_options.GithubUsername, fork.Name, tree).ConfigureAwait(false);
+			await _githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha)).ConfigureAwait(false);
 
-			var newCommit = new NewCommit($"(GH-{issue.Number}) {commitMessage}", newTree.Sha, newBranch.Object.Sha);
-			var commit = await _githubClient.Git.Commit.Create(_options.GithubUsername, fork.Name, newCommit).ConfigureAwait(false);
-
-			await _githubClient.Git.Reference.Update(_options.GithubUsername, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
-
-			// --------------------------------------------------
-			// STEP 5 - submit pull request
-			var newPullRequest = new NewPullRequest(commitMessage, $"{fork.Owner.Login}:{newBranchName}", upstream.DefaultBranch)
+			var newPullRequest = new NewPullRequest(pullRequestCommitMessage, $"{fork.Owner.Login}:{newBranchName}", upstream.DefaultBranch)
 			{
 				Body = $"Resolves #{issue.Number}"
 			};

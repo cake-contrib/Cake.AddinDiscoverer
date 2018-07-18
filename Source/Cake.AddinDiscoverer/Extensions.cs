@@ -15,9 +15,9 @@ namespace Cake.AddinDiscoverer
 			sb.Append($"{value}\n");
 		}
 
-		public static async Task<Commit> ModifyFilesAsync(this IGitHubClient githubClient, Repository repo, Commit parentCommit, IEnumerable<string> filesToDelete, IDictionary<string, string> filesToAddOrModify, string commitMessage)
+		public static async Task<Commit> ModifyFilesAsync(this IGitHubClient githubClient, Repository repo, Commit parentCommit, IEnumerable<string> filesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> filesToUpsert, string commitMessage)
 		{
-			if (filesToDelete == null && filesToAddOrModify == null) throw new ArgumentNullException("You must specify at least one file to delete or one file to add/modify");
+			if (filesToDelete == null && filesToUpsert == null) throw new ArgumentNullException("You must specify at least one file to delete or one file to add/modify");
 
 			// Build the tree with the existing items
 			var nt = new NewTree();
@@ -44,22 +44,22 @@ namespace Cake.AddinDiscoverer
 			}
 
 			// Add or update items in the tree
-			if (filesToAddOrModify != null)
+			if (filesToUpsert != null)
 			{
-				foreach (var file in filesToAddOrModify)
+				foreach (var file in filesToUpsert)
 				{
-					var existingTreeItem = nt.Tree.Where(x => x.Path.Equals(file.Key)).FirstOrDefault();
-					if (existingTreeItem != null) nt.Tree.Remove(nt.Tree.Where(x => x.Path.Equals(file.Key)).First());
+					var existingTreeItem = nt.Tree.Where(x => x.Path.Equals(file.Path)).FirstOrDefault();
+					if (existingTreeItem != null) nt.Tree.Remove(existingTreeItem);
 
 					var fileBlob = new NewBlob
 					{
-						Encoding = EncodingType.Utf8,
-						Content = file.Value
+						Encoding = file.Encoding,
+						Content = file.Content
 					};
 					var fileBlobRef = await githubClient.Git.Blob.Create(repo.Owner.Login, repo.Name, fileBlob).ConfigureAwait(false);
 					nt.Tree.Add(new NewTreeItem
 					{
-						Path = file.Key,
+						Path = file.Path,
 						Mode = AddinDiscoverer.FILE_MODE,
 						Type = TreeType.Blob,
 						Sha = fileBlobRef.Sha
