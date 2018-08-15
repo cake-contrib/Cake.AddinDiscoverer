@@ -627,7 +627,7 @@ namespace Cake.AddinDiscoverer
 										{
 											return new
 											{
-												Id = d.Id,
+												d.Id,
 												NuGetVersion = d.VersionRange.HasUpperBound ? d.VersionRange.MaxVersion : d.VersionRange.MinVersion
 											};
 										});
@@ -1778,9 +1778,9 @@ namespace Cake.AddinDiscoverer
 			var latestCommit = await _githubClient.Git.Commit.Get(_options.GithubUsername, fork.Name, newBranch.Object.Sha).ConfigureAwait(false);
 			var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
 
-			foreach (var commitInfo in commits)
+			foreach (var (commitMessage, filesToDelete, filesToUpsert) in commits)
 			{
-				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, commitInfo.FilesToDelete, commitInfo.FilesToUpsert, $"(GH-{issue.Number}) {commitInfo.CommitMessage}").ConfigureAwait(false);
+				latestCommit = await _githubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, filesToUpsert, $"(GH-{issue.Number}) {commitMessage}").ConfigureAwait(false);
 			}
 
 			await _githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha)).ConfigureAwait(false);
