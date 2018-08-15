@@ -297,7 +297,7 @@ namespace Cake.AddinDiscoverer
 			else return currentFrameworks[0].EqualsIgnoreCase(desiredFramework);
 		}
 
-		private static Assembly LoadAssemblyFromPackage(IPackageCoreReader package, string assemblyPath)
+		private static Assembly LoadAssemblyFromPackage(IPackageCoreReader package, string assemblyPath, AssemblyLoadContext loadContext)
 		{
 			try
 			{
@@ -313,7 +313,7 @@ namespace Cake.AddinDiscoverer
 					{
 						assemblyStream.CopyTo(decompressedStream);
 						decompressedStream.Position = 0;
-						return AssemblyLoadContext.Default.LoadFromStream(decompressedStream);
+						return loadContext.LoadFromStream(decompressedStream);
 					}
 				}
 			}
@@ -651,7 +651,8 @@ namespace Cake.AddinDiscoverer
 									var dllReferences = Array.Empty<DllReference>();
 									if (!string.IsNullOrEmpty(assemblyPath))
 									{
-										var assembly = LoadAssemblyFromPackage(package, assemblyPath);
+										var loadContext = new AssemblyLoaderContext();
+										var assembly = LoadAssemblyFromPackage(package, assemblyPath, loadContext);
 										var assemblyReferences = assembly
 											.GetReferencedAssemblies()
 											.Select(r =>
@@ -1564,7 +1565,7 @@ namespace Cake.AddinDiscoverer
 			var commitMessage = "Update addins references";
 			var newBranchName = $"update_addins_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 			var filesToUpdate = outdatedRecipeFiles
-				.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, Path: outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake()))
+				.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake()))
 				.ToArray();
 			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, filesToUpdate).ConfigureAwait(false);
 		}
@@ -1636,7 +1637,7 @@ namespace Cake.AddinDiscoverer
 				packagesConfig.Append("</packages>");
 
 				var filesToUpdate = recipeFilesWithAtLeastOneReference
-					.Select(recipeFile => (EncodingType: EncodingType.Utf8, Path: recipeFile.Path, Content: recipeFile.GetContentForLatestCake()))
+					.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake()))
 					.Union(new[] { (EncodingType: EncodingType.Utf8, Path: PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
 					.ToArray();
 
