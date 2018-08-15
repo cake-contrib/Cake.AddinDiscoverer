@@ -1520,10 +1520,12 @@ namespace Cake.AddinDiscoverer
 			// Commit changes to a new branch and submit PR
 			var commitMessage = "Update addins references";
 			var newBranchName = $"update_addins_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-			var filesToUpdate = outdatedRecipeFiles
-				.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake()))
-				.ToArray();
-			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, filesToUpdate).ConfigureAwait(false);
+			var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+			{
+				(CommitMessage: commitMessage, FilesToDelete: null, FilesToUpsert: outdatedRecipeFiles.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake())).ToArray())
+			};
+
+			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, commits).ConfigureAwait(false);
 		}
 
 		private async Task UpgradeCakeVersionUsedByRecipeAsync(RecipeFile[] recipeFiles, CakeVersion latestCakeVersion)
@@ -1583,19 +1585,20 @@ namespace Cake.AddinDiscoverer
 
 			if (availableForLatestCakeVersionCount == totalReferencesCount)
 			{
-				var commitMessage = $"Upgrade to Cake {latestCakeVersion.Version.ToString(3)}";
-				var newBranchName = $"upgrade_cake_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-
 				var packagesConfig = new StringBuilder();
 				packagesConfig.AppendUnixLine("<? xml version=\"1.0\" encoding=\"utf-8\"?>");
 				packagesConfig.AppendUnixLine("<packages>");
 				packagesConfig.AppendUnixLine($"    <package id=\"Cake\" version=\"{latestCakeVersion.Version.ToString(3)}\" />");
 				packagesConfig.AppendUnixLine("</packages>");
 
-				var filesToUpdate = recipeFilesWithAtLeastOneReference
-					.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake()))
-					.Union(new[] { (EncodingType: EncodingType.Utf8, Path: PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
-					.ToArray();
+				// Commit changes to a new branch and submit PR
+				var commitMessage = $"Upgrade to Cake {latestCakeVersion.Version.ToString(3)}";
+				var newBranchName = $"upgrade_cake_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+				var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+				{
+					(CommitMessage: "Update addins references", FilesToDelete: null, FilesToUpsert: recipeFilesWithAtLeastOneReference.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake())).ToArray()),
+					(CommitMessage: "Update Cake version in package.config", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
+				};
 
 				await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, commits).ConfigureAwait(false);
 			}
