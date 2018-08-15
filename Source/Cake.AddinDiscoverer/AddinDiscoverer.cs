@@ -297,7 +297,7 @@ namespace Cake.AddinDiscoverer
 			else return currentFrameworks[0].EqualsIgnoreCase(desiredFramework);
 		}
 
-		private static Assembly LoadAssemblyFromPackage(IPackageCoreReader package, string assemblyPath)
+		private static Assembly LoadAssemblyFromPackage(IPackageCoreReader package, string assemblyPath, AssemblyLoadContext loadContext)
 		{
 			try
 			{
@@ -313,7 +313,7 @@ namespace Cake.AddinDiscoverer
 					{
 						assemblyStream.CopyTo(decompressedStream);
 						decompressedStream.Position = 0;
-						return AssemblyLoadContext.Default.LoadFromStream(decompressedStream);
+						return loadContext.LoadFromStream(decompressedStream);
 					}
 				}
 			}
@@ -651,7 +651,8 @@ namespace Cake.AddinDiscoverer
 									var dllReferences = Array.Empty<DllReference>();
 									if (!string.IsNullOrEmpty(assemblyPath))
 									{
-										var assembly = LoadAssemblyFromPackage(package, assemblyPath);
+										var loadContext = new AssemblyLoaderContext();
+										var assembly = LoadAssemblyFromPackage(package, assemblyPath, loadContext);
 										var assemblyReferences = assembly
 											.GetReferencedAssemblies()
 											.Select(r =>
