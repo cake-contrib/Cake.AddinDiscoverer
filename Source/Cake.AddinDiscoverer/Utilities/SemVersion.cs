@@ -151,8 +151,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <returns>If versionA is equal to versionB <c>true</c>, else <c>false</c>.</returns>
 		public static bool Equals(SemVersion versionA, SemVersion versionB)
 		{
-			if (ReferenceEquals(versionA, null))
-				return ReferenceEquals(versionB, null);
+			if (versionA is null) return versionB is null;
 			return versionA.Equals(versionB);
 		}
 
@@ -165,8 +164,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// if versionA is equal to versionB <c>0</c>.</returns>
 		public static int Compare(SemVersion versionA, SemVersion versionB)
 		{
-			if (ReferenceEquals(versionA, null))
-				return ReferenceEquals(versionB, null) ? 0 : -1;
+			if (versionA is null) return versionB is null ? 0 : -1;
 			return versionA.CompareTo(versionB);
 		}
 
@@ -274,12 +272,10 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </returns>
 		public int CompareTo(SemVersion other)
 		{
-			if (ReferenceEquals(other, null))
-				return 1;
+			if (other is null) return 1;
 
 			var r = this.CompareByPrecedence(other);
-			if (r != 0)
-				return r;
+			if (r != 0) return r;
 
 			r = CompareComponent(this.Build, other.Build);
 			return r;
@@ -310,8 +306,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </returns>
 		public int CompareByPrecedence(SemVersion other)
 		{
-			if (ReferenceEquals(other, null))
-				return 1;
+			if (other is null) return 1;
 
 			var r = this.Major.CompareTo(other.Major);
 			if (r != 0) return r;
@@ -335,11 +330,9 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </returns>
 		public override bool Equals(object obj)
 		{
-			if (ReferenceEquals(obj, null))
-				return false;
+			if (obj is null) return false;
 
-			if (ReferenceEquals(this, obj))
-				return true;
+			if (ReferenceEquals(this, obj)) return true;
 
 			var other = (SemVersion)obj;
 
@@ -477,9 +470,8 @@ namespace Cake.AddinDiscoverer.Utilities
 			{
 				var ac = aComps[i];
 				var bc = bComps[i];
-				int anum, bnum;
-				var isanum = int.TryParse(ac, out anum);
-				var isbnum = int.TryParse(bc, out bnum);
+				var isanum = int.TryParse(ac, out int anum);
+				var isbnum = int.TryParse(bc, out int bnum);
 				int r;
 				if (isanum && isbnum)
 				{
