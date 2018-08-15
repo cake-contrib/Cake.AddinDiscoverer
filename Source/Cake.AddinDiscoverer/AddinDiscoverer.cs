@@ -660,6 +660,11 @@ namespace Cake.AddinDiscoverer
 													f.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)
 												);
 										})
+										.OrderByDescending(f =>
+											f.Contains("netstandard2", StringComparison.OrdinalIgnoreCase) ? 3 :
+											f.Contains("netstandard1", StringComparison.OrdinalIgnoreCase) ? 2 :
+											f.Contains("net4", StringComparison.OrdinalIgnoreCase) ? 1 :
+											0)
 										.ToArray();
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 
