@@ -1,6 +1,8 @@
 ﻿using Octokit;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,6 +10,71 @@ namespace Cake.AddinDiscoverer
 {
 	internal static class Extensions
 	{
+		public static void AppendUnixLine(this StringBuilder sb, string value)
+		{
+			sb.Append($"{value}\n");
+		}
+
+		public static async Task<Commit> ModifyFilesAsync(this IGitHubClient githubClient, Repository repo, Commit parentCommit, IEnumerable<string> filesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> filesToUpsert, string commitMessage)
+		{
+			if (filesToDelete == null && filesToUpsert == null) throw new ArgumentNullException("You must specify at least one file to delete or one file to add/modify");
+
+			// Build the tree with the existing items
+			var nt = new NewTree();
+			var currentTree = await githubClient.Git.Tree.GetRecursive(repo.Owner.Login, repo.Name, parentCommit.Tree.Sha).ConfigureAwait(false);
+			currentTree.Tree
+				.Where(x => x.Type != TreeType.Tree)
+				.Select(x => new NewTreeItem
+				{
+					Path = x.Path,
+					Mode = x.Mode,
+					Type = x.Type.Value,
+					Sha = x.Sha
+				})
+				.ToList()
+				.ForEach(x => nt.Tree.Add(x));
+
+			// Remove items from the tree
+			if (filesToDelete != null)
+			{
+				foreach (var filePath in filesToDelete)
+				{
+					nt.Tree.Remove(nt.Tree.Where(x => x.Path.Equals(filePath)).First());
+				}
+			}
+
+			// Add or update items in the tree
+			if (filesToUpsert != null)
+			{
+				foreach (var file in filesToUpsert)
+				{
+					var existingTreeItem = nt.Tree.Where(x => x.Path.Equals(file.Path)).FirstOrDefault();
+					if (existingTreeItem != null) nt.Tree.Remove(existingTreeItem);
+
+					var fileBlob = new NewBlob
+					{
+						Encoding = file.Encoding,
+						Content = file.Content
+					};
+					var fileBlobRef = await githubClient.Git.Blob.Create(repo.Owner.Login, repo.Name, fileBlob).ConfigureAwait(false);
+					nt.Tree.Add(new NewTreeItem
+					{
+						Path = file.Path,
+						Mode = AddinDiscoverer.FILE_MODE,
+						Type = TreeType.Blob,
+						Sha = fileBlobRef.Sha
+					});
+				}
+			}
+
+			// Commit changes
+			var newTree = await githubClient.Git.Tree.Create(repo.Owner.Login, repo.Name, nt);
+			var newCommit = new NewCommit(commitMessage, newTree.Sha, parentCommit.Sha);
+			var latestCommit = await githubClient.Git.Commit.Create(repo.Owner.Login, repo.Name, newCommit);
+
+			return latestCommit;
+		}
+
 		public static async Task<TResult[]> ForEachAsync<T, TResult>(this IEnumerable<T> items, Func<T, Task<TResult>> action, int maxDegreeOfParalellism)
 		{
 			var allTasks = new List<Task<TResult>>();
@@ -70,6 +137,41 @@ namespace Cake.AddinDiscoverer
 			}
 
 			return fork;
+		}
+
+		public static string TrimStart(this string source, string value, StringComparison comparisonType)
+		{
+			if (source == null)
+			{
+				throw new ArgumentNullException(nameof(source));
+			}
+
+			int valueLength = value.Length;
+			int startIndex = 0;
+			while (source.IndexOf(value, startIndex, comparisonType) == startIndex)
+			{
+				startIndex += valueLength;
+			}
+
+			return source.Substring(startIndex);
+		}
+
+		public static string TrimEnd(this string source, string value, StringComparison comparisonType)
+		{
+			if (source == null)
+			{
+				throw new ArgumentNullException(nameof(source));
+			}
+
+			int sourceLength = source.Length;
+			int valueLength = value.Length;
+			int count = sourceLength;
+			while (source.LastIndexOf(value, count, comparisonType) == count - valueLength)
+			{
+				count -= valueLength;
+			}
+
+			return source.Substring(0, count);
 		}
 
 		public static bool IsFlagSet<T>(this T value, T flag)
