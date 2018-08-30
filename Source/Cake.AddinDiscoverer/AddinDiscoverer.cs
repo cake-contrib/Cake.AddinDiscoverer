@@ -797,7 +797,7 @@ namespace Cake.AddinDiscoverer
 			const int MAX_FILES_TO_COMMIT = 75;
 
 			// Ensure the fork is up-to-date
-			var fork = await _githubClient.RefreshFork(_options.GithubUsername, CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
+			var fork = await _githubClient.RefreshFork(_options.GithubUsername, CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
 			// Check if an issue already exists
