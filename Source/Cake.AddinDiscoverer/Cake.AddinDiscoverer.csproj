@@ -1,8 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetLatestRuntimePatch>false</TargetLatestRuntimePatch>
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
     <Version>3.3.0</Version>
   </PropertyGroup>
