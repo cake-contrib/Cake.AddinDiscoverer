@@ -155,7 +155,6 @@ Task("Run")
 {
 	var args = new Dictionary<string, string>()
 	{
-		{ "-s", null },
 		{ "-t", $"\"{outputDir}\"" },
 		{ "-u", $"\"{gitHubUserName}\"" },
 		{ "-p", $"\"{gitHubPassword}\"" },
