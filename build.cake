@@ -31,9 +31,9 @@ var milestone = string.Concat("v", versionInfo.MajorMinorPatch);
 var cakeVersion = typeof(ICakeContext).Assembly.GetName().Version.ToString();
 var isLocalBuild = BuildSystem.IsLocalBuild;
 var isMainBranch = StringComparer.OrdinalIgnoreCase.Equals("master", BuildSystem.AppVeyor.Environment.Repository.Branch);
-var	isMainRepo = StringComparer.OrdinalIgnoreCase.Equals(gitHubUserName + "/" + gitHubRepo, BuildSystem.AppVeyor.Environment.Repository.Name);
-var	isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
-var	isTagged = (
+var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals(gitHubUserName + "/" + gitHubRepo, BuildSystem.AppVeyor.Environment.Repository.Name);
+var isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
+var isTagged = (
 	BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag &&
 	!string.IsNullOrWhiteSpace(BuildSystem.AppVeyor.Environment.Repository.Tag.Name)
 );
@@ -164,6 +164,7 @@ Task("Run")
 	{
 		args.Add("-r", null);
 		args.Add("-x", null);
+		args.Add("-s", null);
 	}
 	else
 	{
