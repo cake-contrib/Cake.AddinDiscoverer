@@ -40,3 +40,32 @@ You can invoke this tool with the following arguments:
 This tool caches certain information such as the list of discovered addins, the content of `.sln` and `.csproj` file for performance reasons and also to ensure invoking this tool repeatedly does not cause you to exceed the number of GitHub API calls you are allowed to make in an hour. Make sure you add `-c` when invoking this tool when you want the previously cached information to be deleted and re-discover the list of plugins and re-download their solution and project files.
 
 If you specify `-i` to create a new issue in the addin Github repo, this tool will attempt to detect if an opened issue already exist to avoid creating duplicate issues.
+
+## What is automated
+
+As of version 3.4.0 we have automated the following:
+1. Addin report
+	- Discover all existing addins on nuget
+	- Exclude a few well-known packages (via a manually maintained "black list" file)
+	- Generate a markdown report
+	- Generate an Excel report
+	- Generate graph showing progress over time
+	- Commit the generate files to the `git-contrib/home` repo
+2. Synchronize YAML files
+	- Create YAML file for addins that do not already one
+	- Update existing YAML file when metadata for a given addin package has changed
+	- Delete YAML file when addin package is removed from nuget
+	- Create issue and submit PR in `cake-build/website` with all the deleted/modified/create YAML files
+	- PR must be reviewed by Cake staff
+	- Do not create any new PR until previous one is closed
+	- Keep in mind that I am arbitrarilly restricting the number of YAML file deleted, created or updated in order to avoid triggering github's abuse protection
+3. Maintain Cake.Recipe references
+	- Detect which version of Cake is used by Cake.Recipe (https://github.com/cake-contrib/Cake.Recipe/blob/develop/tools/packages.config)
+	- Make sure Cake.Recipe references the latest version of all addins compatible with the previously determined version of Cake
+	- Create issue and submit PR in `cake-contrib/recipe`
+	- PR must be reviewed by Cake staff
+4. Upgrade the version of Cake used by Cake.Recipe
+	- Determine if there is a newer version of Cake with breaking changes than what Cake.Recipe is currently using
+	- Determine if ALL referenced addins have been updated to support the newer version of Cake
+	- Create issue and submit PR in `cake-contrib/recipe`
+	- PR must be reviewed by Cake staff
