@@ -165,6 +165,7 @@ Task("Run")
 		args.Add("-r", null);
 		args.Add("-x", null);
 		args.Add("-s", null);
+		args.Add("-k", null);
 	}
 	else
 	{
