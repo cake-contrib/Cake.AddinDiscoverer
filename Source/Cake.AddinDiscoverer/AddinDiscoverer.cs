@@ -1627,6 +1627,7 @@ namespace Cake.AddinDiscoverer
 							addinReference.LatestVersionForCurrentCake = addins.SingleOrDefault(addin =>
 							{
 								return addin.Name.Equals(addinReference.Name, StringComparison.OrdinalIgnoreCase) &&
+									!addin.IsPrerelease &&
 									(currentCakeVersion == null || (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, currentCakeVersion.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, currentCakeVersion.Version))) &&
 									(nextCakeVersion == null || !(IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, nextCakeVersion.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, nextCakeVersion.Version)));
 							})?.NugetPackageVersion;
@@ -1634,6 +1635,7 @@ namespace Cake.AddinDiscoverer
 							addinReference.LatestVersionForLatestCake = addins.SingleOrDefault(addin =>
 							{
 								return addin.Name.Equals(addinReference.Name, StringComparison.OrdinalIgnoreCase) &&
+									!addin.IsPrerelease &&
 									(latestCakeVersion != null && (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, latestCakeVersion.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, latestCakeVersion.Version)));
 							})?.NugetPackageVersion;
 						}
