@@ -76,8 +76,18 @@ namespace Cake.AddinDiscoverer
 
 		private readonly CakeVersion[] _cakeVersions = new[]
 		{
-			new CakeVersion { Version = new SemVersion(0, 26, 0), Framework = "netstandard2.0" },
-			new CakeVersion { Version = new SemVersion(0, 28, 0), Framework = "netstandard2.0" }
+			new CakeVersion
+			{
+				Version = new SemVersion(0, 26, 0),
+				RequiredFramework = "netstandard2.0",
+				OptionalFramework = "net46"
+			},
+			new CakeVersion
+			{
+				Version = new SemVersion(0, 28, 0),
+				RequiredFramework = "netstandard2.0",
+				OptionalFramework = "net46"
+			}
 		};
 
 #pragma warning disable SA1000 // Keywords should be spaced correctly
@@ -143,7 +153,7 @@ namespace Cake.AddinDiscoverer
 				"Framework",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.Join(", ", addin.Frameworks),
-				(addin, cakeVersion) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (IsFrameworkUpToDate(addin.Frameworks, cakeVersion.Framework) ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (IsFrameworkUpToDate(addin.Frameworks, cakeVersion) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
 				DataDestination.All
@@ -304,11 +314,13 @@ namespace Cake.AddinDiscoverer
 			return currentVersion == null || currentVersion >= desiredVersion;
 		}
 
-		private static bool IsFrameworkUpToDate(string[] currentFrameworks, string desiredFramework)
+		private static bool IsFrameworkUpToDate(string[] currentFrameworks, CakeVersion desiredCakeVersion)
 		{
 			if (currentFrameworks == null) return false;
-			else if (currentFrameworks.Length != 1) return false;
-			else return currentFrameworks[0].EqualsIgnoreCase(desiredFramework);
+			else if (!currentFrameworks.Contains(desiredCakeVersion.RequiredFramework, StringComparer.InvariantCultureIgnoreCase)) return false;
+			else if (currentFrameworks.Length == 1) return true;
+			else if (currentFrameworks.Length == 2 && !string.IsNullOrEmpty(desiredCakeVersion.OptionalFramework) && currentFrameworks.Contains(desiredCakeVersion.OptionalFramework, StringComparer.InvariantCultureIgnoreCase)) return true;
+			else return false;
 		}
 
 		private static Assembly LoadAssemblyFromPackage(IPackageCoreReader package, string assemblyPath, AssemblyLoadContext loadContext)
@@ -969,7 +981,7 @@ namespace Cake.AddinDiscoverer
 
 							if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Core reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Core\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
 							if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Common reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Common\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
-							if (!IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion.Framework)) issuesDescription.AppendLine($"- [ ] Your addin should target {recommendedCakeVersion.Framework}. Please note that there is no need to multi-target, {recommendedCakeVersion.Framework} is sufficient.");
+							if (!IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion)) issuesDescription.AppendLine($"- [ ] Your addin should target {recommendedCakeVersion.RequiredFramework} at a minimum. Optionally, your addin can also multi-target {recommendedCakeVersion.OptionalFramework}.");
 							if (!addin.AnalysisResult.UsingCakeContribIcon) issuesDescription.AppendLine($"- [ ] The nuget package for your addin should use the cake-contrib icon. Specifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{CAKE_CONTRIB_ICON_URL}</PackageIconUrl>`.");
 
 							if (issuesDescription.Length > 0)
@@ -1236,7 +1248,7 @@ namespace Cake.AddinDiscoverer
 			{
 				markdown.AppendLine("- The `Cake Core Version` and `Cake Common Version` columns  show the version referenced by a given addin");
 				markdown.AppendLine($"- The `Cake Core IsPrivate` and `Cake Common IsPrivate` columns indicate whether the references are marked as private. In other words, we are looking for references with the `PrivateAssets=All` attribute like in this example: `<PackageReference Include=\"Cake.Common\" Version=\"{cakeVersion.Version}\" PrivateAssets=\"All\" />`");
-				markdown.AppendLine($"- The `Framework` column shows the .NET framework(s) targeted by a given addin. Addins should target {cakeVersion.Framework} only (there is no need to multi-target)");
+				markdown.AppendLine($"- The `Framework` column shows the .NET framework(s) targeted by a given addin. Addins should target {cakeVersion.RequiredFramework} at a minimum, and they can also optionally multi-target {cakeVersion.OptionalFramework}");
 			}
 
 			markdown.AppendLine();

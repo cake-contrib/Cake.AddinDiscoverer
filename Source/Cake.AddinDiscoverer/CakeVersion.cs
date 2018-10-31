@@ -7,7 +7,9 @@ namespace Cake.AddinDiscoverer
 	{
 		public SemVersion Version { get; set; }
 
-		public string Framework { get; set; }
+		public string RequiredFramework { get; set; }
+
+		public string OptionalFramework { get; set; }
 
 		public int CompareTo(object obj)
 		{
