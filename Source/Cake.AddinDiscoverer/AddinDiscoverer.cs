@@ -378,8 +378,8 @@ namespace Cake.AddinDiscoverer
 		private static string GetCategoriesForYaml(IEnumerable<string> tags)
 		{
 			var filteredAndFormatedTags = tags
-				.Except(_blackListedTags)
-				.Select(tag => tag.TrimStart("Cake-", StringComparison.OrdinalIgnoreCase))
+				.Except(_blackListedTags, StringComparer.InvariantCultureIgnoreCase)
+				.Select(tag => tag.TrimStart("Cake-", StringComparison.InvariantCultureIgnoreCase))
 				.Distinct(tag => tag)
 				.Select(tag => $"- {tag}");
 
