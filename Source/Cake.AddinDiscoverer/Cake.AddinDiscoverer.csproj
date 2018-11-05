@@ -29,7 +29,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
     <PackageReference Include="NuGet.Protocol.Core.Types" Version="4.2.0" />
     <PackageReference Include="NuGet.Protocol.Core.v3" Version="4.2.0" />
-    <PackageReference Include="Octokit" Version="0.31.0" />
+    <PackageReference Include="Octokit" Version="0.32.0" />
     <PackageReference Include="OxyPlot.WindowsForms" Version="1.0.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta004">
       <PrivateAssets>All</PrivateAssets>
