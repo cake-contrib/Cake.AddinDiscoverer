@@ -15,7 +15,8 @@
     "Cake.Testing",
     "Cake.Tin",
     "Cake.Xamarin.Build",
-    "Cake.Xamarin.Build.CakeBuilder"
+    "Cake.Xamarin.Build.CakeBuilder",
+    "Cake.Storm.*"
   ],
   "labels": [
     "Addin",

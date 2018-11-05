@@ -237,7 +237,7 @@ namespace Cake.AddinDiscoverer
 
 				// Clean black listed addins
 				addins = addins
-					.Where(addin => !_blackListedAddins.Any(blackListedAddinName => blackListedAddinName == addin.Name))
+					.Where(addin => !_blackListedAddins.Any(blackListedAddinName => addin.Name.IsMatch(blackListedAddinName)))
 					.OrderBy(addin => addin.Name)
 					.ToArray();
 				EnsureAtLeastOneAddin(addins);
