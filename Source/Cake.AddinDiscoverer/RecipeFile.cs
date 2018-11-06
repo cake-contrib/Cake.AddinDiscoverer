@@ -9,7 +9,7 @@ namespace Cake.AddinDiscoverer
 {
 	internal class RecipeFile
 	{
-		public static readonly Regex AddinReferenceRegex = new Regex("(?<lineprefix>.*?)(?<packageprefix>\\#addin nuget:\\?)(?<referencestring>.*?(?=(?:\")|$))(?<linepostfix>.*)", RegexOptions.Compiled | RegexOptions.Multiline);
+		public static readonly Regex AddinReferenceRegex = new Regex("(?<lineprefix>.*?)(?<packageprefix>\\#(addin|tool) nuget:\\?)(?<referencestring>.*?(?=(?:\")|$))(?<linepostfix>.*)", RegexOptions.Compiled | RegexOptions.Multiline);
 
 		private IEnumerable<AddinReference> _addinReferences;
 

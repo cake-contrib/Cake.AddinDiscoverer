@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -181,6 +182,19 @@ namespace Cake.AddinDiscoverer
 			long lValue = Convert.ToInt64(value);
 			long lFlag = Convert.ToInt64(flag);
 			return (lValue & lFlag) != 0;
+		}
+
+		/// <summary>
+		/// Checks if a string matches another which may include the following wild cards:
+		/// ? - any character(one and only one)
+		/// * - any characters(zero or more)
+		/// </summary>
+		/// <param name="source">The string to search for a match</param>
+		/// <param name="pattern">The patern to match</param>
+		/// <returns>true if a match was found, false otherwise</returns>
+		public static bool IsMatch(this string source, string pattern)
+		{
+			return Regex.IsMatch(source, "^" + Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$");
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)
