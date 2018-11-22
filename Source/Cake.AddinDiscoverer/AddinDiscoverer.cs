@@ -1530,14 +1530,21 @@ namespace Cake.AddinDiscoverer
 			issue = await _githubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
 
 			// Commit changes to a new branch and submit PR
-			var commitMessage = "Update addins references";
+			var commitMessageShort = "Update addins references";
+			var commitMessageLong = $"{commitMessageShort}{Environment.NewLine}{Environment.NewLine}" +
+				string.Join(
+					Environment.NewLine,
+					outdatedRecipeFiles.Select(f => $"{f.RecipeFile.Name}{Environment.NewLine}" +
+						string.Join(
+							Environment.NewLine,
+							f.OutdatedReferences.Select(r => $"  {r.Name} {r.ReferencedVersion} --> {r.LatestVersionForCurrentCake}"))));
 			var newBranchName = $"update_addins_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 			var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
 			{
-				(CommitMessage: commitMessage, FilesToDelete: null, FilesToUpsert: outdatedRecipeFiles.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake())).ToArray())
+				(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: outdatedRecipeFiles.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake())).ToArray())
 			};
 
-			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, commits).ConfigureAwait(false);
+			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
 		}
 
 		private async Task UpgradeCakeVersionUsedByRecipeAsync(RecipeFile[] recipeFiles, CakeVersion latestCakeVersion)
