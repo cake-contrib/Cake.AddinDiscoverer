@@ -39,7 +39,7 @@ namespace Cake.AddinDiscoverer
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKE_CONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
-		private const string CAKE_RECIPE_UPDATE_ADDINS_REFERENCES_ISSUE_TITLE = "Addin references need to be updated";
+		private const string CAKE_RECIPE_UPDATE_REFERENCES_ISSUE_TITLE = "References need to be updated";
 		private const string CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE = "Support Cake {0}";
 		private const string CAKECONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
 		private const string UNKNOWN_VERSION = "Unknown";
@@ -70,6 +70,8 @@ namespace Cake.AddinDiscoverer
 		private readonly string _excelReportPath;
 		private readonly string _markdownReportPath;
 		private readonly IGitHubClient _githubClient;
+		private readonly SourceRepository _nugetRepository;
+
 		private readonly string _statsSaveLocation;
 		private readonly string _graphSaveLocation;
 		private readonly string _addinDiscovererVersion;
@@ -217,6 +219,12 @@ namespace Cake.AddinDiscoverer
 				Credentials = credentials,
 			};
 			_githubClient = new GitHubClient(connection);
+
+			// Setup nuget
+			var providers = new List<Lazy<INuGetResourceProvider>>();
+			providers.AddRange(NuGet.Protocol.Core.Types.Repository.Provider.GetCoreV3());  // Add v3 API support
+			var packageSource = new PackageSource("https://api.nuget.org/v3/index.json");
+			_nugetRepository = new SourceRepository(packageSource, providers);
 
 			// Get assembly version
 			_addinDiscovererVersion = typeof(AddinDiscoverer).GetTypeInfo().Assembly.GetName().Version.ToString(3);
@@ -426,12 +434,6 @@ namespace Cake.AddinDiscoverer
 			if (string.IsNullOrEmpty(_options.AddinName)) Console.WriteLine("  Discovering Cake addins by querying Nuget.org");
 			else Console.WriteLine($"  Discovering {_options.AddinName} by querying Nuget.org");
 
-			var providers = new List<Lazy<INuGetResourceProvider>>();
-			providers.AddRange(NuGet.Protocol.Core.Types.Repository.Provider.GetCoreV3());  // Add v3 API support
-			var packageSource = new PackageSource("https://api.nuget.org/v3/index.json");
-			var sourceRepository = new SourceRepository(packageSource, providers);
-			var nugetPackageDownloadClient = sourceRepository.GetResource<DownloadResource>();
-
 			var take = 50;
 			var skip = 0;
 			var searchTerm = "Cake";
@@ -448,7 +450,7 @@ namespace Cake.AddinDiscoverer
 			if (!string.IsNullOrEmpty(_options.AddinName))
 			{
 				// Get metadata for one specific package
-				var nugetPackageMetadataClient = sourceRepository.GetResource<PackageMetadataResource>();
+				var nugetPackageMetadataClient = _nugetRepository.GetResource<PackageMetadataResource>();
 				var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(_options.AddinName, true, false, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
 				var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
 				if (mostRecentPackageMetadata != null)
@@ -458,7 +460,7 @@ namespace Cake.AddinDiscoverer
 			}
 			else
 			{
-				var nugetSearchClient = sourceRepository.GetResource<PackageSearchResource>();
+				var nugetSearchClient = _nugetRepository.GetResource<PackageSearchResource>();
 
 				// Search for all package matching the search term
 				while (true)
@@ -477,6 +479,7 @@ namespace Cake.AddinDiscoverer
 
 			//--------------------------------------------------
 			// STEP 2 - Download packages
+			var nugetPackageDownloadClient = _nugetRepository.GetResource<DownloadResource>();
 			await addinPackages
 				.ForEachAsync(
 					async package =>
@@ -1501,7 +1504,13 @@ namespace Cake.AddinDiscoverer
 				.Select(recipeFile => new
 				{
 					RecipeFile = recipeFile,
-					OutdatedReferences = recipeFile.AddinReferences.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake).ToArray()
+					OutdatedReferences = recipeFile.AddinReferences
+							.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake)
+							.Select(r => new { r.Name, r.ReferencedVersion, LatestVersion = r.LatestVersionForCurrentCake })
+						.Concat(recipeFile.ToolReferences
+							.Where(r => !string.IsNullOrEmpty(r.LatestVersion) && r.ReferencedVersion != r.LatestVersion)
+							.Select(r => new { r.Name, r.ReferencedVersion, r.LatestVersion }))
+						.ToArray()
 				})
 				.Where(recipeFile => recipeFile.OutdatedReferences.Any())
 				.ToArray();
@@ -1512,33 +1521,32 @@ namespace Cake.AddinDiscoverer
 			var upstream = fork.Parent;
 
 			// Check if an issue already exists
-			var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, CAKE_RECIPE_UPDATE_ADDINS_REFERENCES_ISSUE_TITLE).ConfigureAwait(false);
+			var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, CAKE_RECIPE_UPDATE_REFERENCES_ISSUE_TITLE).ConfigureAwait(false);
 			if (issue != null) return;
 
 			// Create the issue
-			var newIssue = new NewIssue(CAKE_RECIPE_UPDATE_ADDINS_REFERENCES_ISSUE_TITLE)
+			var newIssue = new NewIssue(CAKE_RECIPE_UPDATE_REFERENCES_ISSUE_TITLE)
 			{
-				Body = $"The following cake files contain outdated addin references that should be updated:{Environment.NewLine}" +
+				Body = $"The following cake files contain outdated references that should be updated:{Environment.NewLine}" +
 				string.Join(
 					Environment.NewLine,
 					outdatedRecipeFiles.Select(f => $"- `{f.RecipeFile.Name}` contains the following outdated references:{Environment.NewLine}" +
 						string.Join(
 							Environment.NewLine,
-							f.OutdatedReferences
-								.Select(r => $"    - {r.Name} {r.ReferencedVersion} --> {r.LatestVersionForCurrentCake}"))))
+							f.OutdatedReferences.Select(r => $"    - {r.Name} {r.ReferencedVersion} --> {r.LatestVersion}"))))
 			};
 			issue = await _githubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
 
 			// Commit changes to a new branch and submit PR
-			var commitMessageShort = "Update addins references";
+			var commitMessageShort = "Update references";
 			var commitMessageLong = $"{commitMessageShort}{Environment.NewLine}{Environment.NewLine}" +
 				string.Join(
 					Environment.NewLine,
 					outdatedRecipeFiles.Select(f => $"{f.RecipeFile.Name}{Environment.NewLine}" +
 						string.Join(
 							Environment.NewLine,
-							f.OutdatedReferences.Select(r => $"  {r.Name} {r.ReferencedVersion} --> {r.LatestVersionForCurrentCake}"))));
-			var newBranchName = $"update_addins_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+							f.OutdatedReferences.Select(r => $"  {r.Name} {r.ReferencedVersion} --> {r.LatestVersion}"))));
+			var newBranchName = $"update_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 			var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
 			{
 				(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: outdatedRecipeFiles.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake())).ToArray())
@@ -1658,6 +1666,19 @@ namespace Cake.AddinDiscoverer
 									(latestCakeVersion != null && (IsCakeVersionUpToDate(addin.AnalysisResult.CakeCoreVersion, latestCakeVersion.Version) && IsCakeVersionUpToDate(addin.AnalysisResult.CakeCommonVersion, latestCakeVersion.Version)));
 							})?.NugetPackageVersion;
 						}
+
+						var nugetPackageMetadataClient = _nugetRepository.GetResource<PackageMetadataResource>();
+						await recipeFile.ToolReferences.ForEachAsync(
+							async toolReference =>
+							{
+								var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(toolReference.Name, false, false, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+								var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
+								if (mostRecentPackageMetadata != null)
+								{
+									toolReference.LatestVersion = mostRecentPackageMetadata.Identity.Version.ToNormalizedString();
+								}
+							}, MAX_NUGET_CONCURENCY)
+						.ConfigureAwait(false);
 
 						return recipeFile;
 					}, MAX_GITHUB_CONCURENCY)

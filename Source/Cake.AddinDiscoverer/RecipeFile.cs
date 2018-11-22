@@ -9,9 +9,14 @@ namespace Cake.AddinDiscoverer
 {
 	internal class RecipeFile
 	{
-		public static readonly Regex AddinReferenceRegex = new Regex("(?<lineprefix>.*?)(?<packageprefix>\\#(addin|tool) nuget:\\?)(?<referencestring>.*?(?=(?:\")|$))(?<linepostfix>.*)", RegexOptions.Compiled | RegexOptions.Multiline);
+		public static readonly Regex AddinReferenceRegex = new Regex(string.Format(ADDIN_REFERENCE_REGEX, "addin"), RegexOptions.Compiled | RegexOptions.Multiline);
+		public static readonly Regex ToolReferenceRegex = new Regex(string.Format(ADDIN_REFERENCE_REGEX, "tool"), RegexOptions.Compiled | RegexOptions.Multiline);
+
+		private const string ADDIN_REFERENCE_REGEX = "(?<lineprefix>.*?)(?<packageprefix>\\#{0} nuget:\\?)(?<referencestring>.*?(?=(?:\")|$))(?<linepostfix>.*)";
 
 		private IEnumerable<AddinReference> _addinReferences;
+
+		private IEnumerable<ToolReference> _toolReferences;
 
 		public string Name { get; set; }
 
@@ -25,46 +30,70 @@ namespace Cake.AddinDiscoverer
 			{
 				if (_addinReferences == null)
 				{
-					var references = new List<AddinReference>();
-					var matchResults = RecipeFile.AddinReferenceRegex.Matches(Content);
-					foreach (Match match in matchResults)
-					{
-						var parameters = HttpUtility.ParseQueryString(match.Groups["referencestring"].Value);
-
-						var packageName = parameters["package"];
-						var referencedVersion = parameters["version"];
-
-						references.Add(new AddinReference()
-						{
-							Name = packageName,
-							ReferencedVersion = referencedVersion,
-							LatestVersionForCurrentCake = null,
-							LatestVersionForLatestCake = null
-						});
-					}
-
-					_addinReferences = references
-						.OrderBy(r => r.Name)
-						.ToArray();
+					_addinReferences = FindReferences<AddinReference>(Content, RecipeFile.AddinReferenceRegex);
 				}
 
 				return _addinReferences;
 			}
 		}
 
+		public IEnumerable<ToolReference> ToolReferences
+		{
+			get
+			{
+				if (_toolReferences == null)
+				{
+					_toolReferences = FindReferences<ToolReference>(Content, RecipeFile.ToolReferenceRegex);
+				}
+
+				return _toolReferences;
+			}
+		}
+
 		public string GetContentForCurrentCake()
 		{
-			return GetContent(Content, addin => addin.LatestVersionForCurrentCake);
+			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, reference => (reference as AddinReference).LatestVersionForCurrentCake);
+			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, reference => (reference as ToolReference).LatestVersion);
+			return updatedContent;
 		}
 
 		public string GetContentForLatestCake()
 		{
-			return GetContent(Content, addin => addin.LatestVersionForLatestCake);
+			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, reference => (reference as AddinReference).LatestVersionForLatestCake);
+			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, reference => (reference as ToolReference).LatestVersion);
+			return updatedContent;
 		}
 
-		private string GetContent(string content, Func<AddinReference, string> getAddinVersion)
+		private static IEnumerable<T> FindReferences<T>(string content, Regex regex)
+			where T : CakeReference, new()
 		{
-			var updatedContent = AddinReferenceRegex.Replace(content, match =>
+			var references = new List<T>();
+			var matchResults = regex.Matches(content);
+
+			if (!matchResults.Any()) return Array.Empty<T>();
+
+			foreach (Match match in matchResults)
+			{
+				var parameters = HttpUtility.ParseQueryString(match.Groups["referencestring"].Value);
+
+				var packageName = parameters["package"];
+				var referencedVersion = parameters["version"];
+
+				references.Add(new T()
+				{
+					Name = packageName,
+					ReferencedVersion = referencedVersion
+				});
+			}
+
+			return references
+				.OrderBy(r => r.Name)
+				.ToArray();
+		}
+
+		private string GetContent(string content, Regex regex, IEnumerable<CakeReference> references, Func<CakeReference, string> getUpdatedVersion)
+		{
+			var updatedContent = regex.Replace(content, match =>
 			{
 				var parameters = HttpUtility.ParseQueryString(match.Groups["referencestring"].Value);
 
@@ -76,10 +105,10 @@ namespace Cake.AddinDiscoverer
 				var exclude = parameters["exclude"];
 				var prerelease = parameters.AllKeys.Contains("prerelease");
 
-				var referencedAddin = AddinReferences.Where(addin => addin.Name.Equals(packageName, StringComparison.OrdinalIgnoreCase));
+				var referencedAddin = references.Where(addin => addin.Name.Equals(packageName, StringComparison.OrdinalIgnoreCase));
 				if (!referencedAddin.Any()) return match.Groups[0].Value;
 
-				var updatedVersion = getAddinVersion(referencedAddin.First());
+				var updatedVersion = getUpdatedVersion(referencedAddin.First());
 				if (string.IsNullOrEmpty(updatedVersion)) return match.Groups[0].Value;
 				if (referencedVersion == updatedVersion) return match.Groups[0].Value;
 

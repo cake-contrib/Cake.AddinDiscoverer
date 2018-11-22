@@ -1,11 +1,7 @@
 ﻿namespace Cake.AddinDiscoverer
 {
-	internal class AddinReference
+	internal class AddinReference : CakeReference
 	{
-		public string Name { get; set; }
-
-		public string ReferencedVersion { get; set; }
-
 		public string LatestVersionForCurrentCake { get; set; }
 
 		public string LatestVersionForLatestCake { get; set; }
