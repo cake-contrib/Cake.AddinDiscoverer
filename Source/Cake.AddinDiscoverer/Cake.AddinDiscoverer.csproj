@@ -6,9 +6,6 @@
     <TargetLatestRuntimePatch>false</TargetLatestRuntimePatch>
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
     <Version>3.8.0</Version>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
