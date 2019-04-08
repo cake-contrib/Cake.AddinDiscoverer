@@ -542,7 +542,7 @@ namespace Cake.AddinDiscoverer
 						AnalysisResult = new AddinAnalysisResult(),
 						Maintainer = package.Authors,
 						Description = package.Description,
-						GithubRepoUrl = package.ProjectUrl != null && package.ProjectUrl.Host.Contains("github.com") ? package.ProjectUrl : null,
+						GithubRepoUrl = (package.ProjectUrl != null && package.ProjectUrl.Host.Contains("github.com") ? package.ProjectUrl : null).ForceHttps(),
 						IconUrl = package.IconUrl,
 						Name = package.Identity.Id,
 						NugetPackageUrl = new Uri($"https://www.nuget.org/packages/{package.Identity.Id}/"),
