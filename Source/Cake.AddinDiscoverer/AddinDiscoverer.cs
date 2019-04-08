@@ -496,7 +496,12 @@ namespace Cake.AddinDiscoverer
 							// Delete prior versions of this package
 							foreach (string f in Directory.EnumerateFiles(_packagesFolder, $"{package.Identity.Id}.*.nupkg"))
 							{
-								File.Delete(f);
+								var expectedSplitLength = package.Identity.Id.Split('.').Length + package.Identity.Version.ToNormalizedString().Split('.').Length;
+								var fileName = Path.GetFileNameWithoutExtension(f);
+								if (fileName.Split('.').Length == expectedSplitLength)
+								{
+									File.Delete(f);
+								}
 							}
 
 							// Download the latest version of the package
