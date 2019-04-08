@@ -179,12 +179,16 @@ Task("Run")
 	Information($"{publishDir}{appName}.exe {displayArgs}");
 
 	// Execute the command
-	StartProcess(
+	var processResult = StartProcess(
 		new FilePath($"{publishDir}{appName}.exe"),
 		new ProcessSettings()
 		{
 			Arguments = string.Join(" ", args.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim()))
 		});
+	if (processResult != 0)
+	{
+		throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
+	}
 });
 
 Task("Upload-Artifacts")  

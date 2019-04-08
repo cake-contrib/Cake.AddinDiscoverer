@@ -197,6 +197,17 @@ namespace Cake.AddinDiscoverer
 			return Regex.IsMatch(source, "^" + Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$");
 		}
 
+		public static Uri ForceHttps(this Uri originalUri)
+		{
+			if (originalUri == null) return null;
+
+			return new UriBuilder(originalUri)
+			{
+				Scheme = Uri.UriSchemeHttps,
+				Port = originalUri.IsDefaultPort ? -1 : originalUri.Port // -1 => default port for scheme
+			}.Uri;
+		}
+
 		private static void CheckIsEnum<T>(bool withFlags)
 		{
 			if (!typeof(T).IsEnum)
