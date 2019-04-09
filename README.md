@@ -55,10 +55,10 @@ As of version 3.4.0 we have automated the following:
 	- Create YAML file for addins that do not already one
 	- Update existing YAML file when metadata for a given addin package has changed
 	- Delete YAML file when addin package is removed from nuget
-	- Create issue and submit PR in `cake-build/website` with all the deleted/modified/create YAML files
+	- Create issue and submit PR in `cake-build/website` with all the deleted/modified/created YAML files
 	- PR must be reviewed by Cake staff
-	- Do not create any new PR until previous one is closed
-	- Keep in mind that I am arbitrarilly restricting the number of YAML file deleted, created or updated in order to avoid triggering github's abuse protection
+	- Do not create any new issue until previous one is closed
+	- Keep in mind that I am arbitrarily restricting the number of YAML file deleted, created or updated in order to avoid triggering github's abuse protection
 3. Maintain Cake.Recipe references
 	- Detect which version of Cake is used by Cake.Recipe (https://github.com/cake-contrib/Cake.Recipe/blob/develop/tools/packages.config)
 	- Make sure Cake.Recipe references the latest version of all addins compatible with the previously determined version of Cake
