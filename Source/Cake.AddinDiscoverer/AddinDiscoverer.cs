@@ -435,8 +435,8 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> DiscoverCakeAddinsAsync()
 		{
-			if (string.IsNullOrEmpty(_options.AddinName)) Console.WriteLine("  Discovering Cake addins by querying Nuget.org");
-			else Console.WriteLine($"  Discovering {_options.AddinName} by querying Nuget.org");
+			if (string.IsNullOrEmpty(_options.AddinName)) Console.WriteLine("  Discovering Cake addins by querying NuGet.org");
+			else Console.WriteLine($"  Discovering {_options.AddinName} by querying NuGet.org");
 
 			var take = 50;
 			var skip = 0;
@@ -450,7 +450,7 @@ namespace Cake.AddinDiscoverer
 			var addinPackages = new List<IPackageSearchMetadata>(take);
 
 			//--------------------------------------------------
-			// STEP 1 - Get the metadata from Nuget.org
+			// STEP 1 - Get the metadata from NuGet.org
 			if (!string.IsNullOrEmpty(_options.AddinName))
 			{
 				// Get metadata for one specific package
@@ -1182,7 +1182,7 @@ namespace Cake.AddinDiscoverer
 
 			markdown.AppendLine("# Reports");
 			markdown.AppendLine();
-			markdown.AppendLine($"- Click [here]({Path.GetFileNameWithoutExtension(_markdownReportPath)}_for_recipes.md) to view the report for Nuget packages containing recipes.");
+			markdown.AppendLine($"- Click [here]({Path.GetFileNameWithoutExtension(_markdownReportPath)}_for_recipes.md) to view the report for NuGet packages containing recipes.");
 			foreach (var cakeVersion in _cakeVersions)
 			{
 				markdown.AppendLine($"- Click [here]({Path.GetFileNameWithoutExtension(_markdownReportPath)}_for_Cake_{cakeVersion.Version}.md) to view the report for Cake {cakeVersion.Version}.");
