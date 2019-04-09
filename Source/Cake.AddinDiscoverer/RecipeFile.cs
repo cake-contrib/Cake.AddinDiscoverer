@@ -52,15 +52,21 @@ namespace Cake.AddinDiscoverer
 
 		public string GetContentForCurrentCake()
 		{
-			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, reference => (reference as AddinReference).LatestVersionForCurrentCake);
-			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, reference => (reference as ToolReference).LatestVersion);
+			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, r => (r as AddinReference).LatestVersionForCurrentCake);
+			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, r => (r as ToolReference).LatestVersion);
 			return updatedContent;
 		}
 
 		public string GetContentForLatestCake()
 		{
-			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, reference => (reference as AddinReference).LatestVersionForLatestCake);
-			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, reference => (reference as ToolReference).LatestVersion);
+			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, r => (r as AddinReference).LatestVersionForLatestCake);
+			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, r => (r as ToolReference).LatestVersion);
+			return updatedContent;
+		}
+
+		public string GetContentWithUpdatedReference(CakeReference reference, string desiredVersion)
+		{
+			var updatedContent = GetContent(Content, AddinReferenceRegex, new[] { reference }, r => desiredVersion);
 			return updatedContent;
 		}
 
