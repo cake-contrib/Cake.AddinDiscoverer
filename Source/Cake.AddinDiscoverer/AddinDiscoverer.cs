@@ -1530,7 +1530,7 @@ namespace Cake.AddinDiscoverer
 					async outdatedReference =>
 					{
 						// Check if an issue already exists
-						var issueTitle = $"(THIS IS A TEST, PLEASE IGNORE) Reference to {outdatedReference.Type} {outdatedReference.Reference.Name} in {outdatedReference.Recipe.Name} needs to be updated";
+						var issueTitle = $"Reference to {outdatedReference.Type} {outdatedReference.Reference.Name} in {outdatedReference.Recipe.Name} needs to be updated";
 						var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, issueTitle).ConfigureAwait(false);
 						if (issue != null) return;
 
@@ -1542,7 +1542,7 @@ namespace Cake.AddinDiscoverer
 						issue = await _githubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
 
 						// Commit changes to a new branch and submit PR
-						var commitMessageShort = $"(THIS IS A TEST, PLEASE IGNORE) Update {outdatedReference.Reference.Name} reference to {outdatedReference.LatestVersion}";
+						var commitMessageShort = $"Update {outdatedReference.Reference.Name} reference to {outdatedReference.LatestVersion}";
 						var commitMessageLong = $"Update {outdatedReference.Reference.Name} reference from {outdatedReference.Reference.ReferencedVersion} to {outdatedReference.LatestVersion}";
 						var newBranchName = $"update_{outdatedReference.Reference.Name.Replace('/', '_').Replace('.', '_').Replace('\\', '_')}_reference_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
