@@ -39,7 +39,6 @@ namespace Cake.AddinDiscoverer
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKE_CONTRIB_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/cake-contrib-medium.png";
-		private const string CAKE_RECIPE_UPDATE_REFERENCES_ISSUE_TITLE = "References need to be updated";
 		private const string CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE = "Support Cake {0}";
 		private const string UNKNOWN_VERSION = "Unknown";
 		private const int MAX_GITHUB_CONCURENCY = 10;
@@ -1509,60 +1508,51 @@ namespace Cake.AddinDiscoverer
 
 		private async Task UpdateOutdatedRecipeFilesAsync(RecipeFile[] recipeFiles)
 		{
-			// Make sure there is at least one outdated addin reference
-			var outdatedRecipeFiles = recipeFiles
-				.Select(recipeFile => new
-				{
-					RecipeFile = recipeFile,
-					OutdatedReferences = recipeFile.AddinReferences
-							.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake)
-							.Select(r => new { r.Name, r.ReferencedVersion, LatestVersion = r.LatestVersionForCurrentCake })
-						.Concat(recipeFile.ToolReferences
-							.Where(r => !string.IsNullOrEmpty(r.LatestVersion) && r.ReferencedVersion != r.LatestVersion)
-							.Select(r => new { r.Name, r.ReferencedVersion, r.LatestVersion }))
-						.ToArray()
-				})
-				.Where(recipeFile => recipeFile.OutdatedReferences.Any())
+			// Make sure there is at least one outdated reference
+			var outdatedReferences = recipeFiles
+				.SelectMany(recipeFile => recipeFile.AddinReferences
+					.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake)
+					.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "addin", LatestVersion = r.LatestVersionForCurrentCake }))
+				.Concat(recipeFiles
+					.SelectMany(recipeFile => recipeFile.ToolReferences
+						.Where(r => !string.IsNullOrEmpty(r.LatestVersion) && r.ReferencedVersion != r.LatestVersion)
+						.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "tool", r.LatestVersion })))
 				.ToArray();
-			if (!outdatedRecipeFiles.Any()) return;
+			if (!outdatedReferences.Any()) return;
 
 			// Ensure the fork is up-to-date
 			var fork = await _githubClient.RefreshFork(_options.GithubUsername, CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
-			// Check if an issue already exists
-			var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, CAKE_RECIPE_UPDATE_REFERENCES_ISSUE_TITLE).ConfigureAwait(false);
-			if (issue != null) return;
+			// Create an issue and PR for each outdated reference
+			await outdatedReferences
+				.ForEachAsync(
+					async outdatedReference =>
+					{
+						// Check if an issue already exists
+						var issueTitle = $"Reference to {outdatedReference.Type} {outdatedReference.Reference.Name} in {outdatedReference.Recipe.Name} needs to be updated";
+						var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, issueTitle).ConfigureAwait(false);
+						if (issue != null) return;
 
-			// Create the issue
-			var newIssue = new NewIssue(CAKE_RECIPE_UPDATE_REFERENCES_ISSUE_TITLE)
-			{
-				Body = $"The following cake files contain outdated references that should be updated:{Environment.NewLine}" +
-				string.Join(
-					Environment.NewLine,
-					outdatedRecipeFiles.Select(f => $"- `{f.RecipeFile.Name}` contains the following outdated references:{Environment.NewLine}" +
-						string.Join(
-							Environment.NewLine,
-							f.OutdatedReferences.Select(r => $"    - {r.Name} {r.ReferencedVersion} --> {r.LatestVersion}"))))
-			};
-			issue = await _githubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
+						// Create the issue
+						var newIssue = new NewIssue(issueTitle)
+						{
+							Body = $"Reference to {outdatedReference.Reference.Name} {outdatedReference.Reference.ReferencedVersion} in {outdatedReference.Recipe.Name} should be updated to {outdatedReference.LatestVersion}"
+						};
+						issue = await _githubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
 
-			// Commit changes to a new branch and submit PR
-			var commitMessageShort = "Update references";
-			var commitMessageLong = $"{commitMessageShort}{Environment.NewLine}{Environment.NewLine}" +
-				string.Join(
-					Environment.NewLine,
-					outdatedRecipeFiles.Select(f => $"{f.RecipeFile.Name}{Environment.NewLine}" +
-						string.Join(
-							Environment.NewLine,
-							f.OutdatedReferences.Select(r => $"  {r.Name} {r.ReferencedVersion} --> {r.LatestVersion}"))));
-			var newBranchName = $"update_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-			var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
-			{
-				(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: outdatedRecipeFiles.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake())).ToArray())
-			};
+						// Commit changes to a new branch and submit PR
+						var commitMessageShort = $"Update {outdatedReference.Reference.Name} reference to {outdatedReference.LatestVersion}";
+						var commitMessageLong = $"Update {outdatedReference.Reference.Name} reference from {outdatedReference.Reference.ReferencedVersion} to {outdatedReference.LatestVersion}";
+						var newBranchName = $"update_{outdatedReference.Reference.Name.Replace('/', '_').Replace('.', '_').Replace('\\', '_')}_reference_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+						{
+							(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, outdatedReference.Recipe.Path, Content: outdatedReference.Recipe.GetContentForCurrentCake(outdatedReference.Reference)) })
+						};
 
-			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
+						await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
+					}, MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
 		}
 
 		private async Task UpgradeCakeVersionUsedByRecipeAsync(RecipeFile[] recipeFiles, CakeVersion latestCakeVersion)
