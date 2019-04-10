@@ -39,7 +39,6 @@ namespace Cake.AddinDiscoverer
 		private const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		private const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
 		private const string CAKE_CONTRIB_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/cake-contrib-medium.png";
-		private const string CAKE_RECIPE_UPDATE_REFERENCES_ISSUE_TITLE = "References need to be updated";
 		private const string CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE = "Support Cake {0}";
 		private const string UNKNOWN_VERSION = "Unknown";
 		private const int MAX_GITHUB_CONCURENCY = 10;
@@ -436,8 +435,8 @@ namespace Cake.AddinDiscoverer
 
 		private async Task<AddinMetadata[]> DiscoverCakeAddinsAsync()
 		{
-			if (string.IsNullOrEmpty(_options.AddinName)) Console.WriteLine("  Discovering Cake addins by querying Nuget.org");
-			else Console.WriteLine($"  Discovering {_options.AddinName} by querying Nuget.org");
+			if (string.IsNullOrEmpty(_options.AddinName)) Console.WriteLine("  Discovering Cake addins by querying NuGet.org");
+			else Console.WriteLine($"  Discovering {_options.AddinName} by querying NuGet.org");
 
 			var take = 50;
 			var skip = 0;
@@ -451,7 +450,7 @@ namespace Cake.AddinDiscoverer
 			var addinPackages = new List<IPackageSearchMetadata>(take);
 
 			//--------------------------------------------------
-			// STEP 1 - Get the metadata from Nuget.org
+			// STEP 1 - Get the metadata from NuGet.org
 			if (!string.IsNullOrEmpty(_options.AddinName))
 			{
 				// Get metadata for one specific package
@@ -815,8 +814,6 @@ namespace Cake.AddinDiscoverer
 		{
 			Console.WriteLine("  Synchronizing yml files on the Cake web site");
 
-			const string ISSUE_TITLE = "Synchronize YAML files";
-
 			// Arbitrary max number of files to delete, add and modify in a given commit.
 			// This is to avoid AbuseException when commiting too many files.
 			const int MAX_FILES_TO_COMMIT = 75;
@@ -824,10 +821,6 @@ namespace Cake.AddinDiscoverer
 			// Ensure the fork is up-to-date
 			var fork = await _githubClient.RefreshFork(_options.GithubUsername, CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
-
-			// Check if an issue already exists
-			var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, ISSUE_TITLE).ConfigureAwait(false);
-			if (issue != null) return;
 
 			// --------------------------------------------------
 			// Discover if any files need to be added/deleted/modified
@@ -885,27 +878,89 @@ namespace Cake.AddinDiscoverer
 				})
 				.ToArray();
 
-			if (!yamlToBeDeleted.Any() && !addinsToBeCreated.Any() && !addinsToBeUpdated.Any()) return;
-
-			// Create issue
-			var newIssue = new NewIssue(ISSUE_TITLE)
+			if (yamlToBeDeleted.Any())
 			{
-				Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on Nuget.org:{Environment.NewLine}" +
-					$"{Environment.NewLine}YAML files to be deleted:{Environment.NewLine}{string.Join(Environment.NewLine, yamlToBeDeleted.Select(f => $"- {f.Name}"))}{Environment.NewLine}" +
-					$"{Environment.NewLine}YAML files to be created:{Environment.NewLine}{string.Join(Environment.NewLine, addinsToBeCreated.Select(a => $"- {a.Addin.Name}"))}{Environment.NewLine}" +
-					$"{Environment.NewLine}YAML files to be updated:{Environment.NewLine}{string.Join(Environment.NewLine, addinsToBeUpdated.Select(a => $"- {a.Addin.Name}"))}{Environment.NewLine}"
-			};
-			issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+				var issueTitle = "(THIS IS A TEST, PLEASE IGNORE) Delete YAML files";
 
-			// Commit changes to a new branch and submit PR
-			var commitMessage = "Synchronize YAML files";
-			var newBranchName = $"synchronize_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-			var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
-			if (yamlToBeDeleted.Any()) commits.Add((CommitMessage: "Delete YAML files that do not have a corresponding Nuget package", FilesToDelete: yamlToBeDeleted.Select(y => y.Path).ToArray(), FilesToUpsert: null));
-			if (addinsToBeCreated.Any()) commits.Add((CommitMessage: "Add YAML files for Nuget packages we discovered", FilesToDelete: null, FilesToUpsert: addinsToBeCreated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray()));
-			if (addinsToBeUpdated.Any()) commits.Add((CommitMessage: "Update YAML files to match metadata from Nuget", FilesToDelete: null, FilesToUpsert: addinsToBeUpdated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray()));
+				// Check if an issue already exists
+				var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, issueTitle).ConfigureAwait(false);
+				if (issue == null)
+				{
+					// Create issue
+					var newIssue = new NewIssue(issueTitle)
+					{
+						Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on NuGet.org:{Environment.NewLine}" +
+							$"{Environment.NewLine}The following YAML files found on Cake's web site do not have a corresponding NuGet package. Therefore they must be deleted:{Environment.NewLine}" +
+							string.Join(Environment.NewLine, yamlToBeDeleted.Select(f => $"- {f.Name}")) + Environment.NewLine
+					};
+					issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
 
-			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessage, commits).ConfigureAwait(false);
+					// Commit changes to a new branch and submit PR
+					var newBranchName = $"delete_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+					{
+						(CommitMessage: "Delete YAML files that do not have a corresponding NuGet package", FilesToDelete: yamlToBeDeleted.Select(y => y.Path).ToArray(), FilesToUpsert: null)
+					};
+
+					await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, issueTitle, commits).ConfigureAwait(false);
+				}
+			}
+
+			if (addinsToBeCreated.Any())
+			{
+				var issueTitle = "(THIS IS A TEST, PLEASE IGNORE) Add YAML files";
+
+				// Check if an issue already exists
+				var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, issueTitle).ConfigureAwait(false);
+				if (issue == null)
+				{
+					// Create issue
+					var newIssue = new NewIssue(issueTitle)
+					{
+						Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on NuGet.org:{Environment.NewLine}" +
+							$"{Environment.NewLine}The following packages found on NuGet's web site do not have a corresponding YAML file. Therefore a YAML file must be created for each:{Environment.NewLine}" +
+							string.Join(Environment.NewLine, addinsToBeCreated.Select(a => $"- {a.Addin.Name}")) + Environment.NewLine
+					};
+					issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+
+					// Commit changes to a new branch and submit PR
+					var newBranchName = $"add_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+					{
+						(CommitMessage: "Add YAML files for NuGet packages we discovered", FilesToDelete: null, FilesToUpsert: addinsToBeCreated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray())
+					};
+
+					await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, issueTitle, commits).ConfigureAwait(false);
+				}
+			}
+
+			if (addinsToBeUpdated.Any())
+			{
+				var issueTitle = "(THIS IS A TEST, PLEASE IGNORE) Update YAML files";
+
+				// Check if an issue already exists
+				var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, issueTitle).ConfigureAwait(false);
+				if (issue == null)
+				{
+					// Create issue
+					var newIssue = new NewIssue(issueTitle)
+					{
+						Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on NuGet.org:{Environment.NewLine}" +
+							$"{Environment.NewLine}The content of the following YAML files does not match the metadata in their corresponding NuGet package. Therefore the YAML files need to be updated:{Environment.NewLine}" +
+						string.Join(Environment.NewLine, addinsToBeUpdated.Select(a => $"- {a.Addin.Name}")) + Environment.NewLine
+					};
+					issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+
+					// Commit changes to a new branch and submit PR
+					var newBranchName = $"update_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+					{
+						(CommitMessage: "Update YAML files to match metadata from NuGet", FilesToDelete: null, FilesToUpsert: addinsToBeUpdated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray())
+					};
+
+					await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, issueTitle, commits).ConfigureAwait(false);
+				}
+			}
 		}
 
 		private AddinMetadata[] AnalyzeAddins(IEnumerable<AddinMetadata> addins)
@@ -1183,7 +1238,7 @@ namespace Cake.AddinDiscoverer
 
 			markdown.AppendLine("# Reports");
 			markdown.AppendLine();
-			markdown.AppendLine($"- Click [here]({Path.GetFileNameWithoutExtension(_markdownReportPath)}_for_recipes.md) to view the report for Nuget packages containing recipes.");
+			markdown.AppendLine($"- Click [here]({Path.GetFileNameWithoutExtension(_markdownReportPath)}_for_recipes.md) to view the report for NuGet packages containing recipes.");
 			foreach (var cakeVersion in _cakeVersions)
 			{
 				markdown.AppendLine($"- Click [here]({Path.GetFileNameWithoutExtension(_markdownReportPath)}_for_Cake_{cakeVersion.Version}.md) to view the report for Cake {cakeVersion.Version}.");
@@ -1509,60 +1564,51 @@ namespace Cake.AddinDiscoverer
 
 		private async Task UpdateOutdatedRecipeFilesAsync(RecipeFile[] recipeFiles)
 		{
-			// Make sure there is at least one outdated addin reference
-			var outdatedRecipeFiles = recipeFiles
-				.Select(recipeFile => new
-				{
-					RecipeFile = recipeFile,
-					OutdatedReferences = recipeFile.AddinReferences
-							.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake)
-							.Select(r => new { r.Name, r.ReferencedVersion, LatestVersion = r.LatestVersionForCurrentCake })
-						.Concat(recipeFile.ToolReferences
-							.Where(r => !string.IsNullOrEmpty(r.LatestVersion) && r.ReferencedVersion != r.LatestVersion)
-							.Select(r => new { r.Name, r.ReferencedVersion, r.LatestVersion }))
-						.ToArray()
-				})
-				.Where(recipeFile => recipeFile.OutdatedReferences.Any())
+			// Make sure there is at least one outdated reference
+			var outdatedReferences = recipeFiles
+				.SelectMany(recipeFile => recipeFile.AddinReferences
+					.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake)
+					.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "addin", LatestVersion = r.LatestVersionForCurrentCake }))
+				.Concat(recipeFiles
+					.SelectMany(recipeFile => recipeFile.ToolReferences
+						.Where(r => !string.IsNullOrEmpty(r.LatestVersion) && r.ReferencedVersion != r.LatestVersion)
+						.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "tool", r.LatestVersion })))
 				.ToArray();
-			if (!outdatedRecipeFiles.Any()) return;
+			if (!outdatedReferences.Any()) return;
 
 			// Ensure the fork is up-to-date
 			var fork = await _githubClient.RefreshFork(_options.GithubUsername, CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
-			// Check if an issue already exists
-			var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, CAKE_RECIPE_UPDATE_REFERENCES_ISSUE_TITLE).ConfigureAwait(false);
-			if (issue != null) return;
+			// Create an issue and PR for each outdated reference
+			await outdatedReferences
+				.ForEachAsync(
+					async outdatedReference =>
+					{
+						// Check if an issue already exists
+						var issueTitle = $"Reference to {outdatedReference.Type} {outdatedReference.Reference.Name} in {outdatedReference.Recipe.Name} needs to be updated";
+						var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, issueTitle).ConfigureAwait(false);
+						if (issue != null) return;
 
-			// Create the issue
-			var newIssue = new NewIssue(CAKE_RECIPE_UPDATE_REFERENCES_ISSUE_TITLE)
-			{
-				Body = $"The following cake files contain outdated references that should be updated:{Environment.NewLine}" +
-				string.Join(
-					Environment.NewLine,
-					outdatedRecipeFiles.Select(f => $"- `{f.RecipeFile.Name}` contains the following outdated references:{Environment.NewLine}" +
-						string.Join(
-							Environment.NewLine,
-							f.OutdatedReferences.Select(r => $"    - {r.Name} {r.ReferencedVersion} --> {r.LatestVersion}"))))
-			};
-			issue = await _githubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
+						// Create the issue
+						var newIssue = new NewIssue(issueTitle)
+						{
+							Body = $"Reference to {outdatedReference.Reference.Name} {outdatedReference.Reference.ReferencedVersion} in {outdatedReference.Recipe.Name} should be updated to {outdatedReference.LatestVersion}"
+						};
+						issue = await _githubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
 
-			// Commit changes to a new branch and submit PR
-			var commitMessageShort = "Update references";
-			var commitMessageLong = $"{commitMessageShort}{Environment.NewLine}{Environment.NewLine}" +
-				string.Join(
-					Environment.NewLine,
-					outdatedRecipeFiles.Select(f => $"{f.RecipeFile.Name}{Environment.NewLine}" +
-						string.Join(
-							Environment.NewLine,
-							f.OutdatedReferences.Select(r => $"  {r.Name} {r.ReferencedVersion} --> {r.LatestVersion}"))));
-			var newBranchName = $"update_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-			var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
-			{
-				(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: outdatedRecipeFiles.Select(outdatedRecipeFile => (EncodingType: EncodingType.Utf8, outdatedRecipeFile.RecipeFile.Path, Content: outdatedRecipeFile.RecipeFile.GetContentForCurrentCake())).ToArray())
-			};
+						// Commit changes to a new branch and submit PR
+						var commitMessageShort = $"Update {outdatedReference.Reference.Name} reference to {outdatedReference.LatestVersion}";
+						var commitMessageLong = $"Update {outdatedReference.Reference.Name} reference from {outdatedReference.Reference.ReferencedVersion} to {outdatedReference.LatestVersion}";
+						var newBranchName = $"update_{outdatedReference.Reference.Name.Replace('/', '_').Replace('.', '_').Replace('\\', '_')}_reference_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+						{
+							(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, outdatedReference.Recipe.Path, Content: outdatedReference.Recipe.GetContentForCurrentCake(outdatedReference.Reference)) })
+						};
 
-			await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
+						await CommitToNewBranchAndSubmitPullRequestAsync(fork, issue, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
+					}, MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
 		}
 
 		private async Task UpgradeCakeVersionUsedByRecipeAsync(RecipeFile[] recipeFiles, CakeVersion latestCakeVersion)

@@ -2,7 +2,7 @@
 Tool to aid with discovering information about Cake Addins
 
 ## Steps
-This console application audits Cake addins discovered on Nuget.org and generates a report to indicate if they follow recommended guidelines. 
+This console application audits Cake addins discovered on NuGet.org and generates a report to indicate if they follow recommended guidelines. 
 The AddinDiscoverer searches nuget.org for packages that follow the recommended naming convention which is `Cake.xxx` for addins and recipes and `Cake.xxx.Module` for modules
 
 ## Best practices
@@ -30,7 +30,7 @@ You can invoke this tool with the following arguments:
   -x, --exceltorepo       (Default: false) Generate the Excel report and commit to cake-contrib repo.
   -m, --markdowntofile    (Default: false) Generate the Markdown report and write to a file.
   -r, --markdowntorepo    (Default: false) Generate the Markdown report and commit to cake-contrib repo.
-  -s, --syncyaml          (Default: false) Synchronize the yaml files on Cake's web site with the packages discovered on Nuget.
+  -s, --syncyaml          (Default: false) Synchronize the yaml files on Cake's web site with the packages discovered on NuGet.
   --help                  Display this help screen.
   --version               Display version information.
 ```
