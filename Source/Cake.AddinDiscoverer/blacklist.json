@@ -6,6 +6,7 @@
     "Cake.Core",
     "Cake.CoreCLR",
     "Cake.Email.Common",
+    "Cake.Frosting",
     "Cake.Frosting.Template",
     "Cake.Mix",
     "Cake.NuGet",
