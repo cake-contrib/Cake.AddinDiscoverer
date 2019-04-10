@@ -918,7 +918,7 @@ namespace Cake.AddinDiscoverer
 					var newIssue = new NewIssue(issueTitle)
 					{
 						Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on NuGet.org:{Environment.NewLine}" +
-							$"{Environment.NewLine}The following packages found on NuGet's web site do not have a corresponding YAML file. Therefore a YAML file must de create for each:{Environment.NewLine}" +
+							$"{Environment.NewLine}The following packages found on NuGet's web site do not have a corresponding YAML file. Therefore a YAML file must be created for each:{Environment.NewLine}" +
 							string.Join(Environment.NewLine, addinsToBeCreated.Select(a => $"- {a.Addin.Name}")) + Environment.NewLine
 					};
 					issue = await _githubClient.Issue.Create(CAKE_REPO_OWNER, CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
