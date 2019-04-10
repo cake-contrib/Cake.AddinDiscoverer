@@ -880,7 +880,7 @@ namespace Cake.AddinDiscoverer
 
 			if (yamlToBeDeleted.Any())
 			{
-				var issueTitle = "(THIS IS A TEST, PLEASE IGNORE) Delete YAML files";
+				var issueTitle = "Delete YAML files";
 
 				// Check if an issue already exists
 				var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, issueTitle).ConfigureAwait(false);
@@ -908,7 +908,7 @@ namespace Cake.AddinDiscoverer
 
 			if (addinsToBeCreated.Any())
 			{
-				var issueTitle = "(THIS IS A TEST, PLEASE IGNORE) Add YAML files";
+				var issueTitle = "Add YAML files";
 
 				// Check if an issue already exists
 				var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, issueTitle).ConfigureAwait(false);
@@ -936,7 +936,7 @@ namespace Cake.AddinDiscoverer
 
 			if (addinsToBeUpdated.Any())
 			{
-				var issueTitle = "(THIS IS A TEST, PLEASE IGNORE) Update YAML files";
+				var issueTitle = "Update YAML files";
 
 				// Check if an issue already exists
 				var issue = await FindGithubIssueAsync(upstream.Owner.Login, upstream.Name, _options.GithubUsername, issueTitle).ConfigureAwait(false);
