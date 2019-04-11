@@ -9,6 +9,7 @@
     "Cake.Frosting",
     "Cake.Frosting.Template",
     "Cake.Mix",
+    "Cake.CompressionNetStandard",
     "Cake.NuGet",
     "Cake.Scripting.Abstractions",
     "Cake.Scripting.Transport",
