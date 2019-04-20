@@ -10,7 +10,8 @@ namespace Cake.AddinDiscoverer.Utilities
 
 		public const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		public const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
-		public const string CAKE_CONTRIB_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/cake-contrib-medium.png";
+		public const string NEW_CAKE_CONTRIB_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/cake-contrib-medium.png";
+		public const string OLD_CAKE_CONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
 		public const string CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE = "Support Cake {0}";
 		public const int MAX_GITHUB_CONCURENCY = 10;
 		public const int MAX_NUGET_CONCURENCY = 25; // I suspect nuget allows a much large number of concurrent connections but 25 seems like a safe value.
@@ -120,8 +121,8 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Icon",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.UsingCakeContribIcon.ToString().ToLower(),
-				(addin, cakeVersion) => addin.AnalysisResult.UsingCakeContribIcon ? Color.LightGreen : Color.Red,
+				(addin) => addin.AnalysisResult.UsingNewCakeContribIcon.ToString().ToLower(),
+				(addin, cakeVersion) => addin.AnalysisResult.UsingNewCakeContribIcon ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel | DataDestination.MarkdownForRecipes

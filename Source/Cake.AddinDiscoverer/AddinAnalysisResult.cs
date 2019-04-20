@@ -28,9 +28,14 @@ namespace Cake.AddinDiscoverer
 		public bool CakeCommonIsPrivate { get; set; }
 
 		/// <summary>
-		/// Gets or sets a value indicating whether the addin references the cake-contrib icon
+		/// Gets or sets a value indicating whether the addin references the cake-contrib icon on jsDelivr
 		/// </summary>
-		public bool UsingCakeContribIcon { get; set; }
+		public bool UsingNewCakeContribIcon { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether the addin references the cake-contrib icon on rawgit
+		/// </summary>
+		public bool UsingOldCakeContribIcon { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether the addin was transfered to the cake-contrib github organisation
