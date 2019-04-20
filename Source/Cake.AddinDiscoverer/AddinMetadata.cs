@@ -25,9 +25,9 @@ namespace Cake.AddinDiscoverer
 
 		public Uri IconUrl { get; set; }
 
-		public string NugetPackageVersion { get; set; }
+		public string NuGetPackageVersion { get; set; }
 
-		public Uri NugetPackageUrl { get; set; }
+		public Uri NuGetPackageUrl { get; set; }
 
 		public Uri GithubRepoUrl
 		{
