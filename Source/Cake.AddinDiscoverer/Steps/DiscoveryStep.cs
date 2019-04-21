@@ -14,8 +14,8 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context)
 		{
-			if (string.IsNullOrEmpty(context.Options.AddinName)) return "Searching NuGet for all NuGet packages matching 'Cake.*'";
-			else return $"Searching NuGet for {context.Options.AddinName}";
+			if (string.IsNullOrEmpty(context.Options.AddinName)) return "Search NuGet for all packages matching 'Cake.*'";
+			else return $"Search NuGet for {context.Options.AddinName}";
 		}
 
 		public async Task ExecuteAsync(DiscoveryContext context)
