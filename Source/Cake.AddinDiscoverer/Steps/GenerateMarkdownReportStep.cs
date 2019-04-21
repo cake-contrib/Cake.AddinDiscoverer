@@ -39,8 +39,10 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine();
 
 			markdown.AppendLine($"- Of the {auditedAddins.Count()} audited addins:");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingCakeContribIcon)} are using the cake-contrib icon");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingOldCakeContribIcon)} are using the cake-contrib icon on the rawgit CDN (which will be shutdown in October 2019)");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingNewCakeContribIcon)} are using the cake-contrib icon on the jsDelivr CDN (which is our preferred CDN to replace rawgit)");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferedToCakeContribOrganisation)} have been transfered to the cake-contrib organisation");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.ObsoleteLicenseUrlRemoved)} have replaced the obsolete `licenseUrl` with proper license metadata (see the `Additional audit results` section below for details)");
 			markdown.AppendLine();
 
 			markdown.AppendLine("# Reports");
@@ -59,6 +61,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `Maintainer` column indicates who is maintaining the source for this project");
 			markdown.AppendLine("- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon.");
 			markdown.AppendLine("- The `Transferred to cake-contrib` column indicates if the project has been moved to the cake-contrib github organisation.");
+			markdown.AppendLine("- The `License` column indicates the license selected by the addin author. PLEASE NOTE: this information is only available if the nuget package includes the new `license` metadata information (documented [here](https://docs.microsoft.com/en-us/nuget/reference/nuspec#license) and [here](https://docs.microsoft.com/en-us/nuget/reference/msbuild-targets#packing-a-license-expression-or-a-license-file)) as opposed to the [obsolete](https://github.com/NuGet/Announcements/issues/32) `licenseUrl`.");
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
 			markdown.AppendLine();
@@ -82,7 +85,7 @@ namespace Cake.AddinDiscoverer.Steps
 			// Generate the markdown report for nuget packages containing recipes
 			var recipesReportName = $"{Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}_for_recipes.md";
 			var recipesReportPath = Path.Combine(context.TempFolder, recipesReportName);
-			var markdownReportForRecipes = GenerateMarkdown(context, auditedAddins, null, AddinType.Recipes);
+			var markdownReportForRecipes = GenerateMarkdown(context, auditedAddins, null, AddinType.Recipe);
 			await File.WriteAllTextAsync(recipesReportPath, markdownReportForRecipes).ConfigureAwait(false);
 
 			// Generate the markdown report for each version of Cake
@@ -100,7 +103,7 @@ namespace Cake.AddinDiscoverer.Steps
 		private static DataDestination GetMarkdownDestinationForType(AddinType type)
 		{
 			if (type == AddinType.Addin) return DataDestination.MarkdownForAddins;
-			else if (type == AddinType.Recipes) return DataDestination.MarkdownForRecipes;
+			else if (type == AddinType.Recipe) return DataDestination.MarkdownForRecipes;
 			else throw new ArgumentException($"Unable to determine the DataDestination for type {type}");
 		}
 

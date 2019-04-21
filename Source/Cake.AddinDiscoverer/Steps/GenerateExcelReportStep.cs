@@ -35,7 +35,7 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 
 				// One worksheet for recipes
-				GenerateExcelWorksheet(auditedAddins, null, AddinType.Recipes, "Recipes", excel);
+				GenerateExcelWorksheet(auditedAddins, null, AddinType.Recipe, "Recipes", excel);
 
 				// Exceptions report
 				GenerateExcelWorksheetWithNotes(exceptionAddins, "Exceptions", excel);

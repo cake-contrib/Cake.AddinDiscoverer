@@ -13,7 +13,7 @@ namespace Cake.AddinDiscoverer.Utilities
 	[Serializable]
 	internal sealed class SemVersion : IComparable<SemVersion>, IComparable, ISerializable
 	{
-		private static Regex parseEx =
+		private static readonly Regex PARSE_REGEX =
 			new Regex(
 				@"^(?<major>\d+)" +
 				@"(\.(?<minor>\d+))?" +
@@ -86,7 +86,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <exception cref="System.InvalidOperationException">When a invalid version string is passed.</exception>
 		public static SemVersion Parse(string version, bool strict = false)
 		{
-			var match = parseEx.Match(version);
+			var match = PARSE_REGEX.Match(version);
 			if (!match.Success)
 				throw new ArgumentException("Invalid version.", "version");
 

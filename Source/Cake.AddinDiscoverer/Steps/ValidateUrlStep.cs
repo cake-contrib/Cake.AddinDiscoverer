@@ -35,6 +35,7 @@ namespace Cake.AddinDiscoverer.Steps
 							addin.AnalysisResult.Notes += $"ValidateProjectUrlAsync: {e.GetBaseException().Message}{Environment.NewLine}";
 						}
 					}
+
 					return addin;
 				})
 				.ToArray();

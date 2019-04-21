@@ -1,5 +1,5 @@
 ﻿using Cake.AddinDiscoverer.Utilities;
-using Cake.Incubator;
+using Cake.Incubator.StringExtensions;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
 using System;
@@ -31,6 +31,11 @@ namespace Cake.AddinDiscoverer.Steps
 							{
 								using (var package = new PackageArchiveReader(stream))
 								{
+									var rawNugetMetadata = package.NuspecReader.GetMetadata()
+										.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+									rawNugetMetadata.TryGetValue("license", out string license);
+
 									var iconUrl = package.NuspecReader.GetIconUrl();
 									var projectUrl = package.NuspecReader.GetProjectUrl();
 									var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
@@ -115,7 +120,7 @@ namespace Cake.AddinDiscoverer.Steps
 										// This package does not contain DLLs. We'll assume it contains "recipes" .cake files.
 										if (assembliesPath.Length == 0)
 										{
-											addin.Type = AddinType.Recipes;
+											addin.Type = AddinType.Recipe;
 										}
 
 										// If a package contains only one DLL, we will analyze this DLL even if it doesn't match the expected naming convention
@@ -155,6 +160,7 @@ namespace Cake.AddinDiscoverer.Steps
 											.ToArray();
 									}
 
+									addin.NuGetLicense = license;
 									addin.IconUrl = string.IsNullOrEmpty(iconUrl) ? null : new Uri(iconUrl);
 									addin.NuGetPackageVersion = packageVersion;
 									addin.Frameworks = frameworks;
