@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace Cake.AddinDiscoverer
 {
-	[DebuggerDisplay("Name = {Name}")]
+	[DebuggerDisplay("Name = {Name}; Type = {Type}")]
 	internal class AddinMetadata
 	{
 		private Uri repositoryUrl;
@@ -28,6 +28,8 @@ namespace Cake.AddinDiscoverer
 		public string NuGetPackageVersion { get; set; }
 
 		public Uri NuGetPackageUrl { get; set; }
+
+		public string NuGetLicense { get; set; }
 
 		public Uri GithubRepoUrl
 		{

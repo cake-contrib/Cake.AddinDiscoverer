@@ -136,6 +136,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				AddinType.All,
 				DataDestination.Excel | DataDestination.MarkdownForRecipes
 			),
+			(
+				"License",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.NuGetLicense,
+				(addin, cakeVersion) => addin.AnalysisResult.ObsoleteLicenseUrlRemoved ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel | DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
+			),
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 #pragma warning restore SA1008 // Opening parenthesis should be spaced correctly

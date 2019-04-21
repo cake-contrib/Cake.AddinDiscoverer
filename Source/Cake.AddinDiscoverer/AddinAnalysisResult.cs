@@ -43,6 +43,11 @@ namespace Cake.AddinDiscoverer
 		public bool TransferedToCakeContribOrganisation { get; set; }
 
 		/// <summary>
+		/// Gets or sets a value indicating whether the obsolete licenseUrl property has been removed from the nuspec.
+		/// </summary>
+		public bool ObsoleteLicenseUrlRemoved { get; set; }
+
+		/// <summary>
 		/// Gets or sets notes (such as error messages).
 		/// </summary>
 		public string Notes { get; set; }

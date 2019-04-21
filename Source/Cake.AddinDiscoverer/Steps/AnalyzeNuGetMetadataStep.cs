@@ -31,6 +31,11 @@ namespace Cake.AddinDiscoverer.Steps
 							{
 								using (var package = new PackageArchiveReader(stream))
 								{
+									var rawNugetMetadata = package.NuspecReader.GetMetadata()
+										.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+									rawNugetMetadata.TryGetValue("license", out string license);
+
 									var iconUrl = package.NuspecReader.GetIconUrl();
 									var projectUrl = package.NuspecReader.GetProjectUrl();
 									var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
@@ -155,6 +160,7 @@ namespace Cake.AddinDiscoverer.Steps
 											.ToArray();
 									}
 
+									addin.NuGetLicense = license;
 									addin.IconUrl = string.IsNullOrEmpty(iconUrl) ? null : new Uri(iconUrl);
 									addin.NuGetPackageVersion = packageVersion;
 									addin.Frameworks = frameworks;
