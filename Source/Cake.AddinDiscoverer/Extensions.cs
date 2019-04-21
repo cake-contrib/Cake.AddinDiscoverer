@@ -1,4 +1,5 @@
-﻿using Octokit;
+﻿using Cake.AddinDiscoverer.Utilities;
+using Octokit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -61,7 +62,7 @@ namespace Cake.AddinDiscoverer
 					nt.Tree.Add(new NewTreeItem
 					{
 						Path = file.Path,
-						Mode = AddinDiscoverer.FILE_MODE,
+						Mode = Constants.FILE_MODE,
 						Type = TreeType.Blob,
 						Sha = fileBlobRef.Sha
 					});
@@ -206,6 +207,13 @@ namespace Cake.AddinDiscoverer
 				Scheme = Uri.UriSchemeHttps,
 				Port = originalUri.IsDefaultPort ? -1 : originalUri.Port // -1 => default port for scheme
 			}.Uri;
+		}
+
+		public static bool IsUpToDate(this SemVersion currentVersion, SemVersion desiredVersion)
+		{
+			if (desiredVersion == null) throw new ArgumentNullException(nameof(desiredVersion));
+
+			return currentVersion == null || currentVersion >= desiredVersion;
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)

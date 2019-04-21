@@ -1,10 +1,10 @@
-﻿using Cake.Incubator;
+﻿using Cake.Incubator.StringExtensions;
 using System;
 using System.Diagnostics;
 
 namespace Cake.AddinDiscoverer
 {
-	[DebuggerDisplay("Name = {Name}")]
+	[DebuggerDisplay("Name = {Name}; Type = {Type}")]
 	internal class AddinMetadata
 	{
 		private Uri repositoryUrl;
@@ -25,9 +25,11 @@ namespace Cake.AddinDiscoverer
 
 		public Uri IconUrl { get; set; }
 
-		public string NugetPackageVersion { get; set; }
+		public string NuGetPackageVersion { get; set; }
 
-		public Uri NugetPackageUrl { get; set; }
+		public Uri NuGetPackageUrl { get; set; }
+
+		public string NuGetLicense { get; set; }
 
 		public Uri GithubRepoUrl
 		{
@@ -46,7 +48,7 @@ namespace Cake.AddinDiscoverer
 					if (parts.Length >= 2)
 					{
 						this.GithubRepoOwner = parts[0];
-						this.GithubRepoName = parts[1];
+						this.GithubRepoName = parts[1].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
 					}
 				}
 			}
