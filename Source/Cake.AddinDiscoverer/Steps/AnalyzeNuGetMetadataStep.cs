@@ -115,7 +115,7 @@ namespace Cake.AddinDiscoverer.Steps
 										// This package does not contain DLLs. We'll assume it contains "recipes" .cake files.
 										if (assembliesPath.Length == 0)
 										{
-											addin.Type = AddinType.Recipes;
+											addin.Type = AddinType.Recipe;
 										}
 
 										// If a package contains only one DLL, we will analyze this DLL even if it doesn't match the expected naming convention

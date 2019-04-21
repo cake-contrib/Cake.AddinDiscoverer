@@ -83,7 +83,7 @@ namespace Cake.AddinDiscoverer.Steps
 			// Generate the markdown report for nuget packages containing recipes
 			var recipesReportName = $"{Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}_for_recipes.md";
 			var recipesReportPath = Path.Combine(context.TempFolder, recipesReportName);
-			var markdownReportForRecipes = GenerateMarkdown(context, auditedAddins, null, AddinType.Recipes);
+			var markdownReportForRecipes = GenerateMarkdown(context, auditedAddins, null, AddinType.Recipe);
 			await File.WriteAllTextAsync(recipesReportPath, markdownReportForRecipes).ConfigureAwait(false);
 
 			// Generate the markdown report for each version of Cake
@@ -101,7 +101,7 @@ namespace Cake.AddinDiscoverer.Steps
 		private static DataDestination GetMarkdownDestinationForType(AddinType type)
 		{
 			if (type == AddinType.Addin) return DataDestination.MarkdownForAddins;
-			else if (type == AddinType.Recipes) return DataDestination.MarkdownForRecipes;
+			else if (type == AddinType.Recipe) return DataDestination.MarkdownForRecipes;
 			else throw new ArgumentException($"Unable to determine the DataDestination for type {type}");
 		}
 

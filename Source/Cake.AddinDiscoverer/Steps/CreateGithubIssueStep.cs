@@ -25,7 +25,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ForEachAsync(
 					async addin =>
 					{
-						if (addin.Type != AddinType.Recipes &&
+						if (addin.Type != AddinType.Recipe &&
 							!addin.GithubIssueId.HasValue &&
 							!string.IsNullOrEmpty(addin.GithubRepoName) &&
 							!string.IsNullOrEmpty(addin.GithubRepoOwner))
