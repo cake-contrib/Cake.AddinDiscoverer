@@ -46,7 +46,7 @@ namespace Cake.AddinDiscoverer
 					if (parts.Length >= 2)
 					{
 						this.GithubRepoOwner = parts[0];
-						this.GithubRepoName = parts[1];
+						this.GithubRepoName = parts[1].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
 					}
 				}
 			}
