@@ -1,4 +1,4 @@
-﻿using Cake.Incubator;
+﻿using Cake.Incubator.StringExtensions;
 using System;
 using System.Diagnostics;
 

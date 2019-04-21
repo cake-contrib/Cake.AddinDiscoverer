@@ -1,5 +1,5 @@
 ﻿using Cake.AddinDiscoverer.Utilities;
-using Cake.Incubator;
+using Cake.Incubator.StringExtensions;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
 using System;

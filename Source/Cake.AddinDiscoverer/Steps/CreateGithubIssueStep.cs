@@ -1,4 +1,5 @@
 ﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Diagnostics;
@@ -78,12 +79,12 @@ namespace Cake.AddinDiscoverer.Steps
 									addin.GithubIssueUrl = new Uri(issue.Url);
 									addin.GithubIssueId = issue.Number;
 								}
-								catch (ApiException e) when (e.ApiError.Message.Equals("Issues are disabled for this repo", StringComparison.OrdinalIgnoreCase))
+								catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Issues are disabled for this repo"))
 								{
 									// There's a NuGet package with a project URL that points to a fork which doesn't allow issue.
 									// Therefore it's safe to ignore this error.
 								}
-								catch (ApiException e) when (e.ApiError.Message.Equals("Not Found", StringComparison.OrdinalIgnoreCase))
+								catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Not Found"))
 								{
 									// I know of at least one case where the URL in the NuGet metadata points to a repo that has been deleted.
 									// Therefore it's safe to ignore this error.

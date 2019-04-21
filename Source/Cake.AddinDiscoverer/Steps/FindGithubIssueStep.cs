@@ -1,5 +1,5 @@
 ﻿using Cake.AddinDiscoverer.Utilities;
-using Cake.Incubator;
+using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Linq;

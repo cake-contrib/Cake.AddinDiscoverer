@@ -1,5 +1,5 @@
 ﻿using Cake.AddinDiscoverer.Utilities;
-using Cake.Incubator;
+using Cake.Incubator.StringExtensions;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -32,6 +32,7 @@ namespace Cake.AddinDiscoverer.Steps
 							addin.AnalysisResult.CakeCommonVersion = null;
 							addin.AnalysisResult.CakeCommonIsPrivate = true;
 						}
+
 						var cakeCoreReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Core"));
 						if (cakeCoreReference.Any())
 						{
