@@ -89,7 +89,16 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin, cakeVersion) => addin.AnalysisResult.CakeCoreVersion == null ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
-				DataDestination.All
+				DataDestination.Excel
+			),
+			(
+				"Cake Core IsPrivate",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.Empty,
+				(addin, cakeVersion) => addin.AnalysisResult.CakeCoreVersion == null ? Color.Empty : (addin.AnalysisResult.CakeCoreIsPrivate ? Color.LightGreen : Color.Red),
+				(addin) => null,
+				AddinType.Addin | AddinType.Module,
+				DataDestination.All & ~DataDestination.Excel
 			),
 			(
 				"Cake Common Version",
@@ -107,7 +116,16 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin, cakeVersion) => addin.AnalysisResult.CakeCommonVersion == null ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
-				DataDestination.All
+				DataDestination.Excel
+			),
+			(
+				"Cake Common IsPrivate",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.Empty,
+				(addin, cakeVersion) => addin.AnalysisResult.CakeCommonVersion == null ? Color.Empty : (addin.AnalysisResult.CakeCommonIsPrivate ? Color.LightGreen : Color.Red),
+				(addin) => null,
+				AddinType.Addin | AddinType.Module,
+				DataDestination.All & ~DataDestination.Excel
 			),
 			(
 				"Framework",
@@ -125,7 +143,16 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin, cakeVersion) => addin.AnalysisResult.UsingNewCakeContribIcon ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.All,
-				DataDestination.Excel | DataDestination.MarkdownForRecipes
+				DataDestination.Excel
+			),
+			(
+				"Icon",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.Empty,
+				(addin, cakeVersion) => addin.AnalysisResult.UsingNewCakeContribIcon ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
 			),
 			(
 				"Transferred to cake-contrib",
@@ -134,7 +161,16 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin, cakeVersion) => addin.AnalysisResult.TransferedToCakeContribOrganisation ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.All,
-				DataDestination.Excel | DataDestination.MarkdownForRecipes
+				DataDestination.Excel
+			),
+			(
+				"Transferred to cake-contrib",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.Empty,
+				(addin, cakeVersion) => addin.AnalysisResult.TransferedToCakeContribOrganisation ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
 			),
 			(
 				"License",
