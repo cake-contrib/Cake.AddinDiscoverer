@@ -34,6 +34,7 @@ namespace Cake.AddinDiscoverer
 			typeof(GenerateStatsGraphStep),
 			typeof(CommitToRepoStep),
 			typeof(CreateGithubIssueStep),
+			typeof(SubmitGithubPullRequest),
 			typeof(SynchronizeYamlStep),
 			typeof(UpdateCakeRecipeStep)
 		};

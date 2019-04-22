@@ -25,6 +25,9 @@ namespace Cake.AddinDiscoverer
 		[Option('i', "issue", Default = false, HelpText = "Create issue in Github repositories that do not meet recommendations.")]
 		public bool CreateGithubIssue { get; set; }
 
+		[Option('q', "pullrequest", Default = false, HelpText = "Submit pull request in Github repositories to fix recommendations.")]
+		public bool SubmitGithubPullRequest { get; set; }
+
 		[Option('e', "exceltofile", Default = false, HelpText = "Generate the Excel report and write to a file.")]
 		public bool ExcelReportToFile { get; set; }
 
