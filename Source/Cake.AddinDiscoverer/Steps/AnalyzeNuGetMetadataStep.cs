@@ -3,6 +3,7 @@ using Cake.Incubator.StringExtensions;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -31,10 +32,17 @@ namespace Cake.AddinDiscoverer.Steps
 							{
 								using (var package = new PackageArchiveReader(stream))
 								{
-									var rawNugetMetadata = package.NuspecReader.GetMetadata()
-										.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-
-									rawNugetMetadata.TryGetValue("license", out string license);
+									/*
+									Workaround to get all available metadata from a NuGet package, even the metadata not
+									exposed by NuGet.Packaging.NuspecReader. For example, NuspecReader version 4.3.0 does
+									not expose the "repository" metadata.
+									*/
+									var metadataNode = package.NuspecReader.Xml.Root.Elements()
+										.Single(e => e.Name.LocalName.Equals("metadata", StringComparison.Ordinal));
+									var rawNugetMetadata = metadataNode.Elements()
+										.ToDictionary(
+											e => e.Name.LocalName,
+											e => (e.Value, (IDictionary<string, string>)e.Attributes().ToDictionary(a => a.Name.LocalName, a => a.Value)));
 
 									var iconUrl = package.NuspecReader.GetIconUrl();
 									var projectUrl = package.NuspecReader.GetProjectUrl();
