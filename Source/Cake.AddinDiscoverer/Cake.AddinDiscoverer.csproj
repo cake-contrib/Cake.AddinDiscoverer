@@ -17,10 +17,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Steps\ValidateDiscoveryStep.cs~RF673cff3.TMP" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Ben.Demystifier" Version="0.1.4" />
     <PackageReference Include="Cake.Common" Version="0.33.0" />
     <PackageReference Include="Cake.Incubator" Version="5.0.1" />
