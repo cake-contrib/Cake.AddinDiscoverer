@@ -26,6 +26,7 @@ namespace Cake.AddinDiscoverer.Steps
 					async addin =>
 					{
 						if (addin.Type != AddinType.Recipe &&
+							!addin.IsDeprecated &&
 							!addin.GithubIssueId.HasValue &&
 							!string.IsNullOrEmpty(addin.GithubRepoName) &&
 							!string.IsNullOrEmpty(addin.GithubRepoOwner))
