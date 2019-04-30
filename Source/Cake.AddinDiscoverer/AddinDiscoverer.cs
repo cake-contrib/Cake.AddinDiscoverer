@@ -43,6 +43,9 @@ namespace Cake.AddinDiscoverer
 			// Check if an issue has been already created (to avoid creating duplicates)
 			typeof(FindGithubIssueStep),
 
+			// Check if a Pull Request has been already created (to avoid creating duplicates)
+			typeof(FindGithubPullRequestStep),
+
 			// Analyze the metadata in the downloaded nuget package
 			typeof(AnalyzeNuGetMetadataStep),
 

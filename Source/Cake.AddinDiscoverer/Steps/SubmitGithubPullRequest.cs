@@ -26,6 +26,7 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						if (addin.Type != AddinType.Recipe &&
 							addin.GithubIssueId.HasValue &&
+							!addin.GithubPullRequestId.HasValue &&
 							!string.IsNullOrEmpty(addin.GithubRepoName) &&
 							!string.IsNullOrEmpty(addin.GithubRepoOwner))
 						{
@@ -45,8 +46,9 @@ namespace Cake.AddinDiscoverer.Steps
 
 								// Commit changes to a new branch and submit PR
 								var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-								var pullRequestTitle = "Fix issues identified by automated audit";
-								await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.GithubIssueId.Value, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);
+								var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.GithubIssueId.Value, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
+
+								addin.GithubPullRequestId = pullRequest.Number;
 							}
 						}
 

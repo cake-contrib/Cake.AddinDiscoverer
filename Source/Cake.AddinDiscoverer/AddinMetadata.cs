@@ -54,6 +54,8 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
+		public int? GithubPullRequestId { get; set; }
+
 		public int? GithubIssueId { get; set; }
 
 		public AddinType Type { get; set; }
