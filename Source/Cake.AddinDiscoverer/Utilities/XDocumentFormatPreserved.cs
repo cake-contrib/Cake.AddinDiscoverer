@@ -8,23 +8,21 @@ namespace Cake.AddinDiscoverer.Utilities
 {
 	internal class XDocumentFormatPreserved
 	{
-		public bool Utf8OrderMarkPresent { get; private set; }
-
 		public XDocument Document { get; private set; }
-
-		private static readonly string BYTE_ORDER_MARK_UTF8 = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
 
 		public static XDocumentFormatPreserved Parse(string text)
 		{
+			// Converting the text into an array of bytes might seem unnecessary but it actually
+			// serves a very important purpose: ensure the data can be parsed into a XDocument
+			// despite the presence of a BOM (byte order mark). You get an exception if you
+			// attempt to parse a string containing a BOM into a XDocument but, surprisingly,
+			// this problem goes away if you load a byte array.
+			var bytes = Encoding.UTF8.GetBytes(text);
+
 			var document = new XDocumentFormatPreserved();
-			document.Utf8OrderMarkPresent = text.StartsWith(BYTE_ORDER_MARK_UTF8);
-			if (document.Utf8OrderMarkPresent)
+			using (var stream = new MemoryStream(bytes))
 			{
-				document.Document = XDocument.Parse(text.Remove(0, BYTE_ORDER_MARK_UTF8.Length), LoadOptions.PreserveWhitespace);
-			}
-			else
-			{
-				document.Document = XDocument.Parse(text, LoadOptions.PreserveWhitespace);
+				document.Document = XDocument.Load(stream, LoadOptions.PreserveWhitespace);
 			}
 
 			return document;
@@ -36,7 +34,6 @@ namespace Cake.AddinDiscoverer.Utilities
 			{
 				var ws = new XmlWriterSettings()
 				{
-					OmitXmlDeclaration = true,
 					Indent = true,
 					NewLineHandling = NewLineHandling.None
 				};
@@ -46,7 +43,7 @@ namespace Cake.AddinDiscoverer.Utilities
 					Document.WriteTo(w);
 				}
 
-				return Utf8OrderMarkPresent ? $"{BYTE_ORDER_MARK_UTF8}{sw.ToString()}" : sw.ToString();
+				return sw.ToString();
 			}
 		}
 	}
