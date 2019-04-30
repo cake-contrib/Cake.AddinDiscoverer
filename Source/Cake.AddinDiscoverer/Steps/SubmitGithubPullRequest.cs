@@ -21,6 +21,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.First();
 
 			context.Addins = await context.Addins
+				.OrderBy(a => a.Name)
 				.ForEachAsync(
 					async addin =>
 					{
@@ -53,7 +54,7 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 
 						return addin;
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					}, 1)
 				.ConfigureAwait(false);
 		}
 
