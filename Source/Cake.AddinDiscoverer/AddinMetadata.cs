@@ -54,8 +54,6 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		public Uri GithubIssueUrl { get; set; }
-
 		public int? GithubIssueId { get; set; }
 
 		public AddinType Type { get; set; }

@@ -19,7 +19,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ForEachAsync(
 					async addin =>
 					{
-						if (addin.GithubIssueUrl == null && addin.GithubRepoUrl != null)
+						if (!addin.GithubIssueId.HasValue && addin.GithubRepoUrl != null)
 						{
 							var request = new RepositoryIssueRequest()
 							{
@@ -36,7 +36,6 @@ namespace Cake.AddinDiscoverer.Steps
 
 								if (issue != null)
 								{
-									addin.GithubIssueUrl = new Uri(issue.Url);
 									addin.GithubIssueId = issue.Number;
 								}
 							}
