@@ -9,7 +9,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class FindGithubIssueStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.CreateGithubIssue;
+		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.CreateGithubIssue || context.Options.SubmitGithubPullRequest;
 
 		public string GetDescription(DiscoveryContext context) => "Check if a Github issue has been created for addins that do not meet best pratices";
 

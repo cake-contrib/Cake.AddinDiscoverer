@@ -154,7 +154,7 @@ namespace Cake.AddinDiscoverer.Steps
 						(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, outdatedReference.Recipe.Path, Content: outdatedReference.Recipe.GetContentForCurrentCake(outdatedReference.Reference)) })
 						};
 
-						await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
+						await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
 					}, Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 		}
@@ -226,12 +226,12 @@ namespace Cake.AddinDiscoverer.Steps
 				var commitMessage = $"Upgrade to Cake {latestCakeVersion.Version.ToString(3)}";
 				var newBranchName = $"upgrade_cake_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 				var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
-			{
-				(CommitMessage: "Update addins references", FilesToDelete: null, FilesToUpsert: recipeFilesWithAtLeastOneReference.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake())).ToArray()),
-				(CommitMessage: "Update Cake version in package.config", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
-			};
+				{
+					(CommitMessage: "Update addins references", FilesToDelete: null, FilesToUpsert: recipeFilesWithAtLeastOneReference.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake())).ToArray()),
+					(CommitMessage: "Update Cake version in package.config", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
+				};
 
-				await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue, newBranchName, commitMessage, commits).ConfigureAwait(false);
+				await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, commitMessage, commits).ConfigureAwait(false);
 			}
 		}
 	}
