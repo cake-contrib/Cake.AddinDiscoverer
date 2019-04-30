@@ -32,7 +32,7 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 						catch (Exception e)
 						{
-							addin.AnalysisResult.Notes += $"ValidateProjectUrlAsync: {e.GetBaseException().Message}{Environment.NewLine}";
+							addin.AnalysisResult.Notes += $"ValidateProjectUrl: {e.GetBaseException().Message}{Environment.NewLine}";
 						}
 					}
 

@@ -105,7 +105,7 @@ namespace Cake.AddinDiscoverer.Steps
 					(CommitMessage: "Delete YAML files that do not have a corresponding NuGet package", FilesToDelete: yamlToBeDeleted.Select(y => y.Path).ToArray(), FilesToUpsert: null)
 				};
 
-					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue, newBranchName, issueTitle, commits).ConfigureAwait(false);
+					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 				}
 			}
 
@@ -133,7 +133,7 @@ namespace Cake.AddinDiscoverer.Steps
 					(CommitMessage: "Add YAML files for NuGet packages we discovered", FilesToDelete: null, FilesToUpsert: addinsToBeCreated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray())
 				};
 
-					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue, newBranchName, issueTitle, commits).ConfigureAwait(false);
+					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 				}
 			}
 
@@ -157,11 +157,11 @@ namespace Cake.AddinDiscoverer.Steps
 					// Commit changes to a new branch and submit PR
 					var newBranchName = $"update_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
-				{
-					(CommitMessage: "Update YAML files to match metadata from NuGet", FilesToDelete: null, FilesToUpsert: addinsToBeUpdated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray())
-				};
+					{
+						(CommitMessage: "Update YAML files to match metadata from NuGet", FilesToDelete: null, FilesToUpsert: addinsToBeUpdated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray())
+					};
 
-					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue, newBranchName, issueTitle, commits).ConfigureAwait(false);
+					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 				}
 			}
 		}

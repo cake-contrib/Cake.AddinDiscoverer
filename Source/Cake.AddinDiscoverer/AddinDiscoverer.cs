@@ -17,24 +17,68 @@ namespace Cake.AddinDiscoverer
 {
 	internal class AddinDiscoverer
 	{
+		// These are the steps that will be executed by the Addin.Discoverer (if their pre-condition is met).
+		// The order is important!
 		private readonly Type[] _steps = new[]
 		{
+			// Delete artifacts from previous audits
 			typeof(CleanupStep),
+
+			// Discover all existing Cake addins on NuGet
 			typeof(DiscoveryStep),
+
+			// Remove blacklisted addins
 			typeof(BlacklistStep),
+
+			// Sanity check on the list of addins we discovered
 			typeof(ValidateDiscoveryStep),
+
+			// Some addins were moved to the cake-contrib organization but their URL in package metadata still points to the original repo.
+			// This step corrects the URL to ensure it points to the right repo
 			typeof(ValidateUrlStep),
+
+			// Download the packages from NuGet if their are not already in the cache
 			typeof(DownloadStep),
+
+			// Check if an issue has been already created (to avoid creating duplicates)
 			typeof(FindGithubIssueStep),
+
+			// Check if a Pull Request has been already created (to avoid creating duplicates)
+			typeof(FindGithubPullRequestStep),
+
+			// Analyze the metadata in the downloaded nuget package
 			typeof(AnalyzeNuGetMetadataStep),
+
+			// Use the info from previous step to dDetermine if addins meet the best pratices
 			typeof(AnalyzeAddinsStep),
+
+			// Generate an Excel spreadsheet with the result of the audit
 			typeof(GenerateExcelReportStep),
+
+			// Generate a markdown file with the result of the audit
 			typeof(GenerateMarkdownReportStep),
+
+			// Update the CSV file with statistics about the audit
 			typeof(UpdateStatsCsvStep),
+
+			// Generate a graph to percentage of addins that meet best practices over time
 			typeof(GenerateStatsGraphStep),
+
+			// Commit the artifacts (such as Excel and markdown reports, CSV, etc.) to the cake-contrib/home github repo
 			typeof(CommitToRepoStep),
+
+			// Create an issue to info addin authors of the issues we discovered
 			typeof(CreateGithubIssueStep),
+
+			// Submit a pull request to fix the issue we discovered
+			typeof(SubmitGithubPullRequest),
+
+			// Make sure the YAML files in the cake-build/website repo are up to date
+			// These files are used to generate the addins documentation published on Cake's web site
 			typeof(SynchronizeYamlStep),
+
+			// Update the addin references in the Cake.Recipe. Also, upgrade the version of Cake used to build
+			// Cake.Recipe IF AND ONLY IF all references have been updated to be compatible with the latest version
 			typeof(UpdateCakeRecipeStep)
 		};
 
@@ -55,7 +99,7 @@ namespace Cake.AddinDiscoverer
 			providers.AddRange(NuGet.Protocol.Core.Types.Repository.Provider.GetCoreV3());  // Add v3 API support
 			var packageSource = new PackageSource("https://api.nuget.org/v3/index.json");
 
-			// Setup the context that will be passed to the tasks
+			// Setup the context that will be passed to each step
 			_context = new DiscoveryContext()
 			{
 				Addins = Array.Empty<AddinMetadata>(),

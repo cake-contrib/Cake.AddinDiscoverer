@@ -9,7 +9,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class FindGithubIssueStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.CreateGithubIssue;
+		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.CreateGithubIssue || context.Options.SubmitGithubPullRequest;
 
 		public string GetDescription(DiscoveryContext context) => "Check if a Github issue has been created for addins that do not meet best pratices";
 
@@ -19,7 +19,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ForEachAsync(
 					async addin =>
 					{
-						if (addin.GithubIssueUrl == null && addin.GithubRepoUrl != null)
+						if (!addin.GithubIssueId.HasValue && addin.GithubRepoUrl != null)
 						{
 							var request = new RepositoryIssueRequest()
 							{
@@ -36,13 +36,12 @@ namespace Cake.AddinDiscoverer.Steps
 
 								if (issue != null)
 								{
-									addin.GithubIssueUrl = new Uri(issue.Url);
 									addin.GithubIssueId = issue.Number;
 								}
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"FindGithubIssueAsync: {e.GetBaseException().Message}{Environment.NewLine}";
+								addin.AnalysisResult.Notes += $"FindGithubIssue: {e.GetBaseException().Message}{Environment.NewLine}";
 							}
 						}
 
