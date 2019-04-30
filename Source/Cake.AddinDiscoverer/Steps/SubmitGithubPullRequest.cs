@@ -92,7 +92,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var nuspecFileContent = await GetFileContentFromRepoAsync(context, addin, nuspecFile.Path).ConfigureAwait(false);
 
 			// Parse the content of the nuspec file
-			var document = XDocumentFormatPreserved.Parse(nuspecFileContent);
+			var document = new XDocumentFormatPreserved(nuspecFileContent);
 
 			var packageElement = document.Document.Element("package");
 			if (packageElement == null) return;
@@ -118,7 +118,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var projectFileContent = await GetFileContentFromRepoAsync(context, addin, projectFile.Path).ConfigureAwait(false);
 
 			// Parse the content of the csproj file
-			var document = XDocumentFormatPreserved.Parse(projectFileContent);
+			var document = new XDocumentFormatPreserved(projectFileContent);
 
 			// Make sure it's a VS 2017 project file
 			var sdkAttribute = (from attribute in document.Document.Root?.Attributes()

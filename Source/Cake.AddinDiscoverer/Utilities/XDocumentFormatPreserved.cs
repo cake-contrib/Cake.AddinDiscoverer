@@ -1,6 +1,4 @@
-﻿using System.Globalization;
-using System.IO;
-using System.Text;
+﻿using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -10,30 +8,23 @@ namespace Cake.AddinDiscoverer.Utilities
 	{
 		public XDocument Document { get; private set; }
 
-		public static XDocumentFormatPreserved Parse(string text)
+		public XDocumentFormatPreserved(string text)
 		{
-			// Converting the text into an array of bytes might seem unnecessary but it actually
-			// serves a very important purpose: ensure the data can be parsed into a XDocument
-			// despite the presence of a BOM (byte order mark). You get an exception if you
-			// attempt to parse a string containing a BOM into a XDocument but, surprisingly,
-			// this problem goes away if you load a byte array.
-			var bytes = Encoding.UTF8.GetBytes(text);
+			// Get rid of the Byte order mark and the ZERO WIDTH SPACE U+200B
+			var safeText = text.Trim('\uFEFF', '\u200B');
 
-			var document = new XDocumentFormatPreserved();
-			using (var stream = new MemoryStream(bytes))
-			{
-				document.Document = XDocument.Load(stream, LoadOptions.PreserveWhitespace);
-			}
-
-			return document;
+			// Parse the safe text, making sure to preserve whitespace
+			this.Document = XDocument.Parse(safeText, LoadOptions.PreserveWhitespace);
 		}
 
 		public override string ToString()
 		{
-			using (var sw = new StringWriter(CultureInfo.InvariantCulture))
+			using (var sw = new StringWriterWithEncoding(Encoding.UTF8))
 			{
 				var ws = new XmlWriterSettings()
 				{
+					Encoding = Encoding.UTF8,
+					OmitXmlDeclaration = Document.Declaration == null,
 					Indent = true,
 					NewLineHandling = NewLineHandling.None
 				};
