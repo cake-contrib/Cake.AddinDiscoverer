@@ -54,7 +54,7 @@ namespace Cake.AddinDiscoverer.Utilities
 
 			var newPullRequest = new NewPullRequest(pullRequestTitle, $"{fork.Owner.Login}:{newBranchName}", upstream.DefaultBranch)
 			{
-				Body = $"Resolves #{issueNumber}"
+				Body = $"This pull request was created by a tool: Cake.AddinDiscoverer version {context.Version}{Environment.NewLine}{Environment.NewLine}Resolves #{issueNumber}"
 			};
 			var pullRequest = await context.GithubClient.PullRequest.Create(upstream.Owner.Login, upstream.Name, newPullRequest).ConfigureAwait(false);
 
