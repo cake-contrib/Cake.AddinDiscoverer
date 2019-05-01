@@ -41,20 +41,38 @@ namespace Cake.AddinDiscoverer.Steps
 
 							if (commits.Any())
 							{
-								// Fork the addin repo if it hasn't been forked already and make sure it's up to date
-								var fork = await context.GithubClient.CreateOrRefreshFork(addin.GithubRepoOwner, addin.GithubRepoName).ConfigureAwait(false);
-								var upstream = fork.Parent;
+								// Make sure we have enough API calls left before proceeding
+								var apiInfo = context.GithubClient.GetLastApiInfo();
+								var rateLimit = apiInfo?.RateLimit;
+								var howManyRequestsCanIMakePerHour = rateLimit?.Limit ?? 0;
+								var howManyRequestsDoIHaveLeft = rateLimit?.Remaining ?? 0;
+								var whenDoesTheLimitReset = rateLimit?.Reset; // UTC time
 
-								// Commit changes to a new branch and submit PR
-								var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-								var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.GithubIssueId.Value, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
+								// 250 is an arbitrary threshold that I feel is "safe". Keep in mind that we
+								// have 10 concurrent connections making a multitude of calls to GihHub's API
+								// so this number must be large enough to allow us to bail out before we exhaust
+								// the calls we are allowed to make in an hour
+								if (howManyRequestsDoIHaveLeft > 250)
+								{
+									// Fork the addin repo if it hasn't been forked already and make sure it's up to date
+									var fork = await context.GithubClient.CreateOrRefreshFork(addin.GithubRepoOwner, addin.GithubRepoName).ConfigureAwait(false);
+									var upstream = fork.Parent;
 
-								addin.GithubPullRequestId = pullRequest.Number;
+									await Task.Delay(1000).ConfigureAwait(false);
+
+									// Commit changes to a new branch and submit PR
+									var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+									var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.GithubIssueId.Value, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
+
+									addin.GithubPullRequestId = pullRequest.Number;
+								}
 							}
+
+							await Task.Delay(1000).ConfigureAwait(false);
 						}
 
 						return addin;
-					}, 1)
+					}, Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 		}
 
