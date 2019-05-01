@@ -3,6 +3,8 @@ using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -21,6 +23,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.First();
 
 			context.Addins = await context.Addins
+				.OrderBy(a => a.Name)
 				.ForEachAsync(
 					async addin =>
 					{
@@ -30,26 +33,39 @@ namespace Cake.AddinDiscoverer.Steps
 							!string.IsNullOrEmpty(addin.GithubRepoName) &&
 							!string.IsNullOrEmpty(addin.GithubRepoOwner))
 						{
-							var extensions = new[] { ".csproj", ".nuspec" };
-							var files = await GetFilesFromRepoAsync(context, addin, extensions, null).ConfigureAwait(false);
-
+							var filesGroupedByExtention = await GetFilePathsFromRepoAsync(context, addin).ConfigureAwait(false);
 							var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
 
-							await FixNuspecFile(context, addin, recommendedCakeVersion, files, commits).ConfigureAwait(false);
-							await FixProjectFile(context, addin, recommendedCakeVersion, files, commits).ConfigureAwait(false);
+							await FixNuspec(context, addin, recommendedCakeVersion, filesGroupedByExtention, commits).ConfigureAwait(false);
+							await FixCsproj(context, addin, recommendedCakeVersion, filesGroupedByExtention, commits).ConfigureAwait(false);
 
 							if (commits.Any())
 							{
-								// Fork the addin repo if it hasn't been forked already and make sure it's up to date
-								var fork = await context.GithubClient.CreateOrRefreshFork(addin.GithubRepoOwner, addin.GithubRepoName).ConfigureAwait(false);
-								var upstream = fork.Parent;
+								// Make sure we have enough API calls left before proceeding
+								var apiInfo = context.GithubClient.GetLastApiInfo();
+								var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
 
-								// Commit changes to a new branch and submit PR
-								var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-								var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.GithubIssueId.Value, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
+								// 250 is an arbitrary threshold that I feel is "safe". Keep in mind that we
+								// have 10 concurrent connections making a multitude of calls to GihHub's API
+								// so this number must be large enough to allow us to bail out before we exhaust
+								// the calls we are allowed to make in an hour
+								if (requestsLeft > 250)
+								{
+									// Fork the addin repo if it hasn't been forked already and make sure it's up to date
+									var fork = await context.GithubClient.CreateOrRefreshFork(addin.GithubRepoOwner, addin.GithubRepoName).ConfigureAwait(false);
+									var upstream = fork.Parent;
 
-								addin.GithubPullRequestId = pullRequest.Number;
+									await Task.Delay(1000).ConfigureAwait(false);
+
+									// Commit changes to a new branch and submit PR
+									var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+									var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.GithubIssueId.Value, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
+
+									addin.GithubPullRequestId = pullRequest.Number;
+								}
 							}
+
+							await Task.Delay(1000).ConfigureAwait(false);
 						}
 
 						return addin;
@@ -57,25 +73,21 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private async Task<RepositoryContent[]> GetFilesFromRepoAsync(DiscoveryContext context, AddinMetadata addin, IEnumerable<string> extensions, string folderName = null)
+		private async Task<IDictionary<string, string[]>> GetFilePathsFromRepoAsync(DiscoveryContext context, AddinMetadata addin)
 		{
-			var files = new List<RepositoryContent>();
+			var filesPathGroupedByExtension = (IDictionary<string, string[]>)null;
 
-			var directoryContent = string.IsNullOrEmpty(folderName) ?
-					await context.GithubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName).ConfigureAwait(false) :
-					await context.GithubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, folderName).ConfigureAwait(false);
-
-			var filesInRoot = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.File) && extensions.Contains(System.IO.Path.GetExtension(c.Name), StringComparer.OrdinalIgnoreCase));
-			files.AddRange(filesInRoot);
-
-			var subFolders = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.Dir));
-			foreach (var subFolder in subFolders)
+			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(addin.GithubRepoOwner, addin.GithubRepoName, ArchiveFormat.Zipball).ConfigureAwait(false);
+			using (var data = new MemoryStream(zipArchive))
 			{
-				var filesInSubFolder = await GetFilesFromRepoAsync(context, addin, extensions, subFolder.Path).ConfigureAwait(false);
-				files.AddRange(filesInSubFolder);
+				var archive = new ZipArchive(data);
+				filesPathGroupedByExtension = archive.Entries
+					.Select(e => string.Join('/', e.FullName.Split('/', StringSplitOptions.RemoveEmptyEntries).Skip(1)))
+					.GroupBy(path => System.IO.Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)
+					.ToDictionary(grp => grp.Key, grp => grp.ToArray());
 			}
 
-			return files.ToArray();
+			return filesPathGroupedByExtension;
 		}
 
 		private async Task<string> GetFileContentFromRepoAsync(DiscoveryContext context, AddinMetadata addin, string filePath)
@@ -84,14 +96,18 @@ namespace Cake.AddinDiscoverer.Steps
 			return content[0].Content;
 		}
 
-		private async Task FixNuspecFile(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, RepositoryContent[] files, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private async Task FixNuspec(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IDictionary<string, string[]> filesPathGroupedByExtension, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
+			// Get the nuspec files
+			filesPathGroupedByExtension.TryGetValue(".nuspec", out string[] filePaths);
+			if (filePaths == null || !filePaths.Any()) return;
+
 			// Get the nuspec file
-			var nuspecFile = files.FirstOrDefault(file => file.Name.Equals($"{addin.Name}.nuspec", StringComparison.OrdinalIgnoreCase));
-			if (nuspecFile == null) return;
+			var filePath = filePaths.FirstOrDefault(path => Path.GetFileName(path).EqualsIgnoreCase($"{addin.Name}.nuspec"));
+			if (string.IsNullOrEmpty(filePath)) return;
 
 			// Get the content of the csproj file
-			var nuspecFileContent = await GetFileContentFromRepoAsync(context, addin, nuspecFile.Path).ConfigureAwait(false);
+			var nuspecFileContent = await GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
 
 			// Parse the content of the nuspec file
 			var document = new XDocumentFormatPreserved(nuspecFileContent);
@@ -106,18 +122,22 @@ namespace Cake.AddinDiscoverer.Steps
 			if (iconUrlElement != null && iconUrlElement.Value != Constants.NEW_CAKE_CONTRIB_ICON_URL)
 			{
 				iconUrlElement.SetValue(Constants.NEW_CAKE_CONTRIB_ICON_URL);
-				commits.Add(("Fix iconUrl", null, new[] { (EncodingType.Utf8, nuspecFile.Path, document.ToString()) }));
+				commits.Add(("Fix iconUrl", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
 			}
 		}
 
-		private async Task FixProjectFile(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, RepositoryContent[] files, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private async Task FixCsproj(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IDictionary<string, string[]> filesPathGroupedByExtension, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
+			// Get the csproj files
+			filesPathGroupedByExtension.TryGetValue(".csproj", out string[] filePaths);
+			if (filePaths == null || !filePaths.Any()) return;
+
 			// Get the project file
-			var projectFile = files.FirstOrDefault(file => file.Name.Equals($"{addin.Name}.csproj", StringComparison.OrdinalIgnoreCase));
-			if (projectFile == null) return;
+			var filePath = filePaths.FirstOrDefault(path => Path.GetFileName(path).EqualsIgnoreCase($"{addin.Name}.csproj"));
+			if (string.IsNullOrEmpty(filePath)) return;
 
 			// Get the content of the csproj file
-			var projectFileContent = await GetFileContentFromRepoAsync(context, addin, projectFile.Path).ConfigureAwait(false);
+			var projectFileContent = await GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
 
 			// Parse the content of the csproj file
 			var document = new XDocumentFormatPreserved(projectFileContent);
@@ -135,7 +155,7 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				if (document.Document.SetFirstElementValue("PackageIconUrl", Constants.NEW_CAKE_CONTRIB_ICON_URL))
 				{
-					commits.Add(("Fix PackageIconUrl", null, new[] { (EncodingType.Utf8, projectFile.Path, document.ToString()) }));
+					commits.Add(("Fix PackageIconUrl", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
 				}
 			}
 
@@ -144,24 +164,24 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				if (document.Document.SetFirstElementValue("TargetFramework", cakeVersion.RequiredFramework))
 				{
-					commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, projectFile.Path, document.ToString()) }));
+					commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
 				}
 			}
 
 			var targetFrameworks = document.Document.GetFirstElementValue("TargetFrameworks")?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
-			if (!targetFrameworks.Contains(cakeVersion.RequiredFramework))
+			if (targetFrameworks.Any() && !targetFrameworks.Contains(cakeVersion.RequiredFramework))
 			{
 				if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework))
 				{
-					commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, projectFile.Path, document.ToString()) }));
+					commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
 				}
 			}
 
-			FixCakeReferenceInProjectFile(document, "Cake.Core", cakeVersion, projectFile, commits);
-			FixCakeReferenceInProjectFile(document, "Cake.Common", cakeVersion, projectFile, commits);
+			FixCakeReferenceInProjectFile(document, "Cake.Core", cakeVersion, filePath, commits);
+			FixCakeReferenceInProjectFile(document, "Cake.Common", cakeVersion, filePath, commits);
 		}
 
-		private void FixCakeReferenceInProjectFile(XDocumentFormatPreserved document, string referenceName, CakeVersion cakeVersion, RepositoryContent projectFile, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private void FixCakeReferenceInProjectFile(XDocumentFormatPreserved document, string referenceName, CakeVersion cakeVersion, string filePath, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			var ns = document.Document.Root?.Name.Namespace;
 			var packageReferenceXName = ns.GetXNameWithNamespace("PackageReference");
@@ -178,7 +198,7 @@ namespace Cake.AddinDiscoverer.Steps
 					if (!referencedVersion.IsUpToDate(cakeVersion.Version))
 					{
 						cakeReference.SetAttributeValue("Version", cakeVersion.Version.ToString(3));
-						commits.Add(($"Upgrade {referenceName} reference to {cakeVersion.Version.ToString(3)}", null, new[] { (EncodingType.Utf8, projectFile.Path, document.ToString()) }));
+						commits.Add(($"Upgrade {referenceName} reference to {cakeVersion.Version.ToString(3)}", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
 					}
 				}
 
@@ -188,7 +208,7 @@ namespace Cake.AddinDiscoverer.Steps
 					if (!privateAssetsElement.Value.Equals("All"))
 					{
 						privateAssetsElement.SetValue("All");
-						commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, projectFile.Path, document.ToString()) }));
+						commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
 					}
 				}
 				else
@@ -197,7 +217,7 @@ namespace Cake.AddinDiscoverer.Steps
 					if (privateAssetsAttribute == null || !privateAssetsAttribute.Value.Equals("All"))
 					{
 						cakeReference.SetAttributeValue("PrivateAssets", "All");
-						commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, projectFile.Path, document.ToString()) }));
+						commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
 					}
 				}
 			}

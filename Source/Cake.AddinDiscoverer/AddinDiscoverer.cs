@@ -37,7 +37,7 @@ namespace Cake.AddinDiscoverer
 			// This step corrects the URL to ensure it points to the right repo
 			typeof(ValidateUrlStep),
 
-			// Download the packages from NuGet if their are not already in the cache
+			// Download the packages from NuGet if they are not already in the cache
 			typeof(DownloadStep),
 
 			// Check if an issue has been already created (to avoid creating duplicates)
