@@ -10,6 +10,7 @@ namespace Cake.AddinDiscoverer.Utilities
 
 		public const string PRODUCT_NAME = "Cake.AddinDiscoverer";
 		public const string ISSUE_TITLE = "Recommended changes resulting from automated audit";
+		public const string PULL_REQUEST_TITLE = "Fix issues identified by automated audit";
 		public const string NEW_CAKE_CONTRIB_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/cake-contrib-medium.png";
 		public const string OLD_CAKE_CONTRIB_ICON_URL = "https://cdn.rawgit.com/cake-contrib/graphics/a5cf0f881c390650144b2243ae551d5b9f836196/png/cake-contrib-medium.png";
 		public const string CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE = "Support Cake {0}";

@@ -5,7 +5,7 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <TargetLatestRuntimePatch>false</TargetLatestRuntimePatch>
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
-    <Version>3.13.0</Version>
+    <Version>3.14.0</Version>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
@@ -15,10 +15,6 @@
     <Description>Cake.AddinDiscoverer is a tool that discovers all known Cake plugins and analyses them to ensure they follow best practices.</Description>
     <Copyright>Copyright Jericho and contributors 2018 - Present</Copyright>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Remove="Steps\ValidateDiscoveryStep.cs~RF673cff3.TMP" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Ben.Demystifier" Version="0.1.4" />

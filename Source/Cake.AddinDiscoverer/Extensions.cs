@@ -1,4 +1,5 @@
 ﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
@@ -7,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Cake.AddinDiscoverer
 {
@@ -126,6 +128,21 @@ namespace Cake.AddinDiscoverer
 			await Task.WhenAll(allTasks).ConfigureAwait(false);
 		}
 
+		public static async Task<Repository> CreateOrRefreshFork(this IGitHubClient githubClient, string repoOwner, string repoName)
+		{
+			var fork = await githubClient.Repository.Forks.Create(repoOwner, repoName, new NewRepositoryFork()).ConfigureAwait(false);
+			var upstream = fork.Parent;
+
+			var compareResult = await githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}").ConfigureAwait(false);
+			if (compareResult.BehindBy > 0)
+			{
+				var upstreamBranchReference = await githubClient.Git.Reference.Get(upstream.Owner.Login, upstream.Name, $"heads/{upstream.DefaultBranch}").ConfigureAwait(false);
+				await githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}", new ReferenceUpdate(upstreamBranchReference.Object.Sha)).ConfigureAwait(false);
+			}
+
+			return fork;
+		}
+
 		public static async Task<Repository> RefreshFork(this IGitHubClient githubClient, string forkOwner, string forkName)
 		{
 			var fork = await githubClient.Repository.Get(forkOwner, forkName).ConfigureAwait(false);
@@ -187,12 +204,12 @@ namespace Cake.AddinDiscoverer
 
 		/// <summary>
 		/// Checks if a string matches another which may include the following wild cards:
-		/// ? - any character(one and only one)
-		/// * - any characters(zero or more)
+		/// ? - any character(one and only one).
+		/// * - any characters(zero or more).
 		/// </summary>
-		/// <param name="source">The string to search for a match</param>
-		/// <param name="pattern">The patern to match</param>
-		/// <returns>true if a match was found, false otherwise</returns>
+		/// <param name="source">The string to search for a match.</param>
+		/// <param name="pattern">The patern to match.</param>
+		/// <returns>true if a match was found, false otherwise.</returns>
 		public static bool IsMatch(this string source, string pattern)
 		{
 			return Regex.IsMatch(source, "^" + Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$");
@@ -214,6 +231,69 @@ namespace Cake.AddinDiscoverer
 			if (desiredVersion == null) throw new ArgumentNullException(nameof(desiredVersion));
 
 			return currentVersion == null || currentVersion >= desiredVersion;
+		}
+
+		// From The Cake Incubator project
+		public static string GetFirstElementValue(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
+		{
+			var elements = document.Descendants(elementName);
+			if (!elements.Any())
+			{
+				return null;
+			}
+
+			if (string.IsNullOrEmpty(config))
+			{
+				return elements.FirstOrDefault((XElement x) => !x.WithConfigCondition())?.Value;
+			}
+
+			return elements.FirstOrDefault((XElement x) => x.WithConfigCondition(config, platform))?.Value ?? elements.FirstOrDefault((XElement x) => !x.WithConfigCondition())?.Value;
+		}
+
+		// From The Cake Incubator project
+		public static bool WithConfigCondition(this XElement element, string config = null, string platform = null)
+		{
+			bool? configAttribute = element.Attribute("Condition")?.Value.HasConfigPlatformCondition(config, platform);
+			if (!configAttribute.HasValue)
+			{
+				configAttribute = element.Parent?.Attribute("Condition")?.Value.HasConfigPlatformCondition(config, platform);
+			}
+
+			return configAttribute ?? false;
+		}
+
+		// From The Cake Incubator project
+		public static bool HasConfigPlatformCondition(this string condition, string config = null, string platform = null)
+		{
+			return string.IsNullOrEmpty(config) ? condition.StartsWith("'$(Configuration)|$(Platform)'==") : condition.EqualsIgnoreCase("'$(Configuration)|$(Platform)'=='" + config + "|" + platform + "'");
+		}
+
+		public static bool SetFirstElementValue(this XDocument document, XName elementName, string newValue, string config = null, string platform = "AnyCPU")
+		{
+			var elements = document.Descendants(elementName);
+			if (!elements.Any()) return false;
+
+			XElement element = null;
+			if (string.IsNullOrEmpty(config))
+			{
+				element = elements.FirstOrDefault((XElement x) => !x.WithConfigCondition());
+			}
+			else
+			{
+				element = elements.FirstOrDefault((XElement x) => x.WithConfigCondition(config, platform)) ?? elements.FirstOrDefault((XElement x) => !x.WithConfigCondition());
+			}
+
+			if (element == null) return false;
+
+			element.SetValue(newValue);
+			return true;
+		}
+
+		// From The Cake Incubator project
+		public static XName GetXNameWithNamespace(this XNamespace ns, string elementName)
+		{
+			string nsName = ns?.NamespaceName;
+			return (nsName == null) ? XName.Get(elementName) : XName.Get(elementName, nsName);
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)

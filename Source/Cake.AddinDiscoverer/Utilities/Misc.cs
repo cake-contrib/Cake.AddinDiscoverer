@@ -33,7 +33,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			return issue;
 		}
 
-		public static async Task CommitToNewBranchAndSubmitPullRequestAsync(DiscoveryContext context, Octokit.Repository fork, Issue issue, string newBranchName, string pullRequestCommitMessage, IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		public static async Task<PullRequest> CommitToNewBranchAndSubmitPullRequestAsync(DiscoveryContext context, Octokit.Repository fork, int issueNumber, string newBranchName, string pullRequestTitle, IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			if (commits == null || !commits.Any()) throw new ArgumentNullException("You must provide at least one commit", nameof(commits));
 
@@ -47,16 +47,18 @@ namespace Cake.AddinDiscoverer.Utilities
 
 			foreach (var (commitMessage, filesToDelete, filesToUpsert) in commits)
 			{
-				latestCommit = await context.GithubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, filesToUpsert, $"(GH-{issue.Number}) {commitMessage}").ConfigureAwait(false);
+				latestCommit = await context.GithubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, filesToUpsert, $"(GH-{issueNumber}) {commitMessage}").ConfigureAwait(false);
 			}
 
 			await context.GithubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha)).ConfigureAwait(false);
 
-			var newPullRequest = new NewPullRequest(pullRequestCommitMessage, $"{fork.Owner.Login}:{newBranchName}", upstream.DefaultBranch)
+			var newPullRequest = new NewPullRequest(pullRequestTitle, $"{fork.Owner.Login}:{newBranchName}", upstream.DefaultBranch)
 			{
-				Body = $"Resolves #{issue.Number}"
+				Body = $"This pull request was created by a tool: Cake.AddinDiscoverer version {context.Version}{Environment.NewLine}{Environment.NewLine}Resolves #{issueNumber}"
 			};
-			await context.GithubClient.PullRequest.Create(upstream.Owner.Login, upstream.Name, newPullRequest).ConfigureAwait(false);
+			var pullRequest = await context.GithubClient.PullRequest.Create(upstream.Owner.Login, upstream.Name, newPullRequest).ConfigureAwait(false);
+
+			return pullRequest;
 		}
 	}
 }
