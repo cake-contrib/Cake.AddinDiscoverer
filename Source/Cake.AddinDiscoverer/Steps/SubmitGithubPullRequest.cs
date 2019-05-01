@@ -168,7 +168,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 
 			var targetFrameworks = document.Document.GetFirstElementValue("TargetFrameworks")?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
-			if (!targetFrameworks.Contains(cakeVersion.RequiredFramework))
+			if (targetFrameworks.Any() && !targetFrameworks.Contains(cakeVersion.RequiredFramework))
 			{
 				if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework))
 				{
