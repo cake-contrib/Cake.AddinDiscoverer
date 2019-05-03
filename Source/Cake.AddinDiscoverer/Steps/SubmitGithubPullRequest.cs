@@ -182,9 +182,10 @@ namespace Cake.AddinDiscoverer.Steps
 					}
 				}
 
-				// Make sure the right version of Cake.Core and Cake.Common is referenced
+				// Make sure the right version of Cake.Core, Cake.Common and Cake.Testing is referenced
 				FixCakeReferenceInProjectFile(document, "Cake.Core", cakeVersion, filePath, commits);
 				FixCakeReferenceInProjectFile(document, "Cake.Common", cakeVersion, filePath, commits);
+				FixCakeReferenceInProjectFile(document, "Cake.Testing", cakeVersion, filePath, commits);
 			}
 		}
 
