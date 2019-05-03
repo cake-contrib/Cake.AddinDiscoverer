@@ -1,6 +1,6 @@
 
 // Install tools.
-#tool "nuget:?package=GitVersion.CommandLine&version=4.0.0-beta0012"
+#tool nuget:?package=GitVersion.CommandLine&version=5.0.0-beta2-75
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -27,7 +27,6 @@ var outputDir = "./artifacts/";
 var publishDir = $"{outputDir}Publish/";
 
 var versionInfo = GitVersion(new GitVersionSettings() { OutputType = GitVersionOutput.Json });
-var milestone = string.Concat("v", versionInfo.MajorMinorPatch);
 var cakeVersion = typeof(ICakeContext).Assembly.GetName().Version.ToString();
 var isLocalBuild = BuildSystem.IsLocalBuild;
 var isMainBranch = StringComparer.OrdinalIgnoreCase.Equals("master", BuildSystem.AppVeyor.Environment.Repository.Branch);
