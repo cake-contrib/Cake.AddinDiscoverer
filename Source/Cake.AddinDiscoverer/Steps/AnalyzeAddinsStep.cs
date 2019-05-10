@@ -53,10 +53,11 @@ namespace Cake.AddinDiscoverer.Steps
 						addin.AnalysisResult.Notes += $"This addin seems to be referencing neither Cake.Core nor Cake.Common.{Environment.NewLine}";
 					}
 
-					addin.AnalysisResult.UsingNewCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri.EqualsIgnoreCase(Constants.NEW_CAKE_CONTRIB_ICON_URL);
-					addin.AnalysisResult.UsingOldCakeContribIcon = addin.IconUrl != null && addin.IconUrl.AbsoluteUri.EqualsIgnoreCase(Constants.OLD_CAKE_CONTRIB_ICON_URL);
-					addin.AnalysisResult.TransferedToCakeContribOrganisation = addin.GithubRepoOwner?.Equals(Constants.CAKE_CONTRIB_REPO_OWNER, StringComparison.OrdinalIgnoreCase) ?? false;
-					addin.AnalysisResult.ObsoleteLicenseUrlRemoved = !string.IsNullOrEmpty(addin.NuGetLicense);
+					addin.AnalysisResult.UsingNewCakeContribIcon = addin.IconUrl?.AbsoluteUri.EqualsIgnoreCase(Constants.NEW_CAKE_CONTRIB_ICON_URL) ?? false;
+					addin.AnalysisResult.UsingOldCakeContribIcon = addin.IconUrl?.AbsoluteUri.EqualsIgnoreCase(Constants.OLD_CAKE_CONTRIB_ICON_URL) ?? false;
+					addin.AnalysisResult.TransferedToCakeContribOrganisation = addin.RepositoryOwner?.Equals(Constants.CAKE_CONTRIB_REPO_OWNER, StringComparison.OrdinalIgnoreCase) ?? false;
+					addin.AnalysisResult.ObsoleteLicenseUrlRemoved = !string.IsNullOrEmpty(addin.License);
+					addin.AnalysisResult.RepositoryInfoProvided = addin.RepositoryUrl != null;
 
 					return addin;
 				})

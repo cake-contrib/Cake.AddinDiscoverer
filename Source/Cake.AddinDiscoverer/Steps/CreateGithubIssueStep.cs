@@ -28,8 +28,8 @@ namespace Cake.AddinDiscoverer.Steps
 						if (addin.Type != AddinType.Recipe &&
 							!addin.IsDeprecated &&
 							!addin.GithubIssueId.HasValue &&
-							!string.IsNullOrEmpty(addin.GithubRepoName) &&
-							!string.IsNullOrEmpty(addin.GithubRepoOwner))
+							!string.IsNullOrEmpty(addin.RepositoryName) &&
+							!string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
 							var issuesDescription = new StringBuilder();
 							if (addin.AnalysisResult.CakeCoreVersion == Constants.UNKNOWN_VERSION)
@@ -76,7 +76,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 								try
 								{
-									var issue = await context.GithubClient.Issue.Create(addin.GithubRepoOwner, addin.GithubRepoName, newIssue).ConfigureAwait(false);
+									var issue = await context.GithubClient.Issue.Create(addin.RepositoryOwner, addin.RepositoryName, newIssue).ConfigureAwait(false);
 									addin.GithubIssueId = issue.Number;
 								}
 								catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Issues are disabled for this repo"))

@@ -19,7 +19,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ForEachAsync(
 					async addin =>
 					{
-						if (!addin.GithubIssueId.HasValue && addin.GithubRepoUrl != null)
+						if (!addin.GithubIssueId.HasValue && addin.RepositoryUrl != null)
 						{
 							var request = new RepositoryIssueRequest()
 							{
@@ -31,7 +31,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 							try
 							{
-								var issues = await context.GithubClient.Issue.GetAllForRepository(addin.GithubRepoOwner, addin.GithubRepoName, request).ConfigureAwait(false);
+								var issues = await context.GithubClient.Issue.GetAllForRepository(addin.RepositoryOwner, addin.RepositoryName, request).ConfigureAwait(false);
 								var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.ISSUE_TITLE) || i.Body.StartsWith("We performed an automated audit of your Cake addin", StringComparison.OrdinalIgnoreCase));
 
 								if (issue != null)

@@ -19,7 +19,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ForEachAsync(
 					async addin =>
 					{
-						if (!addin.GithubPullRequestId.HasValue && addin.GithubRepoUrl != null)
+						if (!addin.GithubPullRequestId.HasValue && addin.RepositoryUrl != null)
 						{
 							var request = new PullRequestRequest()
 							{
@@ -30,7 +30,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 							try
 							{
-								var pullRequests = await context.GithubClient.PullRequest.GetAllForRepository(addin.GithubRepoOwner, addin.GithubRepoName, request).ConfigureAwait(false);
+								var pullRequests = await context.GithubClient.PullRequest.GetAllForRepository(addin.RepositoryOwner, addin.RepositoryName, request).ConfigureAwait(false);
 								var pullRequest = pullRequests.FirstOrDefault(pr => pr.Title.EqualsIgnoreCase(Constants.PULL_REQUEST_TITLE) && pr.User.Login.EqualsIgnoreCase(context.Options.GithubUsername));
 
 								if (pullRequest != null)

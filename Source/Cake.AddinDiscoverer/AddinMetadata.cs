@@ -1,5 +1,4 @@
-﻿using Cake.Incubator.StringExtensions;
-using System;
+﻿using System;
 using System.Diagnostics;
 
 namespace Cake.AddinDiscoverer
@@ -7,15 +6,13 @@ namespace Cake.AddinDiscoverer
 	[DebuggerDisplay("Name = {Name}; Type = {Type}")]
 	internal class AddinMetadata
 	{
-		private Uri repositoryUrl;
-
 		public string Name { get; set; }
 
 		public string Maintainer { get; set; }
 
-		public string GithubRepoName { get; private set; }
+		public string RepositoryName { get; set; }
 
-		public string GithubRepoOwner { get; private set; }
+		public string RepositoryOwner { get; set; }
 
 		public string[] Frameworks { get; set; }
 
@@ -29,30 +26,11 @@ namespace Cake.AddinDiscoverer
 
 		public Uri NuGetPackageUrl { get; set; }
 
-		public string NuGetLicense { get; set; }
+		public string License { get; set; }
 
-		public Uri GithubRepoUrl
-		{
-			get
-			{
-				return repositoryUrl;
-			}
+		public Uri ProjectUrl { get; set; }
 
-			set
-			{
-				repositoryUrl = value;
-
-				if (value != null)
-				{
-					var parts = value.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-					if (parts.Length >= 2)
-					{
-						this.GithubRepoOwner = parts[0];
-						this.GithubRepoName = parts[1].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
-					}
-				}
-			}
-		}
+		public Uri RepositoryUrl { get; set; }
 
 		public int? GithubPullRequestId { get; set; }
 

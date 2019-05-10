@@ -44,6 +44,9 @@ namespace Cake.AddinDiscoverer.Steps
 											e => e.Name.LocalName,
 											e => (e.Value, (IDictionary<string, string>)e.Attributes().ToDictionary(a => a.Name.LocalName, a => a.Value)));
 
+									rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
+
+									var license = package.NuspecReader.GetMetadataValue("license");
 									var iconUrl = package.NuspecReader.GetIconUrl();
 									var projectUrl = package.NuspecReader.GetProjectUrl();
 									var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
@@ -168,21 +171,26 @@ namespace Cake.AddinDiscoverer.Steps
 											.ToArray();
 									}
 
-									addin.NuGetLicense = license;
+									addin.License = license;
 									addin.IconUrl = string.IsNullOrEmpty(iconUrl) ? null : new Uri(iconUrl);
 									addin.NuGetPackageVersion = packageVersion;
 									addin.Frameworks = frameworks;
 									addin.References = dllReferences;
 									addin.IsPrerelease |= isPreRelease;
-									if (addin.GithubRepoUrl == null) addin.GithubRepoUrl = string.IsNullOrEmpty(projectUrl) ? null : new Uri(projectUrl);
+
 									if (addin.Name.EndsWith(".Module", StringComparison.OrdinalIgnoreCase)) addin.Type = AddinType.Module;
 									if (addin.Type == AddinType.Unknown && !string.IsNullOrEmpty(assemblyPath)) addin.Type = AddinType.Addin;
 									if (!string.IsNullOrEmpty(assemblyPath)) addin.DllName = Path.GetFileName(assemblyPath);
 
-									if (addin.Type == AddinType.Unknown)
+									if (repositoryInfo != default && repositoryInfo.Attributes.TryGetValue("url", out string repoUrl))
 									{
-										throw new Exception("We are unable to determine the type of this addin. One likely reason is that it contains multiple DLLs but none of them respect the naming convention.");
+										addin.RepositoryUrl = new Uri(repoUrl);
 									}
+								}
+
+								if (addin.Type == AddinType.Unknown)
+								{
+									throw new Exception("We are unable to determine the type of this addin. One likely reason is that it contains multiple DLLs but none of them respect the naming convention.");
 								}
 							}
 						}
