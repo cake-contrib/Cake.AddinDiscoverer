@@ -197,6 +197,7 @@ namespace Cake.AddinDiscoverer.Steps
 						var emoji = string.Empty;
 						if (color == Color.LightGreen) emoji = Constants.GREEN_EMOJI;
 						else if (color == Color.Red) emoji = Constants.RED_EMOJI;
+						else if (color == Color.Gold) emoji = Constants.YELLOW_EMOJI;
 
 						if (hyperlink == null)
 						{

@@ -18,6 +18,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const int MAX_NUGET_CONCURENCY = 25; // I suspect nuget allows a much large number of concurrent connections but 25 seems like a safe value.
 		public const string GREEN_EMOJI = ":white_check_mark: ";
 		public const string RED_EMOJI = ":small_red_triangle: ";
+		public const string YELLOW_EMOJI = ":warning: ";
 		public const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 		public const string PACKAGES_CONFIG_PATH = "tools/packages.config";
 
@@ -185,8 +186,8 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Repository",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.RepositoryInfoProvided.ToString().ToLower(),
-				(addin, cakeVersion) => addin.AnalysisResult.RepositoryInfoProvided ? Color.LightGreen : Color.Red,
+				(addin) => !addin.AnalysisResult.RepositoryInfoProvided ? "false" : (addin.RepositoryUrl.AbsolutePath.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? "true" : ".git missing"),
+				(addin, cakeVersion) => !addin.AnalysisResult.RepositoryInfoProvided ? Color.Red : (addin.RepositoryUrl.AbsolutePath.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? Color.LightGreen : Color.Gold),
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel
@@ -195,7 +196,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				"Repository",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.Empty,
-				(addin, cakeVersion) => addin.AnalysisResult.RepositoryInfoProvided ? Color.LightGreen : Color.Red,
+				(addin, cakeVersion) => !addin.AnalysisResult.RepositoryInfoProvided ? Color.Red : (addin.RepositoryUrl.AbsolutePath.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? Color.LightGreen : Color.Gold),
 				(addin) => null,
 				AddinType.All,
 				DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
