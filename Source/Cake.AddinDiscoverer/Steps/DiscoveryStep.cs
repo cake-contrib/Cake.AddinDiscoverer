@@ -73,7 +73,7 @@ namespace Cake.AddinDiscoverer.Steps
 						AnalysisResult = new AddinAnalysisResult(),
 						Maintainer = package.Authors,
 						Description = package.Description,
-						GithubRepoUrl = (package.ProjectUrl != null && package.ProjectUrl.Host.Contains("github.com") ? package.ProjectUrl : null).ForceHttps(),
+						ProjectUrl = package.ProjectUrl,
 						IconUrl = package.IconUrl,
 						Name = package.Identity.Id,
 						NuGetPackageUrl = new Uri($"https://www.nuget.org/packages/{package.Identity.Id}/"),

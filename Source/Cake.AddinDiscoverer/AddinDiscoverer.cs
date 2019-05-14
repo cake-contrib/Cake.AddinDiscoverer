@@ -33,24 +33,25 @@ namespace Cake.AddinDiscoverer
 			// Sanity check on the list of addins we discovered
 			typeof(ValidateDiscoveryStep),
 
-			// Some addins were moved to the cake-contrib organization but their URL in package metadata still points to the original repo.
-			// This step corrects the URL to ensure it points to the right repo
-			typeof(ValidateUrlStep),
-
 			// Download the packages from NuGet if they are not already in the cache
 			typeof(DownloadStep),
+
+			// Analyze the metadata in the downloaded nuget package
+			typeof(AnalyzeNuGetMetadataStep),
+
+			// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
+			// points to the original repo. This step corrects the URL to ensure it points to the right repo.
+			// Also, this step forces HTTPS for github.com URLs.
+			typeof(ValidateUrlStep),
+
+			// Use the info from previous steps to determine if addins meet the best pratices
+			typeof(AnalyzeAddinsStep),
 
 			// Check if an issue has been already created (to avoid creating duplicates)
 			typeof(FindGithubIssueStep),
 
 			// Check if a Pull Request has been already created (to avoid creating duplicates)
 			typeof(FindGithubPullRequestStep),
-
-			// Analyze the metadata in the downloaded nuget package
-			typeof(AnalyzeNuGetMetadataStep),
-
-			// Use the info from previous step to dDetermine if addins meet the best pratices
-			typeof(AnalyzeAddinsStep),
 
 			// Generate an Excel spreadsheet with the result of the audit
 			typeof(GenerateExcelReportStep),

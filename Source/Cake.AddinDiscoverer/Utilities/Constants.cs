@@ -61,7 +61,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Left,
 				(addin) => addin.Name,
 				(addin, cakeVersion) => Color.Empty,
-				(addin) => addin.GithubRepoUrl ?? addin.NuGetPackageUrl,
+				(addin) => addin.ProjectUrl ?? addin.NuGetPackageUrl ?? addin.RepositoryUrl,
 				AddinType.All,
 				DataDestination.All
 			),
@@ -176,11 +176,29 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"License",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.NuGetLicense,
+				(addin) => addin.License,
 				(addin, cakeVersion) => addin.AnalysisResult.ObsoleteLicenseUrlRemoved ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel | DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
+			),
+			(
+				"Repository",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.RepositoryInfoProvided.ToString().ToLower(),
+				(addin, cakeVersion) => addin.AnalysisResult.RepositoryInfoProvided ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel
+			),
+			(
+				"Repository",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.Empty,
+				(addin, cakeVersion) => addin.AnalysisResult.RepositoryInfoProvided ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
 			),
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly

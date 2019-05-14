@@ -30,8 +30,8 @@ namespace Cake.AddinDiscoverer.Steps
 						if (addin.Type != AddinType.Recipe &&
 							addin.GithubIssueId.HasValue &&
 							!addin.GithubPullRequestId.HasValue &&
-							!string.IsNullOrEmpty(addin.GithubRepoName) &&
-							!string.IsNullOrEmpty(addin.GithubRepoOwner))
+							!string.IsNullOrEmpty(addin.RepositoryName) &&
+							!string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
 							var filesGroupedByExtention = await GetFilePathsFromRepoAsync(context, addin).ConfigureAwait(false);
 							var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
@@ -52,7 +52,7 @@ namespace Cake.AddinDiscoverer.Steps
 								if (requestsLeft > 250)
 								{
 									// Fork the addin repo if it hasn't been forked already and make sure it's up to date
-									var fork = await context.GithubClient.CreateOrRefreshFork(addin.GithubRepoOwner, addin.GithubRepoName).ConfigureAwait(false);
+									var fork = await context.GithubClient.CreateOrRefreshFork(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 									var upstream = fork.Parent;
 
 									await Task.Delay(1000).ConfigureAwait(false);
@@ -77,7 +77,7 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			var filesPathGroupedByExtension = (IDictionary<string, string[]>)null;
 
-			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(addin.GithubRepoOwner, addin.GithubRepoName, ArchiveFormat.Zipball).ConfigureAwait(false);
+			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(addin.RepositoryOwner, addin.RepositoryName, ArchiveFormat.Zipball).ConfigureAwait(false);
 			using (var data = new MemoryStream(zipArchive))
 			{
 				var archive = new ZipArchive(data);
@@ -92,7 +92,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private async Task<string> GetFileContentFromRepoAsync(DiscoveryContext context, AddinMetadata addin, string filePath)
 		{
-			var content = await context.GithubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, filePath).ConfigureAwait(false);
+			var content = await context.GithubClient.Repository.Content.GetAllContents(addin.RepositoryOwner, addin.RepositoryName, filePath).ConfigureAwait(false);
 			return content[0].Content;
 		}
 

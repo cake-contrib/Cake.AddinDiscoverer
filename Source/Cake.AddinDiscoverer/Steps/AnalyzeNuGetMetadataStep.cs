@@ -3,6 +3,7 @@ using Cake.Incubator.StringExtensions;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -31,11 +32,21 @@ namespace Cake.AddinDiscoverer.Steps
 							{
 								using (var package = new PackageArchiveReader(stream))
 								{
-									var rawNugetMetadata = package.NuspecReader.GetMetadata()
-										.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+									/*
+									Workaround to get all available metadata from a NuGet package, even the metadata not
+									exposed by NuGet.Packaging.NuspecReader. For example, NuspecReader version 4.3.0 does
+									not expose the "repository" metadata.
+									*/
+									var metadataNode = package.NuspecReader.Xml.Root.Elements()
+										.Single(e => e.Name.LocalName.Equals("metadata", StringComparison.Ordinal));
+									var rawNugetMetadata = metadataNode.Elements()
+										.ToDictionary(
+											e => e.Name.LocalName,
+											e => (e.Value, (IDictionary<string, string>)e.Attributes().ToDictionary(a => a.Name.LocalName, a => a.Value)));
 
-									rawNugetMetadata.TryGetValue("license", out string license);
+									rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
 
+									var license = package.NuspecReader.GetMetadataValue("license");
 									var iconUrl = package.NuspecReader.GetIconUrl();
 									var projectUrl = package.NuspecReader.GetProjectUrl();
 									var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
@@ -160,21 +171,26 @@ namespace Cake.AddinDiscoverer.Steps
 											.ToArray();
 									}
 
-									addin.NuGetLicense = license;
+									addin.License = license;
 									addin.IconUrl = string.IsNullOrEmpty(iconUrl) ? null : new Uri(iconUrl);
 									addin.NuGetPackageVersion = packageVersion;
 									addin.Frameworks = frameworks;
 									addin.References = dllReferences;
 									addin.IsPrerelease |= isPreRelease;
-									if (addin.GithubRepoUrl == null) addin.GithubRepoUrl = string.IsNullOrEmpty(projectUrl) ? null : new Uri(projectUrl);
+
 									if (addin.Name.EndsWith(".Module", StringComparison.OrdinalIgnoreCase)) addin.Type = AddinType.Module;
 									if (addin.Type == AddinType.Unknown && !string.IsNullOrEmpty(assemblyPath)) addin.Type = AddinType.Addin;
 									if (!string.IsNullOrEmpty(assemblyPath)) addin.DllName = Path.GetFileName(assemblyPath);
 
-									if (addin.Type == AddinType.Unknown)
+									if (repositoryInfo != default && repositoryInfo.Attributes.TryGetValue("url", out string repoUrl))
 									{
-										throw new Exception("We are unable to determine the type of this addin. One likely reason is that it contains multiple DLLs but none of them respect the naming convention.");
+										addin.RepositoryUrl = new Uri(repoUrl);
 									}
+								}
+
+								if (addin.Type == AddinType.Unknown)
+								{
+									throw new Exception("We are unable to determine the type of this addin. One likely reason is that it contains multiple DLLs but none of them respect the naming convention.");
 								}
 							}
 						}

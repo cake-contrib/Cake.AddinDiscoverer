@@ -48,6 +48,11 @@ namespace Cake.AddinDiscoverer
 		public bool ObsoleteLicenseUrlRemoved { get; set; }
 
 		/// <summary>
+		/// Gets or sets a value indicating whether the repository info (such as URL, type, etc.) is provided in the nuspec.
+		/// </summary>
+		public bool RepositoryInfoProvided { get; set; }
+
+		/// <summary>
 		/// Gets or sets notes (such as error messages).
 		/// </summary>
 		public string Notes { get; set; }

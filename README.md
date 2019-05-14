@@ -20,19 +20,22 @@ The best practice this tool inspects for are:
 You can invoke this tool with the following arguments:
 
 ```csharp
-  -t, --tempfolder        Folder where temporary files (including reports) are saved.
-  -a, --addinname         Name of the specific addin to be audited. If omitted, all addins are audited.
-  -u, --user              Github username.
-  -p, --password          Github password.
-  -c, --clearcache        (Default: false) Clear the list of addins that was previously cached.
-  -i, --issue             (Default: false) Create issue in Github repositories that do not meet recommendations.
-  -e, --exceltofile       (Default: false) Generate the Excel report and write to a file.
-  -x, --exceltorepo       (Default: false) Generate the Excel report and commit to cake-contrib repo.
-  -m, --markdowntofile    (Default: false) Generate the Markdown report and write to a file.
-  -r, --markdowntorepo    (Default: false) Generate the Markdown report and commit to cake-contrib repo.
-  -s, --syncyaml          (Default: false) Synchronize the yaml files on Cake's web site with the packages discovered on NuGet.
-  --help                  Display this help screen.
-  --version               Display version information.
+  -t, --tempfolder          Folder where temporary files (including reports) are saved.
+  -a, --addinname           Name of the specific addin to be audited. If omitted, all addins are audited.
+  -u, --user                Github username.
+  -p, --password            Github password.
+  -y, --proxy               The URL of your proxy. For example, to proxy request through Fiddler use: 'http://localhost:8888'.
+  -c, --clearcache          (Default: false) Clear the list of addins that was previously cached.
+  -i, --issue               (Default: false) Create issue in Github repositories that do not meet recommendations.
+  -q, --pullrequest         (Default: false) Submit pull request in Github repositories to fix recommendations.
+  -e, --exceltofile         (Default: false) Generate the Excel report and write to a file.
+  -x, --exceltorepo         (Default: false) Generate the Excel report and commit to cake-contrib repo.
+  -m, --markdowntofile      (Default: false) Generate the Markdown report and write to a file.
+  -r, --markdowntorepo      (Default: false) Generate the Markdown report and commit to cake-contrib repo.
+  -s, --syncyaml            (Default: false) Synchronize the yaml files on Cake's web site with the packages discovered on NuGet.
+  -k, --updatecakerecipe    (Default: false) Update addin references in CakeRecipe.
+  --help                    Display this help screen.
+  --version                 Display version information.
 ```
 
 ## Important note
