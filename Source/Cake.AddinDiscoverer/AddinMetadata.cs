@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Cake.Incubator.StringExtensions;
+using System;
 using System.Diagnostics;
 
 namespace Cake.AddinDiscoverer
@@ -50,7 +51,7 @@ namespace Cake.AddinDiscoverer
 
 		public string GetMaintainerName()
 		{
-			var maintainer = GithubRepoOwner ?? Maintainer;
+			var maintainer = RepositoryOwner ?? Maintainer;
 			if (maintainer.EqualsIgnoreCase("cake-contrib")) maintainer = Maintainer;
 			return maintainer;
 		}
