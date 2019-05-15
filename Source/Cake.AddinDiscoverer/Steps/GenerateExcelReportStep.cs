@@ -101,8 +101,10 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 			}
 
-			// Freeze the top row and setup auto-filter
-			worksheet.View.FreezePanes(2, 1);
+			// Freeze the top row and first column
+			worksheet.View.FreezePanes(2, 2);
+
+			// Setup auto-filter
 			worksheet.Cells[1, 1, 1, reportColumns.Length].AutoFilter = true;
 
 			// Format the worksheet
