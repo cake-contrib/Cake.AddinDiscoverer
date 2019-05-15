@@ -43,7 +43,6 @@ namespace Cake.AddinDiscoverer.Utilities
 			var newBranch = await context.GithubClient.Git.Reference.Create(context.Options.GithubUsername, fork.Name, newReference).ConfigureAwait(false);
 
 			var latestCommit = await context.GithubClient.Git.Commit.Get(context.Options.GithubUsername, fork.Name, newBranch.Object.Sha).ConfigureAwait(false);
-			var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
 
 			foreach (var (commitMessage, filesToDelete, filesToUpsert) in commits)
 			{

@@ -18,6 +18,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const int MAX_NUGET_CONCURENCY = 25; // I suspect nuget allows a much large number of concurrent connections but 25 seems like a safe value.
 		public const string GREEN_EMOJI = ":white_check_mark: ";
 		public const string RED_EMOJI = ":small_red_triangle: ";
+		public const string YELLOW_EMOJI = ":warning: ";
 		public const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 		public const string PACKAGES_CONFIG_PATH = "tools/packages.config";
 
@@ -61,7 +62,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Left,
 				(addin) => addin.Name,
 				(addin, cakeVersion) => Color.Empty,
-				(addin) => addin.GithubRepoUrl ?? addin.NuGetPackageUrl,
+				(addin) => addin.ProjectUrl ?? addin.NuGetPackageUrl ?? addin.RepositoryUrl,
 				AddinType.All,
 				DataDestination.All
 			),
@@ -176,11 +177,29 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"License",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.NuGetLicense,
+				(addin) => addin.License,
 				(addin, cakeVersion) => addin.AnalysisResult.ObsoleteLicenseUrlRemoved ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel | DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
+			),
+			(
+				"Repository",
+				ExcelHorizontalAlignment.Center,
+				(addin) => !addin.AnalysisResult.RepositoryInfoProvided ? "false" : (addin.RepositoryUrl.AbsolutePath.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? "true" : ".git missing"),
+				(addin, cakeVersion) => !addin.AnalysisResult.RepositoryInfoProvided ? Color.Red : (addin.RepositoryUrl.AbsolutePath.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? Color.LightGreen : Color.Gold),
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel
+			),
+			(
+				"Repository",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.Empty,
+				(addin, cakeVersion) => !addin.AnalysisResult.RepositoryInfoProvided ? Color.Red : (addin.RepositoryUrl.AbsolutePath.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? Color.LightGreen : Color.Gold),
+				(addin) => null,
+				AddinType.All,
+				DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
 			),
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly

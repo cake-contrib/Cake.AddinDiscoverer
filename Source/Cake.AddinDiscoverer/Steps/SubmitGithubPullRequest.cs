@@ -30,8 +30,8 @@ namespace Cake.AddinDiscoverer.Steps
 						if (addin.Type != AddinType.Recipe &&
 							addin.GithubIssueId.HasValue &&
 							!addin.GithubPullRequestId.HasValue &&
-							!string.IsNullOrEmpty(addin.GithubRepoName) &&
-							!string.IsNullOrEmpty(addin.GithubRepoOwner))
+							!string.IsNullOrEmpty(addin.RepositoryName) &&
+							!string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
 							var filesGroupedByExtention = await GetFilePathsFromRepoAsync(context, addin).ConfigureAwait(false);
 							var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
@@ -52,7 +52,7 @@ namespace Cake.AddinDiscoverer.Steps
 								if (requestsLeft > 250)
 								{
 									// Fork the addin repo if it hasn't been forked already and make sure it's up to date
-									var fork = await context.GithubClient.CreateOrRefreshFork(addin.GithubRepoOwner, addin.GithubRepoName).ConfigureAwait(false);
+									var fork = await context.GithubClient.CreateOrRefreshFork(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 									var upstream = fork.Parent;
 
 									await Task.Delay(1000).ConfigureAwait(false);
@@ -77,7 +77,7 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			var filesPathGroupedByExtension = (IDictionary<string, string[]>)null;
 
-			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(addin.GithubRepoOwner, addin.GithubRepoName, ArchiveFormat.Zipball).ConfigureAwait(false);
+			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(addin.RepositoryOwner, addin.RepositoryName, ArchiveFormat.Zipball).ConfigureAwait(false);
 			using (var data = new MemoryStream(zipArchive))
 			{
 				var archive = new ZipArchive(data);
@@ -92,7 +92,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private async Task<string> GetFileContentFromRepoAsync(DiscoveryContext context, AddinMetadata addin, string filePath)
 		{
-			var content = await context.GithubClient.Repository.Content.GetAllContents(addin.GithubRepoOwner, addin.GithubRepoName, filePath).ConfigureAwait(false);
+			var content = await context.GithubClient.Repository.Content.GetAllContents(addin.RepositoryOwner, addin.RepositoryName, filePath).ConfigureAwait(false);
 			return content[0].Content;
 		}
 
@@ -132,53 +132,61 @@ namespace Cake.AddinDiscoverer.Steps
 			filesPathGroupedByExtension.TryGetValue(".csproj", out string[] filePaths);
 			if (filePaths == null || !filePaths.Any()) return;
 
-			// Get the project file
-			var filePath = filePaths.FirstOrDefault(path => Path.GetFileName(path).EqualsIgnoreCase($"{addin.Name}.csproj"));
-			if (string.IsNullOrEmpty(filePath)) return;
-
-			// Get the content of the csproj file
-			var projectFileContent = await GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
-
-			// Parse the content of the csproj file
-			var document = new XDocumentFormatPreserved(projectFileContent);
-
-			// Make sure it's a VS 2017 project file
-			var sdkAttribute = (from attribute in document.Document.Root?.Attributes()
-								where attribute.Name.LocalName.EqualsIgnoreCase("Sdk")
-								select attribute).FirstOrDefault();
-
-			// Make sure we are dealing with a VS 2017 project file
-			if (sdkAttribute == null) return;
-
-			var packageIconUrl = document.Document.GetFirstElementValue("PackageIconUrl");
-			if (packageIconUrl != Constants.NEW_CAKE_CONTRIB_ICON_URL)
+			// Loop through the project files
+			foreach (var filePath in filePaths)
 			{
-				if (document.Document.SetFirstElementValue("PackageIconUrl", Constants.NEW_CAKE_CONTRIB_ICON_URL))
-				{
-					commits.Add(("Fix PackageIconUrl", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
-				}
-			}
+				// Get the content of the csproj file
+				var projectFileContent = await GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
 
-			var targetFramework = document.Document.GetFirstElementValue("TargetFramework");
-			if (!string.IsNullOrEmpty(targetFramework) && targetFramework != cakeVersion.RequiredFramework)
-			{
-				if (document.Document.SetFirstElementValue("TargetFramework", cakeVersion.RequiredFramework))
-				{
-					commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
-				}
-			}
+				// Parse the content of the csproj file
+				var document = new XDocumentFormatPreserved(projectFileContent);
 
-			var targetFrameworks = document.Document.GetFirstElementValue("TargetFrameworks")?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
-			if (targetFrameworks.Any() && !targetFrameworks.Contains(cakeVersion.RequiredFramework))
-			{
-				if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework))
-				{
-					commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
-				}
-			}
+				// Make sure it's a VS 2017 project file
+				var sdkAttribute = (from attribute in document.Document.Root?.Attributes()
+									where attribute.Name.LocalName.EqualsIgnoreCase("Sdk")
+									select attribute).FirstOrDefault();
 
-			FixCakeReferenceInProjectFile(document, "Cake.Core", cakeVersion, filePath, commits);
-			FixCakeReferenceInProjectFile(document, "Cake.Common", cakeVersion, filePath, commits);
+				// Make sure we are dealing with a VS 2017 project file
+				if (sdkAttribute == null) return;
+
+				// Update the package icon only in the "main" csproj (as opposed to unit tests, integration tests, etc.)
+				if (Path.GetFileName(filePath).EqualsIgnoreCase($"{addin.Name}.csproj"))
+				{
+					var packageIconUrl = document.Document.GetFirstElementValue("PackageIconUrl");
+					if (packageIconUrl != Constants.NEW_CAKE_CONTRIB_ICON_URL)
+					{
+						if (document.Document.SetFirstElementValue("PackageIconUrl", Constants.NEW_CAKE_CONTRIB_ICON_URL))
+						{
+							commits.Add(("Fix PackageIconUrl", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+						}
+					}
+				}
+
+				// If only one framework is targetted, make sure it's the required one
+				var targetFramework = document.Document.GetFirstElementValue("TargetFramework");
+				if (!string.IsNullOrEmpty(targetFramework) && targetFramework != cakeVersion.RequiredFramework)
+				{
+					if (document.Document.SetFirstElementValue("TargetFramework", cakeVersion.RequiredFramework))
+					{
+						commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+					}
+				}
+
+				// If multiple frameworks are targetted, make sure the required one is among them
+				var targetFrameworks = document.Document.GetFirstElementValue("TargetFrameworks")?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
+				if (targetFrameworks.Any() && !targetFrameworks.Contains(cakeVersion.RequiredFramework))
+				{
+					if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework))
+					{
+						commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+					}
+				}
+
+				// Make sure the right version of Cake.Core, Cake.Common and Cake.Testing is referenced
+				FixCakeReferenceInProjectFile(document, "Cake.Core", cakeVersion, filePath, commits);
+				FixCakeReferenceInProjectFile(document, "Cake.Common", cakeVersion, filePath, commits);
+				FixCakeReferenceInProjectFile(document, "Cake.Testing", cakeVersion, filePath, commits);
+			}
 		}
 
 		private void FixCakeReferenceInProjectFile(XDocumentFormatPreserved document, string referenceName, CakeVersion cakeVersion, string filePath, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)

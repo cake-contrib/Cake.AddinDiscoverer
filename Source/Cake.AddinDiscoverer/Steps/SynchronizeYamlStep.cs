@@ -174,7 +174,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
 			yamlContent.AppendUnixLine("Assemblies:");
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
-			yamlContent.AppendUnixLine($"Repository: {addin.GithubRepoUrl ?? addin.NuGetPackageUrl}");
+			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl ?? addin.NuGetPackageUrl}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendUnixLine($"Description: \"{addin.Description}\"");
 			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
