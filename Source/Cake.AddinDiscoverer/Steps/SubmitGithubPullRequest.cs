@@ -225,7 +225,7 @@ namespace Cake.AddinDiscoverer.Steps
 					var privateAssetsElement = cakeReference.Element(privateAssetsXName);
 					if (privateAssetsElement != null)
 					{
-						if (!privateAssetsElement.Value.Equals("All"))
+						if (!privateAssetsElement.Value.EqualsIgnoreCase("All"))
 						{
 							privateAssetsElement.SetValue("All");
 							commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
@@ -234,7 +234,7 @@ namespace Cake.AddinDiscoverer.Steps
 					else
 					{
 						var privateAssetsAttribute = cakeReference.Attribute("PrivateAssets");
-						if (privateAssetsAttribute == null || !privateAssetsAttribute.Value.Equals("All"))
+						if (privateAssetsAttribute == null || !privateAssetsAttribute.Value.EqualsIgnoreCase("All"))
 						{
 							cakeReference.SetAttributeValue("PrivateAssets", "All");
 							commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
