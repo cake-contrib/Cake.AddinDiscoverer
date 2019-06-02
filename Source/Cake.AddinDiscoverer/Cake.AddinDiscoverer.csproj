@@ -33,6 +33,7 @@
     </PackageReference>
     <PackageReference Include="System.Memory" Version="4.5.2" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
+    <PackageReference Include="YamlDotNet" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>

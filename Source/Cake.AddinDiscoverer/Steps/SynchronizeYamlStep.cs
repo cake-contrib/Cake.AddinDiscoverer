@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using YamlDotNet.RepresentationModel;
 
 namespace Cake.AddinDiscoverer.Steps
 {
@@ -57,7 +58,7 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							Addin = addin,
 							CurrentContent = contents[0].Content,
-							NewContent = GenerateYamlFile(context, addin)
+							NewContent = UpdateYamlFile(context, addin, contents[0].Content)
 						};
 					}, Constants.MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
@@ -169,7 +170,6 @@ namespace Cake.AddinDiscoverer.Steps
 		private static string GenerateYamlFile(DiscoveryContext context, AddinMetadata addin)
 		{
 			var yamlContent = new StringBuilder();
-
 			yamlContent.AppendUnixLine($"Name: {addin.Name}");
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
 			yamlContent.AppendUnixLine("Assemblies:");
@@ -184,6 +184,31 @@ namespace Cake.AddinDiscoverer.Steps
 			return yamlContent.ToString();
 		}
 
+		private static string UpdateYamlFile(DiscoveryContext context, AddinMetadata addin, string currentYamlContent)
+		{
+			var input = new StringReader(currentYamlContent);
+			var yaml = new YamlStream();
+			yaml.Load(input);
+
+			var mapping = (YamlMappingNode)yaml.Documents[0].RootNode;
+
+			var yamlContent = new StringBuilder();
+			yamlContent.AppendUnixLine($"Name: {mapping.Children[new YamlScalarNode("Name")].ToString()}");
+			yamlContent.AppendUnixLine($"NuGet: {mapping.Children[new YamlScalarNode("NuGet")].ToString()}");
+			yamlContent.AppendUnixLine("Assemblies:");
+			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
+			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl ?? addin.NuGetPackageUrl}");
+			yamlContent.AppendUnixLine($"Author: {mapping.Children[new YamlScalarNode("Author")].ToString()}");
+			yamlContent.AppendUnixLine($"Description: \"{mapping.Children[new YamlScalarNode("Description")].ToString()}\"");
+			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
+
+			var categories = ((YamlSequenceNode)mapping.Children[new YamlScalarNode("Categories")]).Select(a => a.ToString());
+			yamlContent.AppendUnixLine("Categories:");
+			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, categories));
+
+			return yamlContent.ToString();
+		}
+
 		private static string GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
 		{
 			var filteredAndFormatedTags = tags
@@ -192,7 +217,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.Distinct()
 				.Select(tag => $"- {tag}");
 
-			var categories = string.Join(Environment.NewLine, filteredAndFormatedTags);
+			var categories = string.Join("\n", filteredAndFormatedTags);
 
 			return categories;
 		}
