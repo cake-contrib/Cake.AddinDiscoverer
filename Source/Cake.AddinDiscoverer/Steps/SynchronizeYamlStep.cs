@@ -200,27 +200,37 @@ namespace Cake.AddinDiscoverer.Steps
 			var mapping = (YamlMappingNode)yaml.Documents[0].RootNode;
 
 			var yamlContent = new StringBuilder();
-			yamlContent.AppendUnixLine($"Name: {mapping.Children[new YamlScalarNode("Name")].ToString()}");
-			yamlContent.AppendUnixLine($"NuGet: {mapping.Children[new YamlScalarNode("NuGet")].ToString()}");
+			yamlContent.AppendUnixLine($"Name: {GetChildNodeValue(mapping, "Name")}");
+			yamlContent.AppendUnixLine($"NuGet: {GetChildNodeValue(mapping, "NuGet")}");
 			yamlContent.AppendUnixLine("Assemblies:");
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
 			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl ?? addin.NuGetPackageUrl}");
-			yamlContent.AppendUnixLine($"Author: {mapping.Children[new YamlScalarNode("Author")].ToString()}");
-			yamlContent.AppendUnixLine($"Description: \"{mapping.Children[new YamlScalarNode("Description")].ToString()}\"");
+			yamlContent.AppendUnixLine($"Author: {GetChildNodeValue(mapping, "Author")}");
+			yamlContent.AppendUnixLine($"Description: \"{GetChildNodeValue(mapping, "Description")}\"");
 			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
-
-			var categories = ((YamlSequenceNode)mapping.Children[new YamlScalarNode("Categories")]).Select(a => a.ToString());
 			yamlContent.AppendUnixLine("Categories:");
-			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, categories));
+			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
 
 			return yamlContent.ToString();
 		}
 
-		private static string GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
+		private static string GetChildNodeValue(YamlMappingNode mapping, string name)
 		{
+			var key = new YamlScalarNode(name);
+			if (!mapping.Children.ContainsKey(key)) return string.Empty;
+			return mapping.Children[key].ToString();
+		}
+
+		private static string GetCategoriesForYaml(DiscoveryContext context, YamlMappingNode mapping)
+		{
+			var key = new YamlScalarNode("Categories");
+			if (!mapping.Children.ContainsKey(key)) return string.Empty;
+
+			var tags = ((YamlSequenceNode)mapping.Children[key]).Select(node => node.ToString());
+
 			var filteredAndFormatedTags = tags
-				.Except(context.BlacklistedTags, StringComparer.InvariantCultureIgnoreCase)
 				.Select(tag => tag.TrimStart("Cake-", StringComparison.InvariantCultureIgnoreCase))
+				.Except(context.BlacklistedTags, StringComparer.InvariantCultureIgnoreCase)
 				.Distinct()
 				.Select(tag => $"- {tag}");
 
