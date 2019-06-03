@@ -5,14 +5,14 @@ using System.IO;
 namespace Cake.AddinDiscoverer
 {
 	/// <summary>
-	/// Program entry point
+	/// Program entry point.
 	/// </summary>
 	public class Program
 	{
 		/// <summary>
-		/// Main method
+		/// Main method.
 		/// </summary>
-		/// <param name="args">Command line arguments</param>
+		/// <param name="args">Command line arguments.</param>
 		public static void Main(string[] args)
 		{
 			// Parse comand line arguments and proceed with analysis if parsing was succesfull
