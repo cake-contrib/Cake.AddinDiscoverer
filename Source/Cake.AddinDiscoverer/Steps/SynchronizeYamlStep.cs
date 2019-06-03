@@ -228,6 +228,11 @@ namespace Cake.AddinDiscoverer.Steps
 
 			var tags = ((YamlSequenceNode)mapping.Children[key]).Select(node => node.ToString());
 
+			return GetCategoriesForYaml(context, tags);
+		}
+
+		private static string GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
+		{
 			var filteredAndFormatedTags = tags
 				.Select(tag => tag.TrimStart("Cake-", StringComparison.InvariantCultureIgnoreCase))
 				.Except(context.BlacklistedTags, StringComparer.InvariantCultureIgnoreCase)
