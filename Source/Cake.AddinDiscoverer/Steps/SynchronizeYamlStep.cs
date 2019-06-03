@@ -80,6 +80,7 @@ namespace Cake.AddinDiscoverer.Steps
 					CurrentContent = string.Empty,
 					NewContent = GenerateYamlFile(context, addin)
 				})
+				.Where(addin => !string.IsNullOrEmpty(addin.NewContent))
 				.ToArray();
 
 			if (yamlToBeDeleted.Any())
@@ -169,17 +170,23 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static string GenerateYamlFile(DiscoveryContext context, AddinMetadata addin)
 		{
+			var categories = GetCategoriesForYaml(context, addin.Tags);
+
+			if (addin.ProjectUrl == null) return null;
+			if (string.IsNullOrEmpty(addin.Description)) return null;
+			if (string.IsNullOrEmpty(categories)) return null;
+
 			var yamlContent = new StringBuilder();
 			yamlContent.AppendUnixLine($"Name: {addin.Name}");
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
 			yamlContent.AppendUnixLine("Assemblies:");
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
-			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl ?? addin.NuGetPackageUrl}");
+			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendUnixLine($"Description: \"{addin.Description}\"");
 			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
-			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, addin.Tags));
+			yamlContent.AppendUnixLine(categories);
 
 			return yamlContent.ToString();
 		}
