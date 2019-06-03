@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using YamlDotNet.RepresentationModel;
 
 namespace Cake.AddinDiscoverer.Steps
 {
@@ -40,15 +41,14 @@ namespace Cake.AddinDiscoverer.Steps
 					return addin == null || addin.IsDeprecated;
 				})
 				.Where(f => f.Name != "Magic-Chunks.yml") // Ensure that MagicChunk's yaml file is not deleted despite the fact that is doesn't follow the naming convention. See: https://github.com/cake-build/website/issues/535#issuecomment-399692891
-				.Take(MAX_FILES_TO_COMMIT)
 				.OrderBy(f => f.Name)
+				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
 			var addinsWithContent = await context.Addins
 				.Where(addin => !addin.IsDeprecated)
 				.Where(addin => addin.Type == AddinType.Addin)
 				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
-				.Take(MAX_FILES_TO_COMMIT)
 				.ForEachAsync(
 					async addin =>
 					{
@@ -57,7 +57,7 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							Addin = addin,
 							CurrentContent = contents[0].Content,
-							NewContent = GenerateYamlFile(context, addin)
+							NewContent = UpdateYamlFile(context, addin, contents[0].Content)
 						};
 					}, Constants.MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
@@ -65,13 +65,13 @@ namespace Cake.AddinDiscoverer.Steps
 			var addinsToBeUpdated = addinsWithContent
 				.Where(addin => addin.CurrentContent != addin.NewContent)
 				.OrderBy(addin => addin.Addin.Name)
+				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
 			var addinsToBeCreated = context.Addins
 				.Where(addin => !addin.IsDeprecated)
 				.Where(addin => addin.Type == AddinType.Addin)
 				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
-				.Take(MAX_FILES_TO_COMMIT)
 				.OrderBy(addin => addin.Name)
 				.Select(addin => new
 				{
@@ -79,6 +79,8 @@ namespace Cake.AddinDiscoverer.Steps
 					CurrentContent = string.Empty,
 					NewContent = GenerateYamlFile(context, addin)
 				})
+				.Where(addin => !string.IsNullOrEmpty(addin.NewContent))
+				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
 			if (yamlToBeDeleted.Any())
@@ -168,31 +170,76 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static string GenerateYamlFile(DiscoveryContext context, AddinMetadata addin)
 		{
-			var yamlContent = new StringBuilder();
+			var categories = GetCategoriesForYaml(context, addin.Tags);
 
+			if (addin.ProjectUrl == null) return null;
+			if (string.IsNullOrEmpty(addin.Description)) return null;
+			if (string.IsNullOrEmpty(categories)) return null;
+
+			var yamlContent = new StringBuilder();
 			yamlContent.AppendUnixLine($"Name: {addin.Name}");
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
 			yamlContent.AppendUnixLine("Assemblies:");
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
-			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl ?? addin.NuGetPackageUrl}");
+			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendUnixLine($"Description: \"{addin.Description}\"");
 			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
-			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, addin.Tags));
+			yamlContent.AppendUnixLine(categories);
 
 			return yamlContent.ToString();
+		}
+
+		private static string UpdateYamlFile(DiscoveryContext context, AddinMetadata addin, string currentYamlContent)
+		{
+			var input = new StringReader(currentYamlContent);
+			var yaml = new YamlStream();
+			yaml.Load(input);
+
+			var mapping = (YamlMappingNode)yaml.Documents[0].RootNode;
+
+			var yamlContent = new StringBuilder();
+			yamlContent.AppendUnixLine($"Name: {GetChildNodeValue(mapping, "Name")}");
+			yamlContent.AppendUnixLine($"NuGet: {GetChildNodeValue(mapping, "NuGet")}");
+			yamlContent.AppendUnixLine("Assemblies:");
+			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
+			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl ?? addin.NuGetPackageUrl}");
+			yamlContent.AppendUnixLine($"Author: {GetChildNodeValue(mapping, "Author")}");
+			yamlContent.AppendUnixLine($"Description: \"{GetChildNodeValue(mapping, "Description")}\"");
+			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
+			yamlContent.AppendUnixLine("Categories:");
+			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
+
+			return yamlContent.ToString();
+		}
+
+		private static string GetChildNodeValue(YamlMappingNode mapping, string name)
+		{
+			var key = new YamlScalarNode(name);
+			if (!mapping.Children.ContainsKey(key)) return string.Empty;
+			return mapping.Children[key].ToString();
+		}
+
+		private static string GetCategoriesForYaml(DiscoveryContext context, YamlMappingNode mapping)
+		{
+			var key = new YamlScalarNode("Categories");
+			if (!mapping.Children.ContainsKey(key)) return string.Empty;
+
+			var tags = ((YamlSequenceNode)mapping.Children[key]).Select(node => node.ToString());
+
+			return GetCategoriesForYaml(context, tags);
 		}
 
 		private static string GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
 		{
 			var filteredAndFormatedTags = tags
-				.Except(context.BlacklistedTags, StringComparer.InvariantCultureIgnoreCase)
 				.Select(tag => tag.TrimStart("Cake-", StringComparison.InvariantCultureIgnoreCase))
+				.Except(context.BlacklistedTags, StringComparer.InvariantCultureIgnoreCase)
 				.Distinct()
 				.Select(tag => $"- {tag}");
 
-			var categories = string.Join(Environment.NewLine, filteredAndFormatedTags);
+			var categories = string.Join("\n", filteredAndFormatedTags);
 
 			return categories;
 		}

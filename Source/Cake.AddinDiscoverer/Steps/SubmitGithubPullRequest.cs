@@ -55,6 +55,7 @@ namespace Cake.AddinDiscoverer.Steps
 									var fork = await context.GithubClient.CreateOrRefreshFork(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 									var upstream = fork.Parent;
 
+									// This delay is important to avoid triggering GitHub's abuse protection
 									await Task.Delay(1000).ConfigureAwait(false);
 
 									// Commit changes to a new branch and submit PR
@@ -63,8 +64,13 @@ namespace Cake.AddinDiscoverer.Steps
 
 									addin.GithubPullRequestId = pullRequest.Number;
 								}
+								else
+								{
+									Console.WriteLine($"  Only {requestsLeft} GitHub API requests left. Therefore skipping PR for {addin.Name} despite the fact that we have {commits.Count} commits.");
+								}
 							}
 
+							// This delay is important to avoid triggering GitHub's abuse protection
 							await Task.Delay(1000).ConfigureAwait(false);
 						}
 
@@ -149,8 +155,12 @@ namespace Cake.AddinDiscoverer.Steps
 				// Make sure we are dealing with a VS 2017 project file
 				if (sdkAttribute == null) return;
 
-				// Update the package icon only in the "main" csproj (as opposed to unit tests, integration tests, etc.)
-				if (Path.GetFileName(filePath).EqualsIgnoreCase($"{addin.Name}.csproj"))
+				// Some rules are different in the "main" project as opposed to unit tests project, integration tests project, etc.
+				// For instance, we only update the icon in the main project.
+				var isMainProjectFile = Path.GetFileName(filePath).EqualsIgnoreCase($"{addin.Name}.csproj");
+
+				// Update the package icon
+				if (isMainProjectFile)
 				{
 					var packageIconUrl = document.Document.GetFirstElementValue("PackageIconUrl");
 					if (packageIconUrl != Constants.NEW_CAKE_CONTRIB_ICON_URL)
@@ -183,13 +193,13 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 
 				// Make sure the right version of Cake.Core, Cake.Common and Cake.Testing is referenced
-				FixCakeReferenceInProjectFile(document, "Cake.Core", cakeVersion, filePath, commits);
-				FixCakeReferenceInProjectFile(document, "Cake.Common", cakeVersion, filePath, commits);
-				FixCakeReferenceInProjectFile(document, "Cake.Testing", cakeVersion, filePath, commits);
+				FixCakeReferenceInProjectFile(document, "Cake.Core", cakeVersion, filePath, isMainProjectFile, commits);
+				FixCakeReferenceInProjectFile(document, "Cake.Common", cakeVersion, filePath, isMainProjectFile, commits);
+				FixCakeReferenceInProjectFile(document, "Cake.Testing", cakeVersion, filePath, isMainProjectFile, commits);
 			}
 		}
 
-		private void FixCakeReferenceInProjectFile(XDocumentFormatPreserved document, string referenceName, CakeVersion cakeVersion, string filePath, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private void FixCakeReferenceInProjectFile(XDocumentFormatPreserved document, string referenceName, CakeVersion cakeVersion, string filePath, bool isMainProjectFile, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			var ns = document.Document.Root?.Name.Namespace;
 			var packageReferenceXName = ns.GetXNameWithNamespace("PackageReference");
@@ -210,22 +220,25 @@ namespace Cake.AddinDiscoverer.Steps
 					}
 				}
 
-				var privateAssetsElement = cakeReference.Element(privateAssetsXName);
-				if (privateAssetsElement != null)
+				if (isMainProjectFile)
 				{
-					if (!privateAssetsElement.Value.Equals("All"))
+					var privateAssetsElement = cakeReference.Element(privateAssetsXName);
+					if (privateAssetsElement != null)
 					{
-						privateAssetsElement.SetValue("All");
-						commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+						if (!privateAssetsElement.Value.EqualsIgnoreCase("All"))
+						{
+							privateAssetsElement.SetValue("All");
+							commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+						}
 					}
-				}
-				else
-				{
-					var privateAssetsAttribute = cakeReference.Attribute("PrivateAssets");
-					if (privateAssetsAttribute == null || !privateAssetsAttribute.Value.Equals("All"))
+					else
 					{
-						cakeReference.SetAttributeValue("PrivateAssets", "All");
-						commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+						var privateAssetsAttribute = cakeReference.Attribute("PrivateAssets");
+						if (privateAssetsAttribute == null || !privateAssetsAttribute.Value.EqualsIgnoreCase("All"))
+						{
+							cakeReference.SetAttributeValue("PrivateAssets", "All");
+							commits.Add(($"{referenceName} reference should be private", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+						}
 					}
 				}
 			}

@@ -5,7 +5,7 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <TargetLatestRuntimePatch>false</TargetLatestRuntimePatch>
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
-    <Version>3.15.1</Version>
+    <Version>3.16.0</Version>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
@@ -33,6 +33,7 @@
     </PackageReference>
     <PackageReference Include="System.Memory" Version="4.5.2" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
+    <PackageReference Include="YamlDotNet" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
