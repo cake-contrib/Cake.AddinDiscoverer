@@ -41,15 +41,14 @@ namespace Cake.AddinDiscoverer.Steps
 					return addin == null || addin.IsDeprecated;
 				})
 				.Where(f => f.Name != "Magic-Chunks.yml") // Ensure that MagicChunk's yaml file is not deleted despite the fact that is doesn't follow the naming convention. See: https://github.com/cake-build/website/issues/535#issuecomment-399692891
-				.Take(MAX_FILES_TO_COMMIT)
 				.OrderBy(f => f.Name)
+				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
 			var addinsWithContent = await context.Addins
 				.Where(addin => !addin.IsDeprecated)
 				.Where(addin => addin.Type == AddinType.Addin)
 				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
-				.Take(MAX_FILES_TO_COMMIT)
 				.ForEachAsync(
 					async addin =>
 					{
@@ -66,13 +65,13 @@ namespace Cake.AddinDiscoverer.Steps
 			var addinsToBeUpdated = addinsWithContent
 				.Where(addin => addin.CurrentContent != addin.NewContent)
 				.OrderBy(addin => addin.Addin.Name)
+				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
 			var addinsToBeCreated = context.Addins
 				.Where(addin => !addin.IsDeprecated)
 				.Where(addin => addin.Type == AddinType.Addin)
 				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
-				.Take(MAX_FILES_TO_COMMIT)
 				.OrderBy(addin => addin.Name)
 				.Select(addin => new
 				{
@@ -81,6 +80,7 @@ namespace Cake.AddinDiscoverer.Steps
 					NewContent = GenerateYamlFile(context, addin)
 				})
 				.Where(addin => !string.IsNullOrEmpty(addin.NewContent))
+				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
 			if (yamlToBeDeleted.Any())
