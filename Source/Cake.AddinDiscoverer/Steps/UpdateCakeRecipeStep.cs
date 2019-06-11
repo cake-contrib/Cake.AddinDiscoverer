@@ -51,7 +51,7 @@ namespace Cake.AddinDiscoverer.Steps
 			await UpdateOutdatedRecipeFilesAsync(context, recipeFiles).ConfigureAwait(false);
 
 			// Either submit a PR to upgrade to the latest version of Cake OR create an issue explaining why Cake.Recipe cannot be upgraded to latest Cake version
-			if (latestCakeVersion != null && currentCakeVersion != latestCakeVersion)
+			if (latestCakeVersion != null && currentCakeVersion.Version < latestCakeVersion.Version)
 			{
 				await UpgradeCakeVersionUsedByRecipeAsync(context, recipeFiles, latestCakeVersion).ConfigureAwait(false);
 			}
