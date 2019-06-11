@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using Octokit;
@@ -164,7 +164,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (latestCakeVersion == null) return;
 
 			var recipeFilesWithAtLeastOneReference = recipeFiles
-				.Where(recipeFile => recipeFile.AddinReferences.Count() > 0)
+				.Where(recipeFile => recipeFile.AddinReferences.Any())
 				.ToArray();
 			if (!recipeFilesWithAtLeastOneReference.Any()) return;
 
