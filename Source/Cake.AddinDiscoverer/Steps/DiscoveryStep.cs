@@ -1,4 +1,4 @@
-﻿using NuGet.Common;
+using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using System;
 using System.Collections.Generic;
@@ -68,6 +68,11 @@ namespace Cake.AddinDiscoverer.Steps
 			context.Addins = addinPackages
 				.Select(package =>
 				{
+					var packageOwners = package.Owners?
+						.Split(',', StringSplitOptions.RemoveEmptyEntries)
+						.Select(o => o.Trim())
+						.ToArray() ?? Array.Empty<string>();
+
 					var addinMetadata = new AddinMetadata()
 					{
 						AnalysisResult = new AddinAnalysisResult(),
@@ -77,6 +82,7 @@ namespace Cake.AddinDiscoverer.Steps
 						IconUrl = package.IconUrl,
 						Name = package.Identity.Id,
 						NuGetPackageUrl = new Uri($"https://www.nuget.org/packages/{package.Identity.Id}/"),
+						NuGetPackageOwners = packageOwners,
 						NuGetPackageVersion = package.Identity.Version.ToNormalizedString(),
 						IsDeprecated = false,
 						IsPrerelease = package.Identity.Version.IsPrerelease,

@@ -1,4 +1,4 @@
-﻿using OfficeOpenXml.Style;
+using OfficeOpenXml.Style;
 using System;
 using System.Drawing;
 
@@ -200,6 +200,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin) => null,
 				AddinType.All,
 				DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
+			),
+			(
+				"cake-contrib co-owner",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.PackageCoOwnedByCakeContrib.ToString().ToLower(),
+				(addin, cakeVersion) => addin.AnalysisResult.PackageCoOwnedByCakeContrib ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel
 			),
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly

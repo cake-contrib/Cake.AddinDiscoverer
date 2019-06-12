@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using OfficeOpenXml.Style;
 using System;
 using System.Collections.Generic;
@@ -63,6 +63,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `Transferred to cake-contrib` column indicates if the project has been moved to the cake-contrib github organisation.");
 			markdown.AppendLine("- The `License` column indicates the license selected by the addin author. PLEASE NOTE: this information is only available if the nuget package includes the new `license` metadata information (documented [here](https://docs.microsoft.com/en-us/nuget/reference/nuspec#license) and [here](https://docs.microsoft.com/en-us/nuget/reference/msbuild-targets#packing-a-license-expression-or-a-license-file)) as opposed to the [obsolete](https://github.com/NuGet/Announcements/issues/32) `licenseUrl`.");
 			markdown.AppendLine("- The `Repository` column indicates if the repository information is present in the package nuspec as documented [here](https://docs.microsoft.com/en-us/nuget/reference/nuspec#repository) and [here](https://docs.microsoft.com/en-us/nuget/reference/msbuild-targets#pack-target).");
+			markdown.AppendLine("- The `cake-contrib co-owner` column indicates if the cake-contrib user is a co-owner of the nuget package.");
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
 			markdown.AppendLine();
