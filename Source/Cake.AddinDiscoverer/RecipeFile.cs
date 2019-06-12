@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,7 +30,12 @@ namespace Cake.AddinDiscoverer
 			{
 				if (_addinReferences == null)
 				{
-					_addinReferences = FindReferences<AddinReference>(Content, RecipeFile.AddinReferenceRegex);
+					// For the purpose of this automation we are only considering addins that follow the recommended naming convention which
+					// is necessary in order to ignore references such as: #addin nuget:?package=RazorEngine&version=3.10.0&loaddependencies=true
+					// This has the potential of overlooking references to legitimate Cake addin if they don't follow the naming convention.
+					// I think this is an acceptable risk because, as of this writing, there is only one addin that I know of that is not
+					// following the naming guideline: Magic-Chunks.
+					_addinReferences = FindReferences<AddinReference>(Content, RecipeFile.AddinReferenceRegex, true);
 				}
 
 				return _addinReferences;
@@ -43,7 +48,7 @@ namespace Cake.AddinDiscoverer
 			{
 				if (_toolReferences == null)
 				{
-					_toolReferences = FindReferences<ToolReference>(Content, RecipeFile.ToolReferenceRegex);
+					_toolReferences = FindReferences<ToolReference>(Content, RecipeFile.ToolReferenceRegex, false);
 				}
 
 				return _toolReferences;
@@ -84,7 +89,7 @@ namespace Cake.AddinDiscoverer
 			return updatedContent;
 		}
 
-		private static IEnumerable<T> FindReferences<T>(string content, Regex regex)
+		private static IEnumerable<T> FindReferences<T>(string content, Regex regex, bool enforceNamingConvention)
 			where T : CakeReference, new()
 		{
 			var references = new List<T>();
@@ -99,11 +104,14 @@ namespace Cake.AddinDiscoverer
 				var packageName = parameters["package"];
 				var referencedVersion = parameters["version"];
 
-				references.Add(new T()
+				if (!enforceNamingConvention || packageName.StartsWith("Cake.", StringComparison.OrdinalIgnoreCase))
 				{
-					Name = packageName,
-					ReferencedVersion = referencedVersion
-				});
+					references.Add(new T()
+					{
+						Name = packageName,
+						ReferencedVersion = referencedVersion
+					});
+				}
 			}
 
 			return references

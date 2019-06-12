@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using Octokit;
@@ -51,7 +51,10 @@ namespace Cake.AddinDiscoverer.Steps
 			await UpdateOutdatedRecipeFilesAsync(context, recipeFiles).ConfigureAwait(false);
 
 			// Either submit a PR to upgrade to the latest version of Cake OR create an issue explaining why Cake.Recipe cannot be upgraded to latest Cake version
-			await UpgradeCakeVersionUsedByRecipeAsync(context, recipeFiles, latestCakeVersion).ConfigureAwait(false);
+			if (latestCakeVersion != null && currentCakeVersion.Version < latestCakeVersion.Version)
+			{
+				await UpgradeCakeVersionUsedByRecipeAsync(context, recipeFiles, latestCakeVersion).ConfigureAwait(false);
+			}
 		}
 
 		private async Task<RecipeFile[]> GetRecipeFilesAsync(DiscoveryContext context, CakeVersion currentCakeVersion, CakeVersion nextCakeVersion, CakeVersion latestCakeVersion)
@@ -161,10 +164,8 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private async Task UpgradeCakeVersionUsedByRecipeAsync(DiscoveryContext context, RecipeFile[] recipeFiles, CakeVersion latestCakeVersion)
 		{
-			if (latestCakeVersion == null) return;
-
 			var recipeFilesWithAtLeastOneReference = recipeFiles
-				.Where(recipeFile => recipeFile.AddinReferences.Count() > 0)
+				.Where(recipeFile => recipeFile.AddinReferences.Any())
 				.ToArray();
 			if (!recipeFilesWithAtLeastOneReference.Any()) return;
 
@@ -190,7 +191,7 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 			}
 
-			// Create a new issue of update existing one
+			// Create a new issue or update existing one
 			var issueTitle = string.Format(Constants.CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE, latestCakeVersion.Version.ToString(3));
 			var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
 			if (issue == null)

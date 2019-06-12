@@ -1,5 +1,8 @@
-﻿namespace Cake.AddinDiscoverer
+using System.Diagnostics;
+
+namespace Cake.AddinDiscoverer
 {
+	[DebuggerDisplay("{Name} {ReferencedVersion}")]
 	internal class AddinReference : CakeReference
 	{
 		public string LatestVersionForCurrentCake { get; set; }
