@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using CsvHelper;
 using OxyPlot;
 using OxyPlot.Axes;
@@ -19,7 +19,7 @@ namespace Cake.AddinDiscoverer.Steps
 			return string.IsNullOrEmpty(context.Options.AddinName);
 		}
 
-		public string GetDescription(DiscoveryContext context) => "Generate the graph showing how many addin compatibility over time";
+		public string GetDescription(DiscoveryContext context) => "Generate the graph showing addin compatibility over time";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
