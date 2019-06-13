@@ -48,7 +48,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("# Reports");
 			markdown.AppendLine();
 			markdown.AppendLine($"- Click [here]({Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}_for_recipes.md) to view the report for NuGet packages containing recipes.");
-			foreach (var cakeVersion in Constants.CAKE_VERSIONS)
+			foreach (var cakeVersion in Constants.CAKE_VERSIONS.OrderByDescending(v => v.Version))
 			{
 				markdown.AppendLine($"- Click [here]({Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}_for_Cake_{cakeVersion.Version}.md) to view the report for Cake {cakeVersion.Version}.");
 			}
