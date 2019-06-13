@@ -68,10 +68,18 @@ namespace Cake.AddinDiscoverer.Steps
 			context.Addins = addinPackages
 				.Select(package =>
 				{
+					// As of June 2019, the 'Owners' metadata value returned from NuGet is always null.
+					// This code is just in case they add this information to the metadata and don't let us know.
+					// See feature request: https://github.com/NuGet/NuGetGallery/issues/5647
 					var packageOwners = package.Owners?
 						.Split(',', StringSplitOptions.RemoveEmptyEntries)
-						.Select(o => o.Trim())
+						.Select(owner => owner.Trim())
 						.ToArray() ?? Array.Empty<string>();
+
+					var tags = package.Tags?
+							.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
+							.Select(tag => tag.Trim())
+							.ToArray() ?? Array.Empty<string>();
 
 					var addinMetadata = new AddinMetadata()
 					{
@@ -86,10 +94,7 @@ namespace Cake.AddinDiscoverer.Steps
 						NuGetPackageVersion = package.Identity.Version.ToNormalizedString(),
 						IsDeprecated = false,
 						IsPrerelease = package.Identity.Version.IsPrerelease,
-						Tags = package.Tags
-							.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
-							.Select(tag => tag.Trim())
-							.ToArray(),
+						Tags = tags,
 						Type = AddinType.Unknown
 					};
 
