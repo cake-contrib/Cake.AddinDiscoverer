@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 
 namespace Cake.AddinDiscoverer
 {
@@ -41,6 +41,11 @@ namespace Cake.AddinDiscoverer
 		/// Gets or sets a value indicating whether the addin was transfered to the cake-contrib github organisation.
 		/// </summary>
 		public bool TransferedToCakeContribOrganisation { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether the cake-contrib user has been added as an owner ofthe NuGet package.
+		/// </summary>
+		public bool PackageCoOwnedByCakeContrib { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether the obsolete licenseUrl property has been removed from the nuspec.
