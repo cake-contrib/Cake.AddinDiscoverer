@@ -1,4 +1,4 @@
-﻿using Cake.Incubator.StringExtensions;
+using Cake.Incubator.StringExtensions;
 using System;
 using System.Diagnostics;
 
@@ -26,6 +26,8 @@ namespace Cake.AddinDiscoverer
 		public string NuGetPackageVersion { get; set; }
 
 		public Uri NuGetPackageUrl { get; set; }
+
+		public string[] NuGetPackageOwners { get; set; }
 
 		public string License { get; set; }
 
