@@ -41,7 +41,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine($"- Of the {auditedAddins.Count()} audited addins:");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingOldCakeContribIcon)} are using the cake-contrib icon on the rawgit CDN (which will be shutdown in October 2019)");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingNewCakeContribIcon)} are using the cake-contrib icon on the jsDelivr CDN (which is our preferred CDN to replace rawgit)");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferedToCakeContribOrganisation)} have been transfered to the cake-contrib organisation");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferredToCakeContribOrganisation)} have been transferred to the cake-contrib organisation");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.ObsoleteLicenseUrlRemoved)} have replaced the obsolete `licenseUrl` with proper license metadata (see the `Additional audit results` section below for details)");
 			markdown.AppendLine();
 

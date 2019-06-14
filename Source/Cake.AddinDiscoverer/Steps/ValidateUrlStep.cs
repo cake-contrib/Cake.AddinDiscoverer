@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using System;
 using System.Collections.Generic;
@@ -22,7 +22,7 @@ namespace Cake.AddinDiscoverer.Steps
 				{
 					// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
 					// points to the original repo. This step corrects the URL to ensure it points to the right repo
-					addin.ProjectUrl = AdjustUrlIfProjectTransferedToCakeContrib(addin.ProjectUrl, addin.Name, addin.RepositoryOwner, cakeContribRepositories);
+					addin.ProjectUrl = AdjustUrlIfProjectTransferredToCakeContrib(addin.ProjectUrl, addin.Name, addin.RepositoryOwner, cakeContribRepositories);
 
 					// Force HTTPS for Github projects
 					if (addin.ProjectUrl?.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) ?? false)
@@ -46,7 +46,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ToArray();
 		}
 
-		private static Uri AdjustUrlIfProjectTransferedToCakeContrib(Uri uri, string addinName, string repositoryOwner, IReadOnlyList<Octokit.Repository> cakeContribRepositories)
+		private static Uri AdjustUrlIfProjectTransferredToCakeContrib(Uri uri, string addinName, string repositoryOwner, IReadOnlyList<Octokit.Repository> cakeContribRepositories)
 		{
 			if (uri == null ||
 				!uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) ||
