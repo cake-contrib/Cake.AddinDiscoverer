@@ -28,16 +28,10 @@ namespace Cake.AddinDiscoverer.Steps
 				var csv = new CsvWriter(writer);
 				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter(Constants.CSV_DATE_FORMAT));
 
-				var auditedAddins = context.Addins
-					.Where(addin => addin.Type == AddinType.Addin)
-					.Where(addin => !addin.IsDeprecated)
-					.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
-					.ToArray();
-				var exceptionAddins = context.Addins
-					.Where(addin => addin.Type == AddinType.Addin)
-					.Where(addin => !addin.IsDeprecated)
-					.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes))
-					.ToArray();
+				var addins = context.Addins.Where(addin => addin.Type == AddinType.Addin || addin.Type == AddinType.Module).ToArray();
+				var validAddins = addins.Where(addin => !addin.IsDeprecated).ToArray();
+				var auditedAddins = validAddins.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes)).ToArray();
+				var exceptionAddins = validAddins.Where(addin => !string.IsNullOrEmpty(addin.AnalysisResult.Notes)).ToArray();
 
 				foreach (var cakeVersion in Constants.CAKE_VERSIONS)
 				{

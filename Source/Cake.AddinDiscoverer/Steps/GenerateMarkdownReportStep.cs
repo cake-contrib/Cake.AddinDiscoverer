@@ -18,9 +18,11 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
-			var deprecatedAddins = context.Addins.Where(addin => addin.IsDeprecated).ToArray();
-			var auditedAddins = context.Addins.Where(addin => !addin.IsDeprecated && string.IsNullOrEmpty(addin.AnalysisResult.Notes)).ToArray();
-			var exceptionAddins = context.Addins.Where(addin => !addin.IsDeprecated && !string.IsNullOrEmpty(addin.AnalysisResult.Notes)).ToArray();
+			var categorizedAddins = context.Addins.Where(addin => addin.Type != AddinType.Unknown);
+			var uncategorizedAddins = context.Addins.Where(addin => addin.Type == AddinType.Unknown);
+			var deprecatedAddins = categorizedAddins.Where(addin => addin.IsDeprecated);
+			var auditedAddins = categorizedAddins.Where(addin => !addin.IsDeprecated && string.IsNullOrEmpty(addin.AnalysisResult.Notes));
+			var exceptionAddins = categorizedAddins.Where(addin => !addin.IsDeprecated && !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
 
 			var now = DateTime.UtcNow;
 			var markdown = new StringBuilder();
@@ -32,7 +34,16 @@ namespace Cake.AddinDiscoverer.Steps
 
 			markdown.AppendLine("# Statistics");
 			markdown.AppendLine();
-			markdown.AppendLine($"- The analysis discovered {context.Addins.Count()} addins");
+			markdown.AppendLine($"- The analysis discovered {context.Addins.Count()} NuGet packages");
+			markdown.AppendLine($"  - {context.Addins.Count(addin => addin.Type == AddinType.Addin)} addins");
+			markdown.AppendLine($"  - {context.Addins.Count(addin => addin.Type == AddinType.Recipe)} recipes");
+			markdown.AppendLine($"  - {context.Addins.Count(addin => addin.Type == AddinType.Module)} modules");
+			if (context.Addins.Any(addin => addin.Type == AddinType.Unknown))
+			{
+				markdown.AppendLine($"  - {context.Addins.Count(addin => addin.Type == AddinType.Unknown)} uncategorized (see the 'Exceptions' section)");
+			}
+
+			markdown.AppendLine($"- Of the {categorizedAddins.Count()} categorized packages:");
 			markdown.AppendLine($"  - {auditedAddins.Count()} were successfully audited");
 			markdown.AppendLine($"  - {deprecatedAddins.Count()} were marked as deprecated");
 			markdown.AppendLine($"  - {exceptionAddins.Count()} could not be audited (see the 'Exceptions' section)");
@@ -76,7 +87,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine();
 
 			// Exceptions report
-			markdown.Append(GenerateMarkdownWithNotes(exceptionAddins, "Exceptions"));
+			markdown.Append(GenerateMarkdownWithNotes(exceptionAddins.Union(uncategorizedAddins), "Exceptions"));
 
 			// Deprecated report
 			markdown.Append(GenerateMarkdownWithNotes(deprecatedAddins, "Deprecated"));
