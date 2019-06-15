@@ -38,9 +38,9 @@ namespace Cake.AddinDiscoverer
 		public bool UsingOldCakeContribIcon { get; set; }
 
 		/// <summary>
-		/// Gets or sets a value indicating whether the addin was transfered to the cake-contrib github organisation.
+		/// Gets or sets a value indicating whether the addin was transferred to the cake-contrib github organisation.
 		/// </summary>
-		public bool TransferedToCakeContribOrganisation { get; set; }
+		public bool TransferredToCakeContribOrganisation { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether the cake-contrib user has been added as an owner ofthe NuGet package.
