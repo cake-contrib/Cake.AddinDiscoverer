@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
@@ -224,6 +224,14 @@ namespace Cake.AddinDiscoverer
 				Scheme = Uri.UriSchemeHttps,
 				Port = originalUri.IsDefaultPort ? -1 : originalUri.Port // -1 => default port for scheme
 			}.Uri;
+		}
+
+		public static bool MustUseHttps(this Uri uri)
+		{
+			if (uri == null) return false;
+			if (uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase)) return true;
+			if (uri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase)) return true;
+			return false;
 		}
 
 		public static bool IsUpToDate(this SemVersion currentVersion, SemVersion desiredVersion)
