@@ -25,16 +25,10 @@ namespace Cake.AddinDiscoverer.Steps
 					addin.ProjectUrl = AdjustUrlIfProjectTransferredToCakeContrib(addin.ProjectUrl, addin.Name, addin.RepositoryOwner, cakeContribRepositories);
 
 					// Force HTTPS for Github projects
-					if (addin.ProjectUrl?.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) ?? false)
-					{
-						addin.ProjectUrl = addin.ProjectUrl.ForceHttps();
-					}
+					if (addin.ProjectUrl.MustUseHttps()) addin.ProjectUrl = addin.ProjectUrl.ForceHttps();
 
 					// Force HTTPS for Github repositories
-					if (addin.RepositoryUrl?.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) ?? false)
-					{
-						addin.RepositoryUrl = addin.RepositoryUrl.ForceHttps();
-					}
+					if (addin.RepositoryUrl.MustUseHttps()) addin.RepositoryUrl = addin.RepositoryUrl.ForceHttps();
 
 					// Derive the repository name and owner
 					var (repoOwner, repoName) = DeriveRepoInfo(addin.RepositoryUrl, addin.ProjectUrl);
