@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
@@ -158,10 +158,9 @@ namespace Cake.AddinDiscoverer.Steps
 				// Some rules are different in the "main" project as opposed to unit tests project, integration tests project, etc.
 				// For instance, we only update the icon in the main project.
 				var isMainProjectFile = Path.GetFileName(filePath).EqualsIgnoreCase($"{addin.Name}.csproj");
-
-				// Update the package icon
 				if (isMainProjectFile)
 				{
+					// Update the package icon
 					var packageIconUrl = document.Document.GetFirstElementValue("PackageIconUrl");
 					if (packageIconUrl != Constants.NEW_CAKE_CONTRIB_ICON_URL)
 					{
@@ -170,25 +169,25 @@ namespace Cake.AddinDiscoverer.Steps
 							commits.Add(("Fix PackageIconUrl", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
 						}
 					}
-				}
 
-				// If only one framework is targetted, make sure it's the required one
-				var targetFramework = document.Document.GetFirstElementValue("TargetFramework");
-				if (!string.IsNullOrEmpty(targetFramework) && targetFramework != cakeVersion.RequiredFramework)
-				{
-					if (document.Document.SetFirstElementValue("TargetFramework", cakeVersion.RequiredFramework))
+					// If only one framework is targetted, make sure it's the required one
+					var targetFramework = document.Document.GetFirstElementValue("TargetFramework");
+					if (!string.IsNullOrEmpty(targetFramework) && targetFramework != cakeVersion.RequiredFramework)
 					{
-						commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+						if (document.Document.SetFirstElementValue("TargetFramework", cakeVersion.RequiredFramework))
+						{
+							commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+						}
 					}
-				}
 
-				// If multiple frameworks are targetted, make sure the required one is among them
-				var targetFrameworks = document.Document.GetFirstElementValue("TargetFrameworks")?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
-				if (targetFrameworks.Any() && !targetFrameworks.Contains(cakeVersion.RequiredFramework))
-				{
-					if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework))
+					// If multiple frameworks are targetted, make sure the required one is among them
+					var targetFrameworks = document.Document.GetFirstElementValue("TargetFrameworks")?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
+					if (targetFrameworks.Any() && !targetFrameworks.Contains(cakeVersion.RequiredFramework))
 					{
-						commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+						if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework))
+						{
+							commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+						}
 					}
 				}
 
