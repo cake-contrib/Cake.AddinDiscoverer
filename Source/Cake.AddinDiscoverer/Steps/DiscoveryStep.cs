@@ -94,6 +94,7 @@ namespace Cake.AddinDiscoverer.Steps
 						NuGetPackageVersion = package.Identity.Version.ToNormalizedString(),
 						IsDeprecated = false,
 						IsPrerelease = package.Identity.Version.IsPrerelease,
+						HasPrereleaseDependencies = false,
 						Tags = tags,
 						Type = AddinType.Unknown
 					};

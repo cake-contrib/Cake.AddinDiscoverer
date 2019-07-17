@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using Octokit;
 using System;
 using System.Collections.Generic;
@@ -184,7 +184,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendUnixLine($"Description: \"{addin.Description}\"");
-			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
+			if (addin.IsPrerelease || addin.HasPrereleaseDependencies) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(categories);
 
@@ -207,7 +207,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl ?? addin.NuGetPackageUrl}");
 			yamlContent.AppendUnixLine($"Author: {GetChildNodeValue(mapping, "Author")}");
 			yamlContent.AppendUnixLine($"Description: \"{GetChildNodeValue(mapping, "Description")}\"");
-			if (addin.IsPrerelease) yamlContent.AppendUnixLine("Prerelease: \"true\"");
+			if (addin.IsPrerelease || addin.HasPrereleaseDependencies) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
 
