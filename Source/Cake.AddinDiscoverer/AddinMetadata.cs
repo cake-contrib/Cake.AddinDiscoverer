@@ -49,6 +49,8 @@ namespace Cake.AddinDiscoverer
 
 		public bool IsPrerelease { get; set; }
 
+		public bool HasPrereleaseDependencies { get; set; }
+
 		public string DllName { get; set; }
 
 		public string GetMaintainerName()

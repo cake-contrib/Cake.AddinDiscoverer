@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
@@ -88,7 +88,7 @@ namespace Cake.AddinDiscoverer.Steps
 											};
 										});
 
-									var isPreRelease = normalizedPackageDependencies.Any(d => d.NuGetVersion.IsPrerelease);
+									var hasPreReleaseDependencies = normalizedPackageDependencies.Any(d => d.NuGetVersion.IsPrerelease);
 
 									var packageDependencies = normalizedPackageDependencies
 										.Select(d =>
@@ -176,7 +176,7 @@ namespace Cake.AddinDiscoverer.Steps
 									addin.NuGetPackageVersion = packageVersion;
 									addin.Frameworks = frameworks;
 									addin.References = dllReferences;
-									addin.IsPrerelease |= isPreRelease;
+									addin.HasPrereleaseDependencies = hasPreReleaseDependencies;
 
 									if (addin.Name.EndsWith(".Module", StringComparison.OrdinalIgnoreCase)) addin.Type = AddinType.Module;
 									if (addin.Type == AddinType.Unknown && !string.IsNullOrEmpty(assemblyPath)) addin.Type = AddinType.Addin;
