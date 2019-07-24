@@ -1,8 +1,5 @@
-﻿using Cake.AddinDiscoverer.Utilities;
-using Cake.Incubator.StringExtensions;
-using Octokit;
+using Cake.AddinDiscoverer.Utilities;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -19,24 +16,12 @@ namespace Cake.AddinDiscoverer.Steps
 				.ForEachAsync(
 					async addin =>
 					{
-						if (!addin.GithubPullRequestId.HasValue && addin.RepositoryUrl != null)
+						if (!addin.GithubPullRequestId.HasValue && !string.IsNullOrEmpty(addin.RepositoryOwner) && !string.IsNullOrEmpty(addin.RepositoryName))
 						{
-							var request = new PullRequestRequest()
-							{
-								State = ItemStateFilter.Open,
-								SortProperty = PullRequestSort.Created,
-								SortDirection = SortDirection.Descending
-							};
-
 							try
 							{
-								var pullRequests = await context.GithubClient.PullRequest.GetAllForRepository(addin.RepositoryOwner, addin.RepositoryName, request).ConfigureAwait(false);
-								var pullRequest = pullRequests.FirstOrDefault(pr => pr.Title.EqualsIgnoreCase(Constants.PULL_REQUEST_TITLE) && pr.User.Login.EqualsIgnoreCase(context.Options.GithubUsername));
-
-								if (pullRequest != null)
-								{
-									addin.GithubPullRequestId = pullRequest.Number;
-								}
+								var pullRequest = await Misc.FindGithubPullRequestAsync(context, addin.RepositoryOwner, addin.RepositoryName, context.Options.GithubUsername, Constants.PULL_REQUEST_TITLE).ConfigureAwait(false);
+								addin.GithubPullRequestId = pullRequest?.Number;
 							}
 							catch (Exception e)
 							{

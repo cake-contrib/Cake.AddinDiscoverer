@@ -218,21 +218,26 @@ namespace Cake.AddinDiscoverer.Steps
 			if (availableForLatestCakeVersionCount == totalReferencesCount)
 			{
 				var packagesConfig = new StringBuilder();
-				packagesConfig.AppendUnixLine("<? xml version=\"1.0\" encoding=\"utf-8\"?>");
+				packagesConfig.AppendUnixLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
 				packagesConfig.AppendUnixLine("<packages>");
 				packagesConfig.AppendUnixLine($"    <package id=\"Cake\" version=\"{latestCakeVersion.Version.ToString(3)}\" />");
 				packagesConfig.AppendUnixLine("</packages>");
 
 				// Commit changes to a new branch and submit PR
-				var commitMessage = $"Upgrade to Cake {latestCakeVersion.Version.ToString(3)}";
+				var pullRequestTitle = $"Upgrade to Cake {latestCakeVersion.Version.ToString(3)}";
 				var newBranchName = $"upgrade_cake_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-				var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
-				{
-					(CommitMessage: "Update addins references", FilesToDelete: null, FilesToUpsert: recipeFilesWithAtLeastOneReference.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake())).ToArray()),
-					(CommitMessage: "Update Cake version in package.config", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
-				};
 
-				await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, commitMessage, commits).ConfigureAwait(false);
+				var pullRequest = await Misc.FindGithubPullRequestAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, pullRequestTitle).ConfigureAwait(false);
+				if (pullRequest == null)
+				{
+					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+					{
+						(CommitMessage: "Update addins references", FilesToDelete: null, FilesToUpsert: recipeFilesWithAtLeastOneReference.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake())).ToArray()),
+						(CommitMessage: "Update Cake version in package.config", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
+					};
+
+					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);
+				}
 			}
 		}
 	}
