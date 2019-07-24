@@ -1,4 +1,5 @@
-﻿using Octokit;
+using Cake.Incubator.StringExtensions;
+using Octokit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,6 +32,21 @@ namespace Cake.AddinDiscoverer.Utilities
 			var issue = issues.FirstOrDefault(i => i.Title == title);
 
 			return issue;
+		}
+
+		public static async Task<PullRequest> FindGithubPullRequestAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)
+		{
+			var request = new PullRequestRequest()
+			{
+				State = ItemStateFilter.Open,
+				SortProperty = PullRequestSort.Created,
+				SortDirection = SortDirection.Descending
+			};
+
+			var pullRequests = await context.GithubClient.PullRequest.GetAllForRepository(repoOwner, repoName, request).ConfigureAwait(false);
+			var pullRequest = pullRequests.FirstOrDefault(pr => pr.Title.EqualsIgnoreCase(title) && pr.User.Login.EqualsIgnoreCase(creator));
+
+			return pullRequest;
 		}
 
 		public static async Task<PullRequest> CommitToNewBranchAndSubmitPullRequestAsync(DiscoveryContext context, Octokit.Repository fork, int issueNumber, string newBranchName, string pullRequestTitle, IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
