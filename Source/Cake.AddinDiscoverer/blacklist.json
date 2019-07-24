@@ -18,7 +18,9 @@
     "Cake.Tin",
     "Cake.Xamarin.Build",
     "Cake.Xamarin.Build.CakeBuilder",
-    "Cake.Storm.*"
+    "Cake.Storm.*",
+    "Cake.Board.Abstractions",
+    "Cake.Board"
   ],
   "labels": [
     "Addin",
