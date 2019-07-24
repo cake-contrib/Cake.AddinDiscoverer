@@ -218,7 +218,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (availableForLatestCakeVersionCount == totalReferencesCount)
 			{
 				var packagesConfig = new StringBuilder();
-				packagesConfig.AppendUnixLine("<? xml version=\"1.0\" encoding=\"utf-8\"?>");
+				packagesConfig.AppendUnixLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
 				packagesConfig.AppendUnixLine("<packages>");
 				packagesConfig.AppendUnixLine($"    <package id=\"Cake\" version=\"{latestCakeVersion.Version.ToString(3)}\" />");
 				packagesConfig.AppendUnixLine("</packages>");
