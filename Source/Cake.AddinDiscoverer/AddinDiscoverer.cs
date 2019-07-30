@@ -50,7 +50,7 @@ namespace Cake.AddinDiscoverer
 			// Use the info from previous steps to determine if addins meet the best pratices
 			typeof(AnalyzeAddinsStep),
 
-			// Get issues and pull requests from the Github repo
+			// Get previously created issue and pull request from the Github repo
 			typeof(GetGithubIssuesStep),
 
 			// Get statistics from the Github repo
