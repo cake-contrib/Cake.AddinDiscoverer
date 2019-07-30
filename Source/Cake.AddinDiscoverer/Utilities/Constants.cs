@@ -210,6 +210,24 @@ namespace Cake.AddinDiscoverer.Utilities
 				AddinType.All,
 				DataDestination.Excel
 			),
+			(
+				"Issues count",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.OpenIssuesCount,
+				(addin, cakeVersion) => Color.Empty,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel
+			),
+			(
+				"Pull requests count",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.OpenPullRequestsCount,
+				(addin, cakeVersion) => Color.Empty,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel
+			),
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 #pragma warning restore SA1008 // Opening parenthesis should be spaced correctly
