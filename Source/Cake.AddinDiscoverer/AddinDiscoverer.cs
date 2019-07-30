@@ -71,7 +71,7 @@ namespace Cake.AddinDiscoverer
 			// Commit the artifacts (such as Excel and markdown reports, CSV, etc.) to the cake-contrib/home github repo
 			typeof(CommitToRepoStep),
 
-			// Create an issue to info addin authors of the issues we discovered
+			// Create an issue to inform addin authors of the issues we discovered
 			typeof(CreateGithubIssueStep),
 
 			// Submit a pull request to fix the issue we discovered
