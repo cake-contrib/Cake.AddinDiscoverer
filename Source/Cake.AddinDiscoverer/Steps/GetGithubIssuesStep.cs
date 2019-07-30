@@ -11,7 +11,7 @@ namespace Cake.AddinDiscoverer.Steps
 	{
 		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.CreateGithubIssue || context.Options.SubmitGithubPullRequest;
 
-		public string GetDescription(DiscoveryContext context) => "Get issues and pull requests from Github";
+		public string GetDescription(DiscoveryContext context) => "Get previously created Github issue and pull request";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
