@@ -61,5 +61,15 @@ namespace Cake.AddinDiscoverer
 		/// Gets or sets notes (such as error messages).
 		/// </summary>
 		public string Notes { get; set; }
+
+		/// <summary>
+		/// Gets or sets the number of open issues in the github repository.
+		/// </summary>
+		public int? OpenIssuesCount { get; set; }
+
+		/// <summary>
+		/// Gets or sets the number of open pull requests in the github repository.
+		/// </summary>
+		public int? OpenPullRequestsCount { get; set; }
 	}
 }
