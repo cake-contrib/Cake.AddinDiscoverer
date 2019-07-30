@@ -55,7 +55,7 @@ namespace Cake.AddinDiscoverer.Utilities
 #pragma warning disable SA1000 // Keywords should be spaced correctly
 #pragma warning disable SA1008 // Opening parenthesis should be spaced correctly
 #pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
-		public static readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, CakeVersion, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, AddinType ApplicableTo, DataDestination Destination)[] REPORT_COLUMNS = new (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, string> GetContent, Func<AddinMetadata, CakeVersion, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, AddinType ApplicableTo, DataDestination Destination)[]
+		public static readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, object> GetContent, Func<AddinMetadata, CakeVersion, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, AddinType ApplicableTo, DataDestination Destination)[] REPORT_COLUMNS = new (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, object> GetContent, Func<AddinMetadata, CakeVersion, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, AddinType ApplicableTo, DataDestination Destination)[]
 		{
 			(
 				"Name",
@@ -206,6 +206,24 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.PackageCoOwnedByCakeContrib.ToString().ToLower(),
 				(addin, cakeVersion) => addin.AnalysisResult.PackageCoOwnedByCakeContrib ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel
+			),
+			(
+				"Issues count",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.OpenIssuesCount,
+				(addin, cakeVersion) => Color.Empty,
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel
+			),
+			(
+				"Pull requests count",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.AnalysisResult.OpenPullRequestsCount,
+				(addin, cakeVersion) => Color.Empty,
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel
