@@ -1,4 +1,4 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
@@ -84,7 +84,7 @@ namespace Cake.AddinDiscoverer.Steps
 									// There's a NuGet package with a project URL that points to a fork which doesn't allow issue.
 									// Therefore it's safe to ignore this error.
 								}
-								catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Not Found"))
+								catch (ApiException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound)
 								{
 									// I know of at least one case where the URL in the NuGet metadata points to a repo that has been deleted.
 									// Therefore it's safe to ignore this error.
