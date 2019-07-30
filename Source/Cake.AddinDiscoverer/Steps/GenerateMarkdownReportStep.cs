@@ -75,6 +75,8 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `License` column indicates the license selected by the addin author. PLEASE NOTE: this information is only available if the nuget package includes the new `license` metadata information (documented [here](https://docs.microsoft.com/en-us/nuget/reference/nuspec#license) and [here](https://docs.microsoft.com/en-us/nuget/reference/msbuild-targets#packing-a-license-expression-or-a-license-file)) as opposed to the [obsolete](https://github.com/NuGet/Announcements/issues/32) `licenseUrl`.");
 			markdown.AppendLine("- The `Repository` column indicates if the repository information is present in the package nuspec as documented [here](https://docs.microsoft.com/en-us/nuget/reference/nuspec#repository) and [here](https://docs.microsoft.com/en-us/nuget/reference/msbuild-targets#pack-target).");
 			markdown.AppendLine("- The `cake-contrib co-owner` column indicates if the cake-contrib user is a co-owner of the nuget package.");
+			markdown.AppendLine("- The `Issues count` column indicates the number of open issues in the addin's github repository.");
+			markdown.AppendLine("- The `Pull requests count` column indicates the number of open pull requests in the addin's github repository.");
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
 			markdown.AppendLine();

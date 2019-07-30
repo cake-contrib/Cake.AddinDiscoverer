@@ -50,11 +50,11 @@ namespace Cake.AddinDiscoverer
 			// Use the info from previous steps to determine if addins meet the best pratices
 			typeof(AnalyzeAddinsStep),
 
-			// Check if an issue has been already created (to avoid creating duplicates)
-			typeof(FindGithubIssueStep),
+			// Get previously created issue and pull request from the Github repo
+			typeof(GetGithubIssuesStep),
 
-			// Check if a Pull Request has been already created (to avoid creating duplicates)
-			typeof(FindGithubPullRequestStep),
+			// Get statistics from the Github repo
+			typeof(GetGithubStatsStep),
 
 			// Generate an Excel spreadsheet with the result of the audit
 			typeof(GenerateExcelReportStep),
@@ -71,7 +71,7 @@ namespace Cake.AddinDiscoverer
 			// Commit the artifacts (such as Excel and markdown reports, CSV, etc.) to the cake-contrib/home github repo
 			typeof(CommitToRepoStep),
 
-			// Create an issue to info addin authors of the issues we discovered
+			// Create an issue to inform addin authors of the issues we discovered
 			typeof(CreateGithubIssueStep),
 
 			// Submit a pull request to fix the issue we discovered
@@ -108,6 +108,7 @@ namespace Cake.AddinDiscoverer
 			{
 				Addins = Array.Empty<AddinMetadata>(),
 				GithubClient = new GitHubClient(connection),
+				GithubHttpClient = new HttpClientAdapter(() => HttpMessageHandlerFactory.CreateDefault(proxy)),
 				NugetRepository = new SourceRepository(packageSource, providers),
 				Options = options,
 				TempFolder = Path.Combine(options.TemporaryFolder, Constants.PRODUCT_NAME),

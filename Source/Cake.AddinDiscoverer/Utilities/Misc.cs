@@ -29,7 +29,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			};
 
 			var issues = await context.GithubClient.Issue.GetAllForRepository(repoOwner, repoName, request).ConfigureAwait(false);
-			var issue = issues.FirstOrDefault(i => i.Title == title);
+			var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
 
 			return issue;
 		}
