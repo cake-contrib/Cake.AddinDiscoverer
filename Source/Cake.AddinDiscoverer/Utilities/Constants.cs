@@ -228,6 +228,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				AddinType.All,
 				DataDestination.Excel
 			),
+			(
+				"Cake.Recipe",
+				ExcelHorizontalAlignment.Center,
+				(addin) => !addin.AnalysisResult.CakeRecipeIsUsed ? null : (addin.AnalysisResult.CakeRecipeVersion ?? "Unspecified version") + (addin.AnalysisResult.CakeRecipePrerelease ? " (prerelease)" : string.Empty),
+				(addin, cakeVersion) => !addin.AnalysisResult.CakeRecipeIsUsed ? Color.Red : (addin.AnalysisResult.CakeRecipePrerelease ? Color.Gold : Color.LightGreen),
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel
+			)
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 #pragma warning restore SA1008 // Opening parenthesis should be spaced correctly
