@@ -83,7 +83,12 @@ namespace Cake.AddinDiscoverer.Steps
 
 					var addinMetadata = new AddinMetadata()
 					{
-						AnalysisResult = new AddinAnalysisResult(),
+						AnalysisResult = new AddinAnalysisResult()
+						{
+							CakeRecipeIsUsed = false,
+							CakeRecipeVersion = null,
+							CakeRecipePrerelease = false
+						},
 						Maintainer = package.Authors,
 						Description = package.Description,
 						ProjectUrl = package.ProjectUrl,

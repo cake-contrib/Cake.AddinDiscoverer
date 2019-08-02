@@ -9,7 +9,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class CheckUsingCakeRecipeStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo;
+		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && (context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo);
 
 		public string GetDescription(DiscoveryContext context)
 		{
@@ -23,11 +23,6 @@ namespace Cake.AddinDiscoverer.Steps
 				.ForEachAsync(
 					async addin =>
 					{
-						// By default we assume Cake.Recipe is not being used
-						addin.AnalysisResult.CakeRecipeIsUsed = false;
-						addin.AnalysisResult.CakeRecipeVersion = null;
-						addin.AnalysisResult.CakeRecipePrerelease = false;
-
 						if (!string.IsNullOrEmpty(addin.RepositoryName) && !string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
 							try

@@ -12,7 +12,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class GetGithubStatsStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo;
+		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && (context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo);
 
 		public string GetDescription(DiscoveryContext context) => "Get stats from Github";
 
