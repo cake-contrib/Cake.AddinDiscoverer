@@ -48,6 +48,11 @@ namespace Cake.AddinDiscoverer.Steps
 							{
 								addin.AnalysisResult.Notes += $"GetGithubInfo: {e.GetBaseException().Message}{Environment.NewLine}";
 							}
+							finally
+							{
+								// This is to ensure we don't issue requests too quickly and therefore trigger Github's abuse detection
+								await Task.Delay(1000).ConfigureAwait(false);
+							}
 						}
 
 						return addin;
