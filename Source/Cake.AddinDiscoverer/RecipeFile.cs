@@ -13,7 +13,7 @@ namespace Cake.AddinDiscoverer
 		public static readonly Regex ToolReferenceRegex = new Regex(string.Format(ADDIN_REFERENCE_REGEX, "tool"), RegexOptions.Compiled | RegexOptions.Multiline);
 		public static readonly Regex LoadReferenceRegex = new Regex(string.Format(ADDIN_REFERENCE_REGEX, "(load|l)"), RegexOptions.Compiled | RegexOptions.Multiline);
 
-		private const string ADDIN_REFERENCE_REGEX = "(?<lineprefix>.*)(?<packageprefix>\\#{0} nuget:)(?<separator1>\"?)(?<nugetrepository>.*)\\?(?<referencestring>.*?(?=(?:[\"| ])|$))(?<separator2>\"?)(?<separator3> ?)(?<linepostfix>.*\n)";
+		private const string ADDIN_REFERENCE_REGEX = "(?<lineprefix>.*)(?<packageprefix>\\#{0} nuget:)(?<separator1>\"?)(?<nugetrepository>.*)\\?(?<referencestring>.*?(?=(?:[\"| ])|$))(?<separator2>\"?)(?<separator3> ?)(?<linepostfix>.*?$)";
 
 		private IEnumerable<AddinReference> _addinReferences;
 
@@ -108,8 +108,11 @@ namespace Cake.AddinDiscoverer
 		private static IEnumerable<T> FindReferences<T>(string content, Regex regex, bool enforceNamingConvention)
 			where T : CakeReference, new()
 		{
+			// Replacing Windows CR+LF with Unix LF is important because '$' in our regex only works with Unix line endings
+			var unixFormat = content.Replace("\r\n", "\n");
+
 			var references = new List<T>();
-			var matchResults = regex.Matches(content);
+			var matchResults = regex.Matches(unixFormat);
 
 			if (!matchResults.Any()) return Array.Empty<T>();
 
@@ -139,7 +142,10 @@ namespace Cake.AddinDiscoverer
 
 		private string GetContent(string content, Regex regex, IEnumerable<CakeReference> references, Func<CakeReference, string> getUpdatedVersion)
 		{
-			var updatedContent = regex.Replace(content, match =>
+			// Replacing Windows CR+LF with Unix LF is important because '$' in our regex only works with Unix line endings
+			var unixFormat = content.Replace("\r\n", "\n");
+
+			var updatedContent = regex.Replace(unixFormat, match =>
 			{
 				var parameters = HttpUtility.ParseQueryString(match.Groups["referencestring"].Value);
 
