@@ -71,5 +71,20 @@ namespace Cake.AddinDiscoverer
 		/// Gets or sets the number of open pull requests in the github repository.
 		/// </summary>
 		public int? OpenPullRequestsCount { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether a Cake.Recipe is used to build this addin.
+		/// </summary>
+		public bool CakeRecipeIsUsed { get; set; }
+
+		/// <summary>
+		/// Gets or sets the version of Cake.Recipe used to build this addin. A null value indicates that Cake.Recipe is not used.
+		/// </summary>
+		public string CakeRecipeVersion { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether a prerelease version of Cake.Recipe is used to build this addin.
+		/// </summary>
+		public bool CakeRecipePrerelease { get; set; }
 	}
 }

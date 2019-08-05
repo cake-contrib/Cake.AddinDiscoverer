@@ -11,12 +11,15 @@ namespace Cake.AddinDiscoverer
 	{
 		public static readonly Regex AddinReferenceRegex = new Regex(string.Format(ADDIN_REFERENCE_REGEX, "addin"), RegexOptions.Compiled | RegexOptions.Multiline);
 		public static readonly Regex ToolReferenceRegex = new Regex(string.Format(ADDIN_REFERENCE_REGEX, "tool"), RegexOptions.Compiled | RegexOptions.Multiline);
+		public static readonly Regex LoadReferenceRegex = new Regex(string.Format(ADDIN_REFERENCE_REGEX, "(load|l)"), RegexOptions.Compiled | RegexOptions.Multiline);
 
-		private const string ADDIN_REFERENCE_REGEX = "(?<lineprefix>.*?)(?<packageprefix>\\#{0} nuget:\\?)(?<referencestring>.*?(?=(?:\")|$))(?<linepostfix>.*)";
+		private const string ADDIN_REFERENCE_REGEX = "(?<lineprefix>.*)(?<packageprefix>\\#{0} nuget:)(?<separator1>\"?)(?<nugetrepository>.*)\\?(?<referencestring>.*?(?=(?:[\"| ])|$))(?<separator2>\"?)(?<separator3> ?)(?<linepostfix>.*?$)";
 
 		private IEnumerable<AddinReference> _addinReferences;
 
 		private IEnumerable<ToolReference> _toolReferences;
+
+		private IEnumerable<CakeReference> _loadReferences;
 
 		public string Name { get; set; }
 
@@ -52,6 +55,19 @@ namespace Cake.AddinDiscoverer
 				}
 
 				return _toolReferences;
+			}
+		}
+
+		public IEnumerable<CakeReference> LoadReferences
+		{
+			get
+			{
+				if (_loadReferences == null)
+				{
+					_loadReferences = FindReferences<ToolReference>(Content, RecipeFile.LoadReferenceRegex, false);
+				}
+
+				return _loadReferences;
 			}
 		}
 
@@ -92,8 +108,11 @@ namespace Cake.AddinDiscoverer
 		private static IEnumerable<T> FindReferences<T>(string content, Regex regex, bool enforceNamingConvention)
 			where T : CakeReference, new()
 		{
+			// Replacing Windows CR+LF with Unix LF is important because '$' in our regex only works with Unix line endings
+			var unixFormat = content.Replace("\r\n", "\n");
+
 			var references = new List<T>();
-			var matchResults = regex.Matches(content);
+			var matchResults = regex.Matches(unixFormat);
 
 			if (!matchResults.Any()) return Array.Empty<T>();
 
@@ -103,13 +122,15 @@ namespace Cake.AddinDiscoverer
 
 				var packageName = parameters["package"];
 				var referencedVersion = parameters["version"];
+				var prerelease = (parameters.AllKeys?.Contains("prerelease") ?? false) || (parameters.GetValues(null)?.Contains("prerelease") ?? false);
 
 				if (!enforceNamingConvention || packageName.StartsWith("Cake.", StringComparison.OrdinalIgnoreCase))
 				{
 					references.Add(new T()
 					{
 						Name = packageName,
-						ReferencedVersion = referencedVersion
+						ReferencedVersion = referencedVersion,
+						Prerelease = prerelease
 					});
 				}
 			}
@@ -121,7 +142,10 @@ namespace Cake.AddinDiscoverer
 
 		private string GetContent(string content, Regex regex, IEnumerable<CakeReference> references, Func<CakeReference, string> getUpdatedVersion)
 		{
-			var updatedContent = regex.Replace(content, match =>
+			// Replacing Windows CR+LF with Unix LF is important because '$' in our regex only works with Unix line endings
+			var unixFormat = content.Replace("\r\n", "\n");
+
+			var updatedContent = regex.Replace(unixFormat, match =>
 			{
 				var parameters = HttpUtility.ParseQueryString(match.Groups["referencestring"].Value);
 
@@ -131,7 +155,7 @@ namespace Cake.AddinDiscoverer
 				var loadDependencies = parameters["loaddependencies"];
 				var include = parameters["include"];
 				var exclude = parameters["exclude"];
-				var prerelease = parameters.AllKeys.Contains("prerelease");
+				var prerelease = (parameters.AllKeys?.Contains("prerelease") ?? false) || (parameters.GetValues(null)?.Contains("prerelease") ?? false);
 
 				var referencedAddin = references.Where(addin => addin.Name.Equals(packageName, StringComparison.OrdinalIgnoreCase));
 				if (!referencedAddin.Any()) return match.Groups[0].Value;
@@ -143,12 +167,16 @@ namespace Cake.AddinDiscoverer
 				var newContent = new StringBuilder();
 				newContent.Append(match.Groups["lineprefix"].Value);
 				newContent.Append(match.Groups["packageprefix"].Value);
-				newContent.AppendFormat("package={0}", packageName);
+				newContent.Append(match.Groups["separator1"].Value);
+				newContent.Append(match.Groups["nugetrepository"].Value);
+				newContent.AppendFormat("?package={0}", packageName);
 				newContent.AppendFormat("&version={0}", updatedVersion);
 				if (!string.IsNullOrEmpty(loadDependencies)) newContent.AppendFormat("&loaddependencies={0}", loadDependencies);
 				if (!string.IsNullOrEmpty(include)) newContent.AppendFormat("&include={0}", include);
 				if (!string.IsNullOrEmpty(exclude)) newContent.AppendFormat("&exclude={0}", exclude);
 				if (prerelease) newContent.Append("&prerelease");
+				newContent.Append(match.Groups["separator2"].Value);
+				newContent.Append(match.Groups["separator3"].Value);
 				newContent.Append(match.Groups["linepostfix"].Value);
 
 				return newContent.ToString();
