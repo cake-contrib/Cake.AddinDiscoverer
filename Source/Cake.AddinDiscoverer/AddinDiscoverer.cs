@@ -9,6 +9,7 @@ using Octokit.Internal;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -136,23 +137,60 @@ namespace Cake.AddinDiscoverer
 
 		public async Task LaunchDiscoveryAsync()
 		{
+			var originalConsoleColor = Console.ForegroundColor;
+
 			try
 			{
+				var maxStepNameLength = 60;
+				var lineFormat = "{0,-" + maxStepNameLength + "}{1,-20}";
+				Console.ForegroundColor = ConsoleColor.Green;
+
+				Console.WriteLine();
+				Console.WriteLine(lineFormat, "Step", "Duration");
+				Console.WriteLine(new string('-', 20 + maxStepNameLength));
+
+				var totalTime = Stopwatch.StartNew();
+
 				foreach (var type in _steps)
 				{
 					var step = (IStep)Activator.CreateInstance(type);
+					var stepDescription = step.GetDescription(_context);
+					if (stepDescription.Length > maxStepNameLength - 1)
+					{
+						stepDescription = stepDescription.Substring(0, maxStepNameLength - 1);
+					}
 
 					if (step.PreConditionIsMet(_context))
 					{
-						Console.WriteLine(step.GetDescription(_context));
+						var stepDuration = Stopwatch.StartNew();
 						await step.ExecuteAsync(_context).ConfigureAwait(false);
+						stepDuration.Stop();
+
+						Console.ForegroundColor = ConsoleColor.Green;
+						Console.WriteLine(lineFormat, stepDescription, stepDuration.Elapsed.ToString("c", CultureInfo.InvariantCulture));
+					}
+					else
+					{
+						Console.ForegroundColor = ConsoleColor.Gray;
+						Console.WriteLine(lineFormat, stepDescription, "Skipped");
 					}
 				}
+
+				totalTime.Stop();
+
+				Console.ForegroundColor = ConsoleColor.Green;
+				Console.WriteLine(new string('-', 20 + maxStepNameLength));
+				Console.WriteLine(lineFormat, "Total:", totalTime.Elapsed.ToString("c", CultureInfo.InvariantCulture));
 			}
 			catch (Exception e)
 			{
+				Console.ForegroundColor = originalConsoleColor;
 				Console.WriteLine($"{Environment.NewLine}***** AN EXCEPTION HAS OCCURED *****");
 				Console.WriteLine(e.Demystify().ToString());
+			}
+			finally
+			{
+				Console.ForegroundColor = originalConsoleColor;
 			}
 		}
 	}
