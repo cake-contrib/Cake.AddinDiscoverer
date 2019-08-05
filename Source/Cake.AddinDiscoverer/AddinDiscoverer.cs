@@ -39,7 +39,7 @@ namespace Cake.AddinDiscoverer
 			// Analyze the metadata in the downloaded nuget package
 			typeof(AnalyzeNuGetMetadataStep),
 
-			// GEt the owners of the NuGet package
+			// Get the owners of the NuGet package
 			typeof(GetPackageOwnershipStep),
 
 			// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
