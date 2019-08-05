@@ -1,4 +1,4 @@
-﻿using CommandLine;
+using CommandLine;
 
 namespace Cake.AddinDiscoverer
 {
@@ -45,5 +45,8 @@ namespace Cake.AddinDiscoverer
 
 		[Option('k', "updatecakerecipe", Default = false, HelpText = "Update addin references in CakeRecipe.")]
 		public bool UpdateCakeRecipeReferences { get; set; }
+
+		[Option('w', "excludeslowsteps", Default = false, HelpText = "Exclude step that take much time (such as GetGithubStats and CheckUsingCakeRecipe).")]
+		public bool ExcludeSlowSteps { get; set; }
 	}
 }

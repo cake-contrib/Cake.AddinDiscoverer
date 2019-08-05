@@ -4,7 +4,6 @@ using Octokit;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -33,7 +32,7 @@ namespace Cake.AddinDiscoverer.Steps
 							!string.IsNullOrEmpty(addin.RepositoryName) &&
 							!string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
-							var filesGroupedByExtention = await GetFilePathsFromRepoAsync(context, addin).ConfigureAwait(false);
+							var filesGroupedByExtention = await Misc.GetFilePathsFromRepoAsync(context, addin).ConfigureAwait(false);
 							var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
 
 							await FixNuspec(context, addin, recommendedCakeVersion, filesGroupedByExtention, commits).ConfigureAwait(false);
@@ -79,29 +78,6 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private async Task<IDictionary<string, string[]>> GetFilePathsFromRepoAsync(DiscoveryContext context, AddinMetadata addin)
-		{
-			var filesPathGroupedByExtension = (IDictionary<string, string[]>)null;
-
-			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(addin.RepositoryOwner, addin.RepositoryName, ArchiveFormat.Zipball).ConfigureAwait(false);
-			using (var data = new MemoryStream(zipArchive))
-			{
-				var archive = new ZipArchive(data);
-				filesPathGroupedByExtension = archive.Entries
-					.Select(e => string.Join('/', e.FullName.Split('/', StringSplitOptions.RemoveEmptyEntries).Skip(1)))
-					.GroupBy(path => System.IO.Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)
-					.ToDictionary(grp => grp.Key, grp => grp.ToArray());
-			}
-
-			return filesPathGroupedByExtension;
-		}
-
-		private async Task<string> GetFileContentFromRepoAsync(DiscoveryContext context, AddinMetadata addin, string filePath)
-		{
-			var content = await context.GithubClient.Repository.Content.GetAllContents(addin.RepositoryOwner, addin.RepositoryName, filePath).ConfigureAwait(false);
-			return content[0].Content;
-		}
-
 		private async Task FixNuspec(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IDictionary<string, string[]> filesPathGroupedByExtension, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			// Get the nuspec files
@@ -113,7 +89,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (string.IsNullOrEmpty(filePath)) return;
 
 			// Get the content of the csproj file
-			var nuspecFileContent = await GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
+			var nuspecFileContent = await Misc.GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
 
 			// Parse the content of the nuspec file
 			var document = new XDocumentFormatPreserved(nuspecFileContent);
@@ -142,7 +118,7 @@ namespace Cake.AddinDiscoverer.Steps
 			foreach (var filePath in filePaths)
 			{
 				// Get the content of the csproj file
-				var projectFileContent = await GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
+				var projectFileContent = await Misc.GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
 
 				// Parse the content of the csproj file
 				var document = new XDocumentFormatPreserved(projectFileContent);

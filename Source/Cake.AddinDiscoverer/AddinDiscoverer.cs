@@ -39,12 +39,12 @@ namespace Cake.AddinDiscoverer
 			// Analyze the metadata in the downloaded nuget package
 			typeof(AnalyzeNuGetMetadataStep),
 
-			// GEt the owners of the NuGet package
+			// Get the owners of the NuGet package
 			typeof(GetPackageOwnershipStep),
 
 			// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
 			// points to the original repo. This step corrects the URL to ensure it points to the right repo.
-			// Also, this step forces HTTPS for github.com URLs.
+			// Also, this step forces HTTPS for github URLs.
 			typeof(ValidateUrlStep),
 
 			// Use the info from previous steps to determine if addins meet the best pratices
@@ -55,6 +55,9 @@ namespace Cake.AddinDiscoverer
 
 			// Get statistics from the Github repo
 			typeof(GetGithubStatsStep),
+
+			// Check if addins are using Cake.Recipe
+			typeof(CheckUsingCakeRecipeStep),
 
 			// Generate an Excel spreadsheet with the result of the audit
 			typeof(GenerateExcelReportStep),

@@ -12,7 +12,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class GetGithubStatsStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo;
+		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && (context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo);
 
 		public string GetDescription(DiscoveryContext context) => "Get stats from Github";
 
@@ -47,6 +47,11 @@ namespace Cake.AddinDiscoverer.Steps
 							catch (Exception e)
 							{
 								addin.AnalysisResult.Notes += $"GetGithubInfo: {e.GetBaseException().Message}{Environment.NewLine}";
+							}
+							finally
+							{
+								// This is to ensure we don't issue requests too quickly and therefore trigger Github's abuse detection
+								await Task.Delay(1000).ConfigureAwait(false);
 							}
 						}
 
