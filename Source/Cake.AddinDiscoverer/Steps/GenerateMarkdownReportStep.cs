@@ -77,6 +77,8 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `cake-contrib co-owner` column indicates if the cake-contrib user is a co-owner of the nuget package.");
 			markdown.AppendLine("- The `Issues count` column indicates the number of open issues in the addin's github repository.");
 			markdown.AppendLine("- The `Pull requests count` column indicates the number of open pull requests in the addin's github repository.");
+			markdown.AppendLine("- The `Cake.Recipe` column indicates what version of Cake.Recipe is used to build this addin.");
+
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
 			markdown.AppendLine();
