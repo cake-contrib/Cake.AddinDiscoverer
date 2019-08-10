@@ -67,6 +67,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				DataDestination.All
 			),
 			(
+				"NuGet package version",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.NuGetPackageVersion,
+				(addin, cakeVersion) => Color.Empty,
+				(addin) => addin.NuGetPackageUrl == null ? null : new Uri(addin.NuGetPackageUrl, addin.NuGetPackageVersion),
+				AddinType.All,
+				DataDestination.Excel
+			),
+			(
 				"Maintainer",
 				ExcelHorizontalAlignment.Left,
 				(addin) => addin.GetMaintainerName(),
