@@ -69,6 +69,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("# Additional audit results");
 			markdown.AppendLine();
 			markdown.AppendLine("Due to space constraints we couldn't fit all audit information in this report so we generated an Excel spreadsheet that contains the following additional information:");
+			markdown.AppendLine("- The `NuGet package version` column indicates the version of the package that was used to perform the audit.");
 			markdown.AppendLine("- The `Maintainer` column indicates who is maintaining the source for this project");
 			markdown.AppendLine("- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon.");
 			markdown.AppendLine("- The `Transferred to cake-contrib` column indicates if the project has been moved to the cake-contrib github organisation.");
@@ -78,7 +79,6 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `Issues count` column indicates the number of open issues in the addin's github repository.");
 			markdown.AppendLine("- The `Pull requests count` column indicates the number of open pull requests in the addin's github repository.");
 			markdown.AppendLine("- The `Cake.Recipe` column indicates what version of Cake.Recipe is used to build this addin.");
-			markdown.AppendLine("- The `NuGet package version` column indicates the version of the package that was used to perform the audit.");
 
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
