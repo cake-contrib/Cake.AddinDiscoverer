@@ -1,7 +1,6 @@
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -22,12 +21,15 @@ namespace Cake.AddinDiscoverer.Steps
 				{
 					// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
 					// points to the original repo. This step corrects the URL to ensure it points to the right repo
-					addin.ProjectUrl = AdjustUrlIfProjectTransferredToCakeContrib(addin.ProjectUrl, addin.Name, addin.RepositoryOwner, cakeContribRepositories);
+					var repo = cakeContribRepositories.FirstOrDefault(r => r.Name.EqualsIgnoreCase(addin.Name));
+					if (repo != null)
+					{
+						addin.ProjectUrl = new Uri(repo.HtmlUrl);
+						addin.RepositoryUrl = new Uri(repo.GitUrl);
+					}
 
-					// Force HTTPS for Github projects
+					// Force HTTPS for Github URLs
 					if (addin.ProjectUrl.MustUseHttps()) addin.ProjectUrl = addin.ProjectUrl.ForceHttps();
-
-					// Force HTTPS for Github repositories
 					if (addin.RepositoryUrl.MustUseHttps()) addin.RepositoryUrl = addin.RepositoryUrl.ForceHttps();
 
 					// Derive the repository name and owner
@@ -38,19 +40,6 @@ namespace Cake.AddinDiscoverer.Steps
 					return addin;
 				})
 				.ToArray();
-		}
-
-		private static Uri AdjustUrlIfProjectTransferredToCakeContrib(Uri uri, string addinName, string repositoryOwner, IReadOnlyList<Octokit.Repository> cakeContribRepositories)
-		{
-			if (uri == null ||
-				!uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) ||
-				repositoryOwner != Constants.CAKE_CONTRIB_REPO_OWNER)
-			{
-				var repo = cakeContribRepositories.FirstOrDefault(r => r.Name.EqualsIgnoreCase(addinName));
-				if (repo != null) return new Uri(repo.HtmlUrl);
-			}
-
-			return uri;
 		}
 
 		private static (string Owner, string Name) DeriveRepoInfo(Uri repositoryUrl, Uri projectUrl)
