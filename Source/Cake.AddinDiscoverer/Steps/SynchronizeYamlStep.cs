@@ -183,7 +183,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
 			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl.AbsoluteUri.TrimEnd('/') + '/'}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
-			yamlContent.AppendUnixLine($"Description: \"{addin.Description}\"");
+			yamlContent.AppendUnixLine($"Description: {addin.Description}");
 			if (addin.IsPrerelease || addin.HasPrereleaseDependencies) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(categories);
@@ -206,7 +206,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
 			yamlContent.AppendUnixLine($"Repository: {(addin.ProjectUrl ?? addin.NuGetPackageUrl).AbsoluteUri.TrimEnd('/') + '/'}");
 			yamlContent.AppendUnixLine($"Author: {GetChildNodeValue(mapping, "Author")}");
-			yamlContent.AppendUnixLine($"Description: \"{GetChildNodeValue(mapping, "Description")}\"");
+			yamlContent.AppendUnixLine($"Description: {GetChildNodeValue(mapping, "Description")}");
 			if (addin.IsPrerelease || addin.HasPrereleaseDependencies) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
