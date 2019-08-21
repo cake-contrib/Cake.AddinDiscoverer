@@ -50,32 +50,7 @@ namespace Cake.AddinDiscoverer.Steps
 									var iconUrl = package.NuspecReader.GetIconUrl();
 									var projectUrl = package.NuspecReader.GetProjectUrl();
 									var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
-									var frameworks = package.GetSupportedFrameworks().Select(f =>
-									{
-										if (f.Framework.EqualsIgnoreCase(".NETStandard"))
-										{
-											return $"netstandard{f.Version.Major}.{f.Version.Minor}";
-										}
-										else if (f.Framework.EqualsIgnoreCase(".NETCore"))
-										{
-											return $"netcoreapp{f.Version.Major}.{f.Version.Minor}";
-										}
-										else if (f.Framework.EqualsIgnoreCase(".NETFramework"))
-										{
-											if (f.Version.Revision == 0)
-											{
-												return $"net{f.Version.Major}{f.Version.Minor}";
-											}
-											else
-											{
-												return $"net{f.Version.Major}{f.Version.Minor}{f.Version.Revision}";
-											}
-										}
-										else
-										{
-											return f.GetFrameworkString();
-										}
-									}).ToArray();
+									var frameworks = package.GetSupportedFrameworks().Select(f => f.GetShortFolderName()).ToArray();
 
 									var normalizedPackageDependencies = package.GetPackageDependencies()
 										.SelectMany(d => d.Packages)
