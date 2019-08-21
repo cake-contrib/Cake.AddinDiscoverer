@@ -88,7 +88,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreVersion == Constants.UNKNOWN_VERSION ? "Unknown" : addin.AnalysisResult.CakeCoreVersion.ToString(3),
-				(addin, cakeVersion) => addin.AnalysisResult.CakeCoreVersion == null ? Color.Empty : (addin.AnalysisResult.CakeCoreVersion.IsUpToDate(cakeVersion.Version) ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) =>
+				{
+					if (addin.AnalysisResult.CakeCoreVersion == null) return Color.Empty;
+
+					var comparisonResult = addin.AnalysisResult.CakeCoreVersion.CompareTo(cakeVersion.Version);
+					if (comparisonResult > 0) return Color.Yellow;
+					else if (comparisonResult == 0) return Color.LightGreen;
+					else return Color.Red;
+				},
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
 				DataDestination.All
@@ -115,7 +123,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				"Cake Common Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCommonVersion == null ? string.Empty : addin.AnalysisResult.CakeCommonVersion == Constants.UNKNOWN_VERSION ? "Unknown" : addin.AnalysisResult.CakeCommonVersion.ToString(3),
-				(addin, cakeVersion) => addin.AnalysisResult.CakeCommonVersion == null ? Color.Empty : (addin.AnalysisResult.CakeCommonVersion.IsUpToDate(cakeVersion.Version) ? Color.LightGreen : Color.Red),
+				(addin, cakeVersion) =>
+				{
+					if (addin.AnalysisResult.CakeCommonVersion == null) return Color.Empty;
+
+					var comparisonResult = addin.AnalysisResult.CakeCommonVersion.CompareTo(cakeVersion.Version);
+					if (comparisonResult > 0) return Color.Yellow;
+					else if (comparisonResult == 0) return Color.LightGreen;
+					else return Color.Red;
+				},
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
 				DataDestination.All
