@@ -1,5 +1,6 @@
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
+using Newtonsoft.Json.Linq;
 using Octokit;
 using Octokit.Internal;
 using System;
@@ -94,7 +95,16 @@ namespace Cake.AddinDiscoverer.Steps
 			else
 			{
 				// The link for the "last" page is not present in the response header.
-				// Check if there is a record in the content. If so, issuesCount = 1 otherwise issuesCount = 0
+				// Check if there is a record in the content.
+				try
+				{
+					var records = JArray.Parse(githubResponse.Body.ToString());
+					recordsCount = records.Count;
+				}
+				catch
+				{
+					recordsCount = 0;
+				}
 			}
 
 			return recordsCount;
