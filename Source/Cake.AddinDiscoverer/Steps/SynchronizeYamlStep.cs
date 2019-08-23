@@ -234,9 +234,10 @@ namespace Cake.AddinDiscoverer.Steps
 		private static string GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
 		{
 			var filteredAndFormatedTags = tags
-				.Select(tag => tag.TrimStart("Cake-", StringComparison.InvariantCultureIgnoreCase).ToLowerInvariant())
+				.Select(t1 => t1.Replace('-', ' '))
+				.Select(t2 => t2.ToLowerInvariant())
 				.Except(context.BlacklistedTags, StringComparer.InvariantCultureIgnoreCase)
-				.Distinct()
+				.Distinct(StringComparer.InvariantCultureIgnoreCase)
 				.Select(tag => $"- {tag}");
 
 			var categories = string.Join("\n", filteredAndFormatedTags);
