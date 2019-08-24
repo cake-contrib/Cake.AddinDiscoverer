@@ -22,33 +22,52 @@ namespace Cake.AddinDiscoverer.Utilities
 
 		public static async Task<Issue> FindGithubIssueAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)
 		{
-			var request = new RepositoryIssueRequest()
+			// Optimization: if the creator is the current user, we can rely on the cached list of issues and pull requests
+			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
 			{
-				Creator = creator,
-				State = ItemStateFilter.Open,
-				SortProperty = IssueSort.Created,
-				SortDirection = SortDirection.Descending
-			};
+				return context.IssuesCreatedByCurrentUser
+					.Where(i => i.Repository.Name.EqualsIgnoreCase(repoName))
+					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
+			}
+			else
+			{
+				var request = new RepositoryIssueRequest()
+				{
+					Creator = creator,
+					State = ItemStateFilter.Open,
+					SortProperty = IssueSort.Created,
+					SortDirection = SortDirection.Descending
+				};
 
-			var issues = await context.GithubClient.Issue.GetAllForRepository(repoOwner, repoName, request).ConfigureAwait(false);
-			var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
-
-			return issue;
+				var issues = await context.GithubClient.Issue.GetAllForRepository(repoOwner, repoName, request).ConfigureAwait(false);
+				var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
+				return issue;
+			}
 		}
 
 		public static async Task<PullRequest> FindGithubPullRequestAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)
 		{
-			var request = new PullRequestRequest()
+			// Optimization: if the creator is the current user, we can rely on the cached list of issues and pull requests
+			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
 			{
-				State = ItemStateFilter.Open,
-				SortProperty = PullRequestSort.Created,
-				SortDirection = SortDirection.Descending
-			};
+				return context.PullRequestsCreatedByCurrentUser
+					.Where(p => p.Base.Repository.Name.EqualsIgnoreCase(repoName))
+					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
+			}
+			else
+			{
+				var request = new PullRequestRequest()
+				{
+					State = ItemStateFilter.Open,
+					SortProperty = PullRequestSort.Created,
+					SortDirection = SortDirection.Descending
+				};
 
-			var pullRequests = await context.GithubClient.PullRequest.GetAllForRepository(repoOwner, repoName, request).ConfigureAwait(false);
-			var pullRequest = pullRequests.FirstOrDefault(pr => pr.Title.EqualsIgnoreCase(title) && pr.User.Login.EqualsIgnoreCase(creator));
+				var pullRequests = await context.GithubClient.PullRequest.GetAllForRepository(repoOwner, repoName, request).ConfigureAwait(false);
+				var pullRequest = pullRequests.FirstOrDefault(pr => pr.Title.EqualsIgnoreCase(title) && pr.User.Login.EqualsIgnoreCase(creator));
 
-			return pullRequest;
+				return pullRequest;
+			}
 		}
 
 		public static async Task<PullRequest> CommitToNewBranchAndSubmitPullRequestAsync(DiscoveryContext context, Octokit.Repository fork, int issueNumber, string newBranchName, string pullRequestTitle, IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
