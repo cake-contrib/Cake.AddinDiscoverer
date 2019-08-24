@@ -201,6 +201,7 @@ namespace Cake.AddinDiscoverer.Steps
 					Body = issueBody.ToString()
 				};
 				issue = await context.GithubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
+				context.IssuesCreatedByCurrentUser.Add(issue);
 			}
 			else
 			{
@@ -236,7 +237,8 @@ namespace Cake.AddinDiscoverer.Steps
 						(CommitMessage: "Update Cake version in package.config", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
 					};
 
-					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);
+					pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);
+					context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 				}
 			}
 		}

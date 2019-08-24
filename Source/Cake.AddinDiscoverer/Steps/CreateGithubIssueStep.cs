@@ -78,6 +78,7 @@ namespace Cake.AddinDiscoverer.Steps
 								{
 									var issue = await context.GithubClient.Issue.Create(addin.RepositoryOwner, addin.RepositoryName, newIssue).ConfigureAwait(false);
 									addin.GithubIssueId = issue.Number;
+									context.IssuesCreatedByCurrentUser.Add(issue);
 								}
 								catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Issues are disabled for this repo"))
 								{
