@@ -83,6 +83,22 @@ namespace Cake.AddinDiscoverer.Steps
 				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
+			// Make sure we have enough API calls left before proceeding
+			if (yamlsToBeDeleted.Any() || addinsToBeCreated.Any() || addinsToBeUpdated.Any())
+			{
+				var apiInfo = context.GithubClient.GetLastApiInfo();
+				var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
+
+				// 250 is an arbitrary threshold that I feel is "safe". Keep in mind that we
+				// have 10 concurrent connections making a multitude of calls to GihHub's API
+				// so this number must be large enough to allow us to bail out before we exhaust
+				// the calls we are allowed to make in an hour
+				if (requestsLeft < 250)
+				{
+					Console.WriteLine("  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to add/update/delete yaml files.");
+				}
+			}
+
 			if (yamlsToBeDeleted.Any())
 			{
 				var issueTitle = "Delete YAML files";
