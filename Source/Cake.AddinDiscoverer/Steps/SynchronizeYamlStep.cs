@@ -34,7 +34,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.Where(file => !string.IsNullOrEmpty(context.Options.AddinName) ? Path.GetFileNameWithoutExtension(file.Name) == context.Options.AddinName : true)
 				.ToArray();
 
-			var yamlToBeDeleted = yamlFiles
+			var yamlsToBeDeleted = yamlFiles
 				.Where(f =>
 				{
 					var addin = context.Addins.FirstOrDefault(a => a.Name == Path.GetFileNameWithoutExtension(f.Name));
@@ -83,7 +83,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
-			if (yamlToBeDeleted.Any())
+			if (yamlsToBeDeleted.Any())
 			{
 				var issueTitle = "Delete YAML files";
 
@@ -96,16 +96,16 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on NuGet.org:{Environment.NewLine}" +
 							$"{Environment.NewLine}The following YAML files found on Cake's web site do not have a corresponding NuGet package. Therefore they must be deleted:{Environment.NewLine}" +
-							string.Join(Environment.NewLine, yamlToBeDeleted.Select(f => $"- {f.Name}")) + Environment.NewLine
+							string.Join(Environment.NewLine, yamlsToBeDeleted.Select(f => $"- {f.Name}")) + Environment.NewLine
 					};
 					issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
 
 					// Commit changes to a new branch and submit PR
 					var newBranchName = $"delete_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
-				{
-					(CommitMessage: "Delete YAML files that do not have a corresponding NuGet package", FilesToDelete: yamlToBeDeleted.Select(y => y.Path).ToArray(), FilesToUpsert: null)
-				};
+					{
+						(CommitMessage: "Delete YAML files that do not have a corresponding NuGet package", FilesToDelete: yamlsToBeDeleted.Select(y => y.Path).ToArray(), FilesToUpsert: null)
+					};
 
 					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 				}
@@ -131,9 +131,9 @@ namespace Cake.AddinDiscoverer.Steps
 					// Commit changes to a new branch and submit PR
 					var newBranchName = $"add_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
-				{
-					(CommitMessage: "Add YAML files for NuGet packages we discovered", FilesToDelete: null, FilesToUpsert: addinsToBeCreated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray())
-				};
+					{
+						(CommitMessage: "Add YAML files for NuGet packages we discovered", FilesToDelete: null, FilesToUpsert: addinsToBeCreated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray())
+					};
 
 					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 				}
