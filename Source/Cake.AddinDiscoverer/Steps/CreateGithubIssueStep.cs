@@ -94,6 +94,11 @@ namespace Cake.AddinDiscoverer.Steps
 									Debugger.Break();
 									throw;
 								}
+								finally
+								{
+									// This delay is important to avoid triggering GitHub's abuse protection
+									await Task.Delay(1000).ConfigureAwait(false);
+								}
 							}
 						}
 
