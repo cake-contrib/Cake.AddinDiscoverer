@@ -101,85 +101,108 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (yamlsToBeDeleted.Any())
 			{
-				var issueTitle = "Delete YAML files";
-
-				// Check if an issue already exists
-				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
-				if (issue == null)
+				foreach (var yamlToBeDeleted in yamlsToBeDeleted)
 				{
-					// Create issue
-					var newIssue = new NewIssue(issueTitle)
-					{
-						Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on NuGet.org:{Environment.NewLine}" +
-							$"{Environment.NewLine}The following YAML files found on Cake's web site do not have a corresponding NuGet package. Therefore they must be deleted:{Environment.NewLine}" +
-							string.Join(Environment.NewLine, yamlsToBeDeleted.Select(f => $"- {f.Name}")) + Environment.NewLine
-					};
-					issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+					var issueTitle = $"Delete {yamlToBeDeleted.Name}";
 
-					// Commit changes to a new branch and submit PR
-					var newBranchName = $"delete_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+					// Check if an issue already exists
+					var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
+					if (issue == null)
 					{
-						(CommitMessage: "Delete YAML files that do not have a corresponding NuGet package", FilesToDelete: yamlsToBeDeleted.Select(y => y.Path).ToArray(), FilesToUpsert: null)
-					};
+						// Create issue
+						var newIssue = new NewIssue(issueTitle)
+						{
+							Body = $"The Cake.AddinDiscoverer tool has discovered that a YAML file exists on the Cake web site for a nuget package that is no longer available on NuGet.org.{Environment.NewLine}" +
+								$"{Environment.NewLine}{yamlToBeDeleted.Name}.yaml must be deleted.{Environment.NewLine}"
+						};
+						issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+						context.IssuesCreatedByCurrentUser.Add(issue);
 
-					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						// Commit changes to a new branch and submit PR
+						var newBranchName = $"delete_{yamlToBeDeleted.Name}_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+						{
+							(CommitMessage: issueTitle, FilesToDelete: new[] { yamlToBeDeleted.Path }, FilesToUpsert: null)
+						};
+
+						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+
+						// This delay is important to avoid triggering GitHub's abuse protection
+						await Task.Delay(1000).ConfigureAwait(false);
+					}
 				}
 			}
 
 			if (addinsToBeCreated.Any())
 			{
-				var issueTitle = "Add YAML files";
-
-				// Check if an issue already exists
-				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
-				if (issue == null)
+				foreach (var addinToBeCreated in addinsToBeCreated)
 				{
-					// Create issue
-					var newIssue = new NewIssue(issueTitle)
-					{
-						Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on NuGet.org:{Environment.NewLine}" +
-							$"{Environment.NewLine}The following packages found on NuGet's web site do not have a corresponding YAML file. Therefore a YAML file must be created for each:{Environment.NewLine}" +
-							string.Join(Environment.NewLine, addinsToBeCreated.Select(a => $"- {a.Addin.Name}")) + Environment.NewLine
-					};
-					issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+					var issueTitle = $"Add {addinToBeCreated.Addin.Name}.yml";
 
-					// Commit changes to a new branch and submit PR
-					var newBranchName = $"add_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+					// Check if an issue already exists
+					var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
+					if (issue == null)
 					{
-						(CommitMessage: "Add YAML files for NuGet packages we discovered", FilesToDelete: null, FilesToUpsert: addinsToBeCreated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray())
-					};
+						// Create issue
+						var newIssue = new NewIssue(issueTitle)
+						{
+							Body = $"The Cake.AddinDiscoverer tool has discovered a NuGet package for a Cake addin without a corresponding yaml file on the Cake web site.{Environment.NewLine}" +
+								$"{Environment.NewLine}{addinToBeCreated.Addin.Name}.yaml must be created.{Environment.NewLine}"
+						};
+						issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+						context.IssuesCreatedByCurrentUser.Add(issue);
 
-					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						// Commit changes to a new branch and submit PR
+						var newBranchName = $"add_{addinToBeCreated.Addin.Name}.yml_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+						{
+							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"addins/{addinToBeCreated.Addin.Name}.yml", Content: addinToBeCreated.NewContent) })
+						};
+
+						issue = new Issue(null, null, null, null, -1, ItemState.Open, null, null, null, null, null, null, null, null, 0, null, null, DateTimeOffset.UtcNow, null, -1, null, false, null, null);
+
+						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+
+						// This delay is important to avoid triggering GitHub's abuse protection
+						await Task.Delay(1000).ConfigureAwait(false);
+					}
 				}
 			}
 
 			if (addinsToBeUpdated.Any())
 			{
-				var issueTitle = "Update YAML files";
-
-				// Check if an issue already exists
-				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
-				if (issue == null)
+				foreach (var addinToBeUpdated in addinsToBeUpdated)
 				{
-					// Create issue
-					var newIssue = new NewIssue(issueTitle)
-					{
-						Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between the YAML files currently on Cake's web site and the packages discovered on NuGet.org:{Environment.NewLine}" +
-							$"{Environment.NewLine}The content of the following YAML files does not match the metadata in their corresponding NuGet package. Therefore the YAML files need to be updated:{Environment.NewLine}" +
-						string.Join(Environment.NewLine, addinsToBeUpdated.Select(a => $"- {a.Addin.Name}")) + Environment.NewLine
-					};
-					issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+					var issueTitle = $"Update {addinToBeUpdated.Addin.Name}.yml";
 
-					// Commit changes to a new branch and submit PR
-					var newBranchName = $"update_yaml_files_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+					// Check if an issue already exists
+					var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
+					if (issue == null)
 					{
-						(CommitMessage: "Update YAML files to match metadata from NuGet", FilesToDelete: null, FilesToUpsert: addinsToBeUpdated.Select(addin => (Encoding: EncodingType.Utf8, Path: $"addins/{addin.Addin.Name}.yml", Content: addin.NewContent)).ToArray())
-					};
+						// Create issue
+						var newIssue = new NewIssue(issueTitle)
+						{
+							Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between {addinToBeUpdated.Addin.Name}.yaml on Cake's web site and the metadata in the packages discovered on NuGet.org.{Environment.NewLine}" +
+								$"{Environment.NewLine}{addinToBeUpdated.Addin.Name}.yaml must be updated.{Environment.NewLine}"
+						};
+						issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+						context.IssuesCreatedByCurrentUser.Add(issue);
 
-					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						// Commit changes to a new branch and submit PR
+						var newBranchName = $"update_{addinToBeUpdated.Addin.Name}.yml_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+						{
+							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"addins/{addinToBeUpdated.Addin.Name}.yml", Content: addinToBeUpdated.NewContent) })
+						};
+
+						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+
+						// This delay is important to avoid triggering GitHub's abuse protection
+						await Task.Delay(1000).ConfigureAwait(false);
+					}
 				}
 			}
 		}
