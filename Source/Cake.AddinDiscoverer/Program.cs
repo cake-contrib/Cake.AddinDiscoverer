@@ -1,4 +1,5 @@
-﻿using CommandLine;
+using Cake.AddinDiscoverer.Utilities;
+using CommandLine;
 using System;
 using System.IO;
 
@@ -13,21 +14,25 @@ namespace Cake.AddinDiscoverer
 		/// Main method.
 		/// </summary>
 		/// <param name="args">Command line arguments.</param>
-		public static void Main(string[] args)
+		/// <returns>Result code (0 indicates success; non-zero indicates error).</returns>
+		///
+		public static int Main(string[] args)
 		{
 			// Parse comand line arguments and proceed with analysis if parsing was succesfull
-			var parserResult = Parser.Default.ParseArguments<Options>(args)
-				.WithParsed<Options>(opts =>
-				{
-					if (string.IsNullOrEmpty(opts.GithubUsername)) opts.GithubUsername = Environment.GetEnvironmentVariable("GITHUB_USERNAME");
-					if (string.IsNullOrEmpty(opts.GithuPassword)) opts.GithuPassword = Environment.GetEnvironmentVariable("GITHUB_PASSWORD");
-					if (string.IsNullOrEmpty(opts.TemporaryFolder)) opts.TemporaryFolder = Path.GetTempPath();
+			var result = Parser.Default.ParseArguments<Options>(args)
+				.MapResult(
+					opts =>
+					{
+						if (string.IsNullOrEmpty(opts.GithubUsername)) opts.GithubUsername = Environment.GetEnvironmentVariable("GITHUB_USERNAME");
+						if (string.IsNullOrEmpty(opts.GithuPassword)) opts.GithuPassword = Environment.GetEnvironmentVariable("GITHUB_PASSWORD");
+						if (string.IsNullOrEmpty(opts.TemporaryFolder)) opts.TemporaryFolder = Path.GetTempPath();
 
-					// Make sure this is an absolute path
-					opts.TemporaryFolder = Path.GetFullPath(opts.TemporaryFolder);
+						// Make sure this is an absolute path
+						opts.TemporaryFolder = Path.GetFullPath(opts.TemporaryFolder);
 
-					OnSuccessfulParse(opts);
-				});
+						return OnSuccessfulParse(opts);
+					},
+					_ => ResultCode.Error);
 #if DEBUG
 			// Flush the console key buffer
 			while (Console.KeyAvailable) Console.ReadKey(true);
@@ -36,12 +41,14 @@ namespace Cake.AddinDiscoverer
 			Console.WriteLine("\r\nPress any key to exit...");
 			Console.ReadKey();
 #endif
+			return (int)result;
 		}
 
-		private static void OnSuccessfulParse(Options options)
+		private static ResultCode OnSuccessfulParse(Options options)
 		{
 			var addinDiscoverer = new AddinDiscoverer(options);
-			addinDiscoverer.LaunchDiscoveryAsync().GetAwaiter().GetResult();
+			var result = addinDiscoverer.LaunchDiscoveryAsync().GetAwaiter().GetResult();
+			return result;
 		}
 	}
 }
