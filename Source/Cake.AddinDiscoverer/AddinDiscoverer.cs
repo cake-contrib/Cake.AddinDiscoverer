@@ -135,9 +135,10 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		public async Task LaunchDiscoveryAsync()
+		public async Task<ResultCode> LaunchDiscoveryAsync()
 		{
 			var originalConsoleColor = Console.ForegroundColor;
+			var result = ResultCode.Success;
 
 			try
 			{
@@ -187,11 +188,14 @@ namespace Cake.AddinDiscoverer
 				Console.ForegroundColor = originalConsoleColor;
 				Console.WriteLine($"{Environment.NewLine}***** AN EXCEPTION HAS OCCURED *****");
 				Console.WriteLine(e.Demystify().ToString());
+				result = ResultCode.Error;
 			}
 			finally
 			{
 				Console.ForegroundColor = originalConsoleColor;
 			}
+
+			return result;
 		}
 	}
 }
