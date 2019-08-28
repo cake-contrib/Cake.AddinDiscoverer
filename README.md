@@ -54,7 +54,7 @@ As of version 3.4.0 we have automated the following:
 	- Generate a markdown report
 	- Generate an Excel report
 	- Generate graph showing progress over time
-	- Commit the generated files to the `git-contrib/home` repo
+	- Commit the generated files to the `cake-contrib/home` repo
 2. Synchronize YAML files
 	- Create YAML file for addins that do not already one
 	- Update existing YAML file when metadata for a given addin package has changed
