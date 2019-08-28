@@ -66,10 +66,10 @@ As of version 3.4.0 we have automated the following:
 3. Maintain Cake.Recipe references
 	- Detect which version of Cake is used by Cake.Recipe (https://github.com/cake-contrib/Cake.Recipe/blob/develop/tools/packages.config)
 	- Make sure Cake.Recipe references the latest version of all addins compatible with the previously determined version of Cake
-	- Create issue and submit PR in `cake-contrib/recipe`
+	- Create issue and submit PR in `cake-contrib/Cake.Recipe`
 	- PR must be reviewed by Cake staff
 4. Upgrade the version of Cake used by Cake.Recipe
 	- Determine if there is a newer version of Cake with breaking changes than what Cake.Recipe is currently using
 	- Determine if ALL referenced addins have been updated to support the newer version of Cake
-	- Create issue and submit PR in `cake-contrib/recipe`
+	- Create issue and submit PR in `cake-contrib/Cake.Recipe`
 	- PR must be reviewed by Cake staff
