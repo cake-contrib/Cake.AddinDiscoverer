@@ -25,8 +25,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var searchTerm = "Cake";
 			var filters = new SearchFilter(true)
 			{
-				IncludeDelisted = false,
-				OrderBy = SearchOrderBy.Id
+				IncludeDelisted = false
 			};
 
 			var addinPackages = new List<IPackageSearchMetadata>(take);
@@ -59,7 +58,7 @@ namespace Cake.AddinDiscoverer.Steps
 						break;
 					}
 
-					addinPackages.AddRange(searchResult.Where(r => r.Identity.Id.StartsWith("Cake.")));
+					addinPackages.AddRange(searchResult.Where(r => r.Identity.Id.StartsWith($"{searchTerm}.", StringComparison.OrdinalIgnoreCase)));
 				}
 			}
 
