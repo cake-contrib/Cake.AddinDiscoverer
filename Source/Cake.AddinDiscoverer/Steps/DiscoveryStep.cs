@@ -64,8 +64,16 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 
 			//--------------------------------------------------
+			// Remove duplicates.
+			// NuGet changed their search API in August 2019 and I discovered that it returns duplicates when paging
+			// See: https://github.com/NuGet/NuGetGallery/issues/7494
+			var uniqueAddinPackages = addinPackages
+				.GroupBy(p => p.Identity)
+				.Select(g => g.First());
+
+			//--------------------------------------------------
 			// Convert metadata from nuget into our own metadata
-			context.Addins = addinPackages
+			context.Addins = uniqueAddinPackages
 				.Select(package =>
 				{
 					// As of June 2019, the 'Owners' metadata value returned from NuGet is always null.
