@@ -20,13 +20,16 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
-			var take = 50;
+			// The max value allowed by the NuGet search API is 1000.
+			// This large value is important to ensure results fit in a single page therefore avoiding the problem with duplicates.
+			// For more details, see: https://github.com/NuGet/NuGetGallery/issues/7494
+			var take = 1000;
+
 			var skip = 0;
 			var searchTerm = "Cake";
 			var filters = new SearchFilter(true)
 			{
-				IncludeDelisted = false,
-				OrderBy = SearchOrderBy.Id
+				IncludeDelisted = false
 			};
 
 			var addinPackages = new List<IPackageSearchMetadata>(take);
@@ -59,13 +62,21 @@ namespace Cake.AddinDiscoverer.Steps
 						break;
 					}
 
-					addinPackages.AddRange(searchResult.Where(r => r.Identity.Id.StartsWith("Cake.")));
+					addinPackages.AddRange(searchResult.Where(r => r.Identity.Id.StartsWith($"{searchTerm}.", StringComparison.OrdinalIgnoreCase)));
 				}
 			}
 
 			//--------------------------------------------------
+			// Remove duplicates.
+			// NuGet changed their search API in August 2019 and I discovered that it returns duplicates when paging
+			// See: https://github.com/NuGet/NuGetGallery/issues/7494
+			var uniqueAddinPackages = addinPackages
+				.GroupBy(p => p.Identity)
+				.Select(g => g.First());
+
+			//--------------------------------------------------
 			// Convert metadata from nuget into our own metadata
-			context.Addins = addinPackages
+			context.Addins = uniqueAddinPackages
 				.Select(package =>
 				{
 					// As of June 2019, the 'Owners' metadata value returned from NuGet is always null.

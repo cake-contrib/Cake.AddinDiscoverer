@@ -62,6 +62,7 @@ namespace Cake.AddinDiscoverer.Steps
 									var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.GithubIssueId.Value, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
 
 									addin.GithubPullRequestId = pullRequest.Number;
+									context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 								}
 								else
 								{

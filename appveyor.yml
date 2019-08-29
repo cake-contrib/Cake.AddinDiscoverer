@@ -24,3 +24,10 @@ cache:
 
 # Environment configuration
 image: Visual Studio 2017
+
+#---------------------------------#
+#  Skip builds for doc changes    #
+#---------------------------------#
+skip_commits:
+  # Regex for matching commit message
+  message: /\(doc\).*/
