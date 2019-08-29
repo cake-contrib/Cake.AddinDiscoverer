@@ -83,24 +83,17 @@ namespace Cake.AddinDiscoverer.Steps
 				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
-			// Make sure we have enough API calls left before proceeding
-			if (yamlsToBeDeleted.Any() || addinsToBeCreated.Any() || addinsToBeUpdated.Any())
+			if (yamlsToBeDeleted.Any())
 			{
 				var apiInfo = context.GithubClient.GetLastApiInfo();
 				var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
 
-				// 250 is an arbitrary threshold that I feel is "safe". Keep in mind that we
-				// have 10 concurrent connections making a multitude of calls to GihHub's API
-				// so this number must be large enough to allow us to bail out before we exhaust
-				// the calls we are allowed to make in an hour
-				if (requestsLeft < 250)
+				var threshold = yamlsToBeDeleted.Count() * 5;
+				if (requestsLeft < threshold)
 				{
-					Console.WriteLine("  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to add/update/delete yaml files.");
+					Console.WriteLine("  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to delete yaml files.");
 				}
-			}
 
-			if (yamlsToBeDeleted.Any())
-			{
 				foreach (var yamlToBeDeleted in yamlsToBeDeleted)
 				{
 					var issueTitle = $"Delete {yamlToBeDeleted.Name}";
@@ -136,6 +129,15 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (addinsToBeCreated.Any())
 			{
+				var apiInfo = context.GithubClient.GetLastApiInfo();
+				var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
+
+				var threshold = addinsToBeCreated.Count() * 5;
+				if (requestsLeft < threshold)
+				{
+					Console.WriteLine("  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to add yaml files.");
+				}
+
 				foreach (var addinToBeCreated in addinsToBeCreated)
 				{
 					var issueTitle = $"Add {addinToBeCreated.Addin.Name}.yml";
@@ -173,6 +175,15 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (addinsToBeUpdated.Any())
 			{
+				var apiInfo = context.GithubClient.GetLastApiInfo();
+				var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
+
+				var threshold = addinsToBeUpdated.Count() * 5;
+				if (requestsLeft < threshold)
+				{
+					Console.WriteLine("  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to update yaml files.");
+				}
+
 				foreach (var addinToBeUpdated in addinsToBeUpdated)
 				{
 					var issueTitle = $"Update {addinToBeUpdated.Addin.Name}.yml";
