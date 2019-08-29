@@ -1,6 +1,7 @@
 using NuGet.Protocol.Core.Types;
 using Octokit;
 using Octokit.Internal;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Cake.AddinDiscoverer
@@ -30,6 +31,16 @@ namespace Cake.AddinDiscoverer
 		/// Gets or sets the list of tags to be filtered out when generating an addin's YAML.
 		/// </summary>
 		public string[] BlacklistedTags { get; set; }
+
+		/// <summary>
+		/// Gets or sets the list of issues created by the current user.
+		/// </summary>
+		public IList<Issue> IssuesCreatedByCurrentUser { get; set; }
+
+		/// <summary>
+		/// Gets or sets the list of pull requests created by the current user.
+		/// </summary>
+		public IList<PullRequest> PullRequestsCreatedByCurrentUser { get; set; }
 
 		public string PackagesFolder => Path.Combine(this.TempFolder, "packages");
 
