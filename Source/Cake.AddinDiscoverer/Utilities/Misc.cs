@@ -22,7 +22,7 @@ namespace Cake.AddinDiscoverer.Utilities
 
 		public static async Task<Issue> FindGithubIssueAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)
 		{
-			// Optimization: if the creator is the current user, we can rely on the cached list of issues and pull requests
+			// Optimization: if the creator is the current user, we can rely on the cached list of issues
 			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
 			{
 				return context.IssuesCreatedByCurrentUser
@@ -47,7 +47,7 @@ namespace Cake.AddinDiscoverer.Utilities
 
 		public static async Task<PullRequest> FindGithubPullRequestAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)
 		{
-			// Optimization: if the creator is the current user, we can rely on the cached list of issues and pull requests
+			// Optimization: if the creator is the current user, we can rely on the cached list of pull requests
 			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
 			{
 				return context.PullRequestsCreatedByCurrentUser
@@ -75,8 +75,8 @@ namespace Cake.AddinDiscoverer.Utilities
 			if (commits == null || !commits.Any()) throw new ArgumentNullException("You must provide at least one commit", nameof(commits));
 
 			var upstream = fork.Parent;
-			var developReference = await context.GithubClient.Git.Reference.Get(context.Options.GithubUsername, fork.Name, $"heads/{fork.DefaultBranch}").ConfigureAwait(false);
-			var newReference = new NewReference($"heads/{newBranchName}", developReference.Object.Sha);
+			var defaultBranchReference = await context.GithubClient.Git.Reference.Get(context.Options.GithubUsername, fork.Name, $"heads/{fork.DefaultBranch}").ConfigureAwait(false);
+			var newReference = new NewReference($"heads/{newBranchName}", defaultBranchReference.Object.Sha);
 			var newBranch = await context.GithubClient.Git.Reference.Create(context.Options.GithubUsername, fork.Name, newReference).ConfigureAwait(false);
 
 			var latestCommit = await context.GithubClient.Git.Commit.Get(context.Options.GithubUsername, fork.Name, newBranch.Object.Sha).ConfigureAwait(false);
