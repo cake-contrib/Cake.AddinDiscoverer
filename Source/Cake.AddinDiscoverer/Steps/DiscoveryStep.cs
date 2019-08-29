@@ -20,7 +20,11 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
-			var take = 50;
+			// The max value allowed by the NuGet search API is 1000.
+			// This large value is important to ensure results fit in a single page therefore avoiding the problem with duplicates.
+			// For more details, see: https://github.com/NuGet/NuGetGallery/issues/7494
+			var take = 1000;
+
 			var skip = 0;
 			var searchTerm = "Cake";
 			var filters = new SearchFilter(true)
