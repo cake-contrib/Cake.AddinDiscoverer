@@ -70,8 +70,8 @@ namespace Cake.AddinDiscoverer.Steps
 					i.UpdatedAt.GetValueOrDefault(),
 					i.ClosedAt,
 					i.PullRequest.MergedAt,
-					null, // head
-					new GitReference(i.NodeId, i.Url, null, null, null, i.User, i.Repository),
+					i.PullRequest.Head,
+					i.PullRequest.Base,
 					i.User,
 					i.Assignee,
 					i.Assignees,
