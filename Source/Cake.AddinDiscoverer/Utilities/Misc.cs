@@ -26,7 +26,11 @@ namespace Cake.AddinDiscoverer.Utilities
 			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
 			{
 				return context.IssuesCreatedByCurrentUser
-					.Where(i => i.Repository.Name.EqualsIgnoreCase(repoName))
+					.Where(i =>
+					{
+						var (owner, name) = Misc.DeriveRepoInfo(new Uri(i.Url));
+						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
+					})
 					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
 			}
 			else
@@ -51,7 +55,11 @@ namespace Cake.AddinDiscoverer.Utilities
 			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
 			{
 				return context.PullRequestsCreatedByCurrentUser
-					.Where(p => p.Base.Repository.Name.EqualsIgnoreCase(repoName))
+					.Where(p =>
+					{
+						var (owner, name) = Misc.DeriveRepoInfo(new Uri(p.Url));
+						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
+					})
 					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
 			}
 			else
@@ -118,6 +126,29 @@ namespace Cake.AddinDiscoverer.Utilities
 		{
 			var content = await context.GithubClient.Repository.Content.GetAllContents(addin.RepositoryOwner, addin.RepositoryName, filePath).ConfigureAwait(false);
 			return content[0].Content;
+		}
+
+		public static (string Owner, string Name) DeriveRepoInfo(Uri url)
+		{
+			var owner = string.Empty;
+			var name = string.Empty;
+
+			if (url != null)
+			{
+				var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+				if (parts.Length >= 3 && parts[0].EqualsIgnoreCase("repos"))
+				{
+					owner = parts[1];
+					name = parts[2].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
+				}
+				else if (parts.Length >= 2)
+				{
+					owner = parts[0];
+					name = parts[1].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
+				}
+			}
+
+			return (owner, name);
 		}
 	}
 }
