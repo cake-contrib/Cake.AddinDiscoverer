@@ -97,7 +97,11 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						// Get the issues and pull requests for this addin
 						var issuesAndPullRequestsForThisAddin = allIssuesAndPullRequests
-							.Where(i => i.Repository.Name.EqualsIgnoreCase(addin.RepositoryName));
+							.Where(i =>
+							{
+								var (repoOwner, repoName) = Misc.DeriveRepoInfo(new Uri(i.Url));
+								return repoOwner.EqualsIgnoreCase(addin.RepositoryOwner) && repoName.EqualsIgnoreCase(addin.RepositoryName);
+							});
 
 						// Get the previously created issue titled: "Recommended changes resulting from automated audit"
 						addin.GithubIssueId = issuesAndPullRequestsForThisAddin

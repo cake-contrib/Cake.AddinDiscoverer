@@ -26,7 +26,11 @@ namespace Cake.AddinDiscoverer.Utilities
 			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
 			{
 				return context.IssuesCreatedByCurrentUser
-					.Where(i => i.Repository.Name.EqualsIgnoreCase(repoName))
+					.Where(i =>
+					{
+						var (owner, name) = Misc.DeriveRepoInfo(new Uri(i.Url));
+						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
+					})
 					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
 			}
 			else
@@ -51,7 +55,11 @@ namespace Cake.AddinDiscoverer.Utilities
 			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
 			{
 				return context.PullRequestsCreatedByCurrentUser
-					.Where(p => p.Base.Repository.Name.EqualsIgnoreCase(repoName))
+					.Where(p =>
+					{
+						var (owner, name) = Misc.DeriveRepoInfo(new Uri(p.Url));
+						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
+					})
 					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
 			}
 			else
