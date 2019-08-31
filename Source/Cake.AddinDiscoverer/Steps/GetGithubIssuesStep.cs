@@ -2,6 +2,7 @@ using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -17,15 +18,34 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			// Get all issues and pull requests created by the current user.
 			// This information will be used to avoid creating duplicates.
-			var request = new IssueRequest()
+			var searchRequest = new SearchIssuesRequest()
 			{
-				Filter = IssueFilter.Created,
-				State = ItemStateFilter.Open,
-				SortProperty = IssueSort.Created,
-				SortDirection = SortDirection.Descending,
+				Author = context.Options.GithubUsername,
+				State = ItemState.Open,
+				SortField = IssueSearchSort.Created,
+				Order = SortDirection.Descending,
+				Page = 1, // Paging is 1-based
+				PerPage = 100 // Github's search allows a maximum of 100 records per page
 			};
 
-			var allIssuesAndPullRequests = await context.GithubClient.Issue.GetAllForCurrent(request).ConfigureAwait(false);
+			var allIssuesAndPullRequests = new List<Issue>();
+			var moreRecords = true;
+			do
+			{
+				var searchResult = await context.GithubClient.Search.SearchIssues(searchRequest).ConfigureAwait(false);
+				allIssuesAndPullRequests.AddRange(searchResult.Items);
+				searchRequest.Page++;
+
+				// Check if there are more records to be fetched
+				moreRecords = allIssuesAndPullRequests.Count != searchResult.TotalCount;
+
+				// This is a failsafe to avoid looping indefinitely
+				if (moreRecords && searchResult.Items.Count == 0)
+				{
+					throw new Exception($"{searchResult.TotalCount} match the search criteria but we were only able to retrieve {allIssuesAndPullRequests.Count}");
+				}
+			}
+			while (moreRecords);
 
 			context.IssuesCreatedByCurrentUser = allIssuesAndPullRequests
 				.Where(i => i.PullRequest == null)
@@ -50,8 +70,8 @@ namespace Cake.AddinDiscoverer.Steps
 					i.UpdatedAt.GetValueOrDefault(),
 					i.ClosedAt,
 					i.PullRequest.MergedAt,
-					null, // head
-					new GitReference(i.NodeId, i.Url, null, null, null, i.User, i.Repository),
+					i.PullRequest.Head,
+					i.PullRequest.Base,
 					i.User,
 					i.Assignee,
 					i.Assignees,
@@ -77,7 +97,11 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						// Get the issues and pull requests for this addin
 						var issuesAndPullRequestsForThisAddin = allIssuesAndPullRequests
-							.Where(i => i.Repository.Name.EqualsIgnoreCase(addin.RepositoryName));
+							.Where(i =>
+							{
+								var (repoOwner, repoName) = Misc.DeriveRepoInfo(new Uri(i.Url));
+								return repoOwner.EqualsIgnoreCase(addin.RepositoryOwner) && repoName.EqualsIgnoreCase(addin.RepositoryName);
+							});
 
 						// Get the previously created issue titled: "Recommended changes resulting from automated audit"
 						addin.GithubIssueId = issuesAndPullRequestsForThisAddin
