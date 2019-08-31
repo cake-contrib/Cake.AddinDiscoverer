@@ -32,32 +32,13 @@ namespace Cake.AddinDiscoverer.Steps
 					if (addin.RepositoryUrl.MustUseHttps()) addin.RepositoryUrl = addin.RepositoryUrl.ForceHttps();
 
 					// Derive the repository name and owner
-					var (repoOwner, repoName) = DeriveRepoInfo(addin.RepositoryUrl, addin.ProjectUrl);
+					var (repoOwner, repoName) = Misc.DeriveRepoInfo(addin.RepositoryUrl ?? addin.ProjectUrl);
 					addin.RepositoryOwner = repoOwner;
 					addin.RepositoryName = repoName;
 
 					return addin;
 				})
 				.ToArray();
-		}
-
-		private static (string Owner, string Name) DeriveRepoInfo(Uri repositoryUrl, Uri projectUrl)
-		{
-			var owner = string.Empty;
-			var name = string.Empty;
-
-			var url = repositoryUrl ?? projectUrl;
-			if (url != null)
-			{
-				var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-				if (parts.Length >= 2)
-				{
-					owner = parts[0];
-					name = parts[1].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
-				}
-			}
-
-			return (owner, name);
 		}
 	}
 }

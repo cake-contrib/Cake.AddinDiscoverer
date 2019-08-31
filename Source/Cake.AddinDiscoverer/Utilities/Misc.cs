@@ -119,5 +119,28 @@ namespace Cake.AddinDiscoverer.Utilities
 			var content = await context.GithubClient.Repository.Content.GetAllContents(addin.RepositoryOwner, addin.RepositoryName, filePath).ConfigureAwait(false);
 			return content[0].Content;
 		}
+
+		public static (string Owner, string Name) DeriveRepoInfo(Uri url)
+		{
+			var owner = string.Empty;
+			var name = string.Empty;
+
+			if (url != null)
+			{
+				var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+				if (parts.Length >= 3 && parts[0].EqualsIgnoreCase("repos"))
+				{
+					owner = parts[1];
+					name = parts[2].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
+				}
+				else if (parts.Length >= 2)
+				{
+					owner = parts[0];
+					name = parts[1].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
+				}
+			}
+
+			return (owner, name);
+		}
 	}
 }
