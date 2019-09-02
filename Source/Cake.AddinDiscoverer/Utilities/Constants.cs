@@ -62,7 +62,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Left,
 				(addin) => addin.Name,
 				(addin, cakeVersion) => Color.Empty,
-				(addin) => addin.ProjectUrl ?? addin.NuGetPackageUrl ?? addin.RepositoryUrl,
+				(addin) => addin.ProjectUrl,
 				AddinType.All,
 				DataDestination.All
 			),
