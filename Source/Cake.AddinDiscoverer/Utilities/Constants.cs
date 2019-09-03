@@ -239,7 +239,13 @@ namespace Cake.AddinDiscoverer.Utilities
 				"Issues count",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.OpenIssuesCount,
-				(addin, cakeVersion) => Color.Empty,
+				(addin, cakeVersion) =>
+				{
+					if (!addin.AnalysisResult.OpenIssuesCount.HasValue) return Color.Empty;
+					else if (addin.AnalysisResult.OpenIssuesCount.Value < 5) return Color.LightGreen;
+					else if (addin.AnalysisResult.OpenIssuesCount.Value < 10) return Color.Gold;
+					else return Color.Red;
+				},
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel
@@ -248,7 +254,13 @@ namespace Cake.AddinDiscoverer.Utilities
 				"Pull requests count",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.OpenPullRequestsCount,
-				(addin, cakeVersion) => Color.Empty,
+				(addin, cakeVersion) =>
+				{
+					if (!addin.AnalysisResult.OpenPullRequestsCount.HasValue) return Color.Empty;
+					else if (addin.AnalysisResult.OpenPullRequestsCount.Value< 5) return Color.LightGreen;
+					else if (addin.AnalysisResult.OpenPullRequestsCount.Value< 10) return Color.Gold;
+					else return Color.Red;
+				},
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel
