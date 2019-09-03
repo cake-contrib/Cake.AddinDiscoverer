@@ -26,6 +26,12 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
+			var cakeRecipeAddin = context.Addins
+				.Where(a => a.Type == AddinType.Recipe)
+				.FirstOrDefault(a => a.Name.EqualsIgnoreCase("Cake.Recipe"));
+
+			var latestCakeRecipeVersion = SemVersion.Parse(cakeRecipeAddin == null ? "0.0.0" : cakeRecipeAddin.NuGetPackageVersion);
+
 			context.Addins = await context.Addins
 				.ForEachAsync(
 					async addin =>
@@ -62,8 +68,9 @@ namespace Cake.AddinDiscoverer.Steps
 											if (cakeRecipeReference != null)
 											{
 												addin.AnalysisResult.CakeRecipeIsUsed = true;
-												addin.AnalysisResult.CakeRecipeVersion = cakeRecipeReference.ReferencedVersion;
-												addin.AnalysisResult.CakeRecipePrerelease = cakeRecipeReference.Prerelease;
+												addin.AnalysisResult.CakeRecipeVersion = string.IsNullOrEmpty(cakeRecipeReference.ReferencedVersion) ? null : SemVersion.Parse(cakeRecipeReference.ReferencedVersion);
+												addin.AnalysisResult.CakeRecipeIsPrerelease = cakeRecipeReference.Prerelease;
+												addin.AnalysisResult.CakeRecipeIsLatest = string.IsNullOrEmpty(cakeRecipeReference.ReferencedVersion) || cakeRecipeReference.ReferencedVersion == latestCakeRecipeVersion;
 											}
 										}
 

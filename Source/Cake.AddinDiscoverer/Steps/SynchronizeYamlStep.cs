@@ -162,8 +162,6 @@ namespace Cake.AddinDiscoverer.Steps
 							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"addins/{addinToBeCreated.Addin.Name}.yml", Content: addinToBeCreated.NewContent) })
 						};
 
-						issue = new Issue(null, null, null, null, -1, ItemState.Open, null, null, null, null, null, null, null, null, 0, null, null, DateTimeOffset.UtcNow, null, -1, null, false, null, null);
-
 						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 
