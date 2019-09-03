@@ -80,11 +80,16 @@ namespace Cake.AddinDiscoverer
 		/// <summary>
 		/// Gets or sets the version of Cake.Recipe used to build this addin. A null value indicates that Cake.Recipe is not used.
 		/// </summary>
-		public string CakeRecipeVersion { get; set; }
+		public SemVersion CakeRecipeVersion { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether a prerelease version of Cake.Recipe is used to build this addin.
 		/// </summary>
-		public bool CakeRecipePrerelease { get; set; }
+		public bool CakeRecipeIsPrerelease { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether the latest version of Cake.Recipe is used to build this addin.
+		/// </summary>
+		public bool CakeRecipeIsLatest { get; set; }
 	}
 }
