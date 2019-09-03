@@ -268,8 +268,15 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Cake.Recipe",
 				ExcelHorizontalAlignment.Center,
-				(addin) => !addin.AnalysisResult.CakeRecipeIsUsed ? "Not using Cake.Recipe" : (addin.AnalysisResult.CakeRecipeVersion ?? "Unspecified version") + (addin.AnalysisResult.CakeRecipePrerelease ? " (prerelease)" : string.Empty),
-				(addin, cakeVersion) => Color.Empty,
+				(addin) => !addin.AnalysisResult.CakeRecipeIsUsed ? "Not using Cake.Recipe" : (addin.AnalysisResult.CakeRecipeVersion?.ToString() ?? "Unspecified version") + (addin.AnalysisResult.CakeRecipeIsPrerelease ? " (prerelease)" : string.Empty),
+				(addin, cakeVersion) =>
+				{
+					if (!addin.AnalysisResult.CakeRecipeIsUsed) return Color.Empty;
+					else if (addin.AnalysisResult.CakeRecipeIsPrerelease) return Color.Red;
+					else if (addin.AnalysisResult.CakeRecipeVersion.Major == 0) return Color.Red;
+					else if (addin.AnalysisResult.CakeRecipeIsLatest) return Color.LightGreen;
+					else return Color.Gold;
+				},
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel

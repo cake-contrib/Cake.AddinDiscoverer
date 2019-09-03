@@ -98,7 +98,8 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							CakeRecipeIsUsed = false,
 							CakeRecipeVersion = null,
-							CakeRecipePrerelease = false
+							CakeRecipeIsPrerelease = false,
+							CakeRecipeIsLatest = false
 						},
 						Maintainer = package.Authors,
 						Description = package.Description,
