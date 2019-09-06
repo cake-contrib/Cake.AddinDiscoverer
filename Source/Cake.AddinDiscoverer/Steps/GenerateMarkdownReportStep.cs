@@ -79,6 +79,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `Issues count` column indicates the number of open issues in the addin's github repository.");
 			markdown.AppendLine("- The `Pull requests count` column indicates the number of open pull requests in the addin's github repository.");
 			markdown.AppendLine("- The `Cake.Recipe` column indicates what version of Cake.Recipe is used to build this addin.");
+			markdown.AppendLine("- The `Newtonsoft.Json` column indicates what version of Newtonsoft.Json is referenced by this addin (if any).");
 
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");

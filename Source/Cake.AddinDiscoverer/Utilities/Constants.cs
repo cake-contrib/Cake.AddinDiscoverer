@@ -1,6 +1,8 @@
+using Cake.Incubator.StringExtensions;
 using OfficeOpenXml.Style;
 using System;
 using System.Drawing;
+using System.Linq;
 
 namespace Cake.AddinDiscoverer.Utilities
 {
@@ -257,8 +259,8 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin, cakeVersion) =>
 				{
 					if (!addin.AnalysisResult.OpenPullRequestsCount.HasValue) return Color.Empty;
-					else if (addin.AnalysisResult.OpenPullRequestsCount.Value< 5) return Color.LightGreen;
-					else if (addin.AnalysisResult.OpenPullRequestsCount.Value< 10) return Color.Gold;
+					else if (addin.AnalysisResult.OpenPullRequestsCount.Value < 5) return Color.LightGreen;
+					else if (addin.AnalysisResult.OpenPullRequestsCount.Value < 10) return Color.Gold;
 					else return Color.Red;
 				},
 				(addin) => null,
@@ -277,6 +279,15 @@ namespace Cake.AddinDiscoverer.Utilities
 					else if (addin.AnalysisResult.CakeRecipeIsLatest) return Color.LightGreen;
 					else return Color.Gold;
 				},
+				(addin) => null,
+				AddinType.All,
+				DataDestination.Excel
+			),
+			(
+				"Newtonsoft.Json",
+				ExcelHorizontalAlignment.Center,
+				(AddinMetadata addin) => addin.References.FirstOrDefault(r => r.Id.EqualsIgnoreCase("Newtonsoft.Json"))?.Version.ToString(),
+				(addin, cakeVersion) => Color.Empty,
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel
