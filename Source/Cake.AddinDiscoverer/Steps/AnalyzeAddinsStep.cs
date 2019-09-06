@@ -2,6 +2,7 @@ using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using System;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -14,6 +15,9 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
+			HttpClient client = new HttpClient();
+			byte[] recommendedCakeContribIcon = await client.GetByteArrayAsync(Constants.NEW_CAKE_CONTRIB_ICON_URL).ConfigureAwait(false);
+
 			context.Addins = context.Addins
 				.Select(addin =>
 				{
@@ -53,8 +57,28 @@ namespace Cake.AddinDiscoverer.Steps
 						addin.AnalysisResult.Notes += $"This addin seems to be referencing neither Cake.Core nor Cake.Common.{Environment.NewLine}";
 					}
 
-					addin.AnalysisResult.UsingNewCakeContribIcon = addin.IconUrl?.AbsoluteUri.EqualsIgnoreCase(Constants.NEW_CAKE_CONTRIB_ICON_URL) ?? false;
-					addin.AnalysisResult.UsingOldCakeContribIcon = addin.IconUrl?.AbsoluteUri.EqualsIgnoreCase(Constants.OLD_CAKE_CONTRIB_ICON_URL) ?? false;
+					if (addin.EmbeddedIcon != null)
+					{
+						if (addin.EmbeddedIcon == recommendedCakeContribIcon)
+						{
+							addin.AnalysisResult.Icon = IconAnalysisResult.EmbeddedCakeContrib;
+						}
+						else
+						{
+							addin.AnalysisResult.Icon = IconAnalysisResult.EmbeddedCustom;
+						}
+					}
+					else if (addin.IconUrl != null)
+					{
+						if (addin.IconUrl.AbsoluteUri.EqualsIgnoreCase(Constants.OLD_CAKE_CONTRIB_ICON_URL)) addin.AnalysisResult.Icon = IconAnalysisResult.RawgitUrl;
+						else if (addin.IconUrl.AbsoluteUri.EqualsIgnoreCase(Constants.NEW_CAKE_CONTRIB_ICON_URL)) addin.AnalysisResult.Icon = IconAnalysisResult.JsDelivrUrl;
+						else addin.AnalysisResult.Icon = IconAnalysisResult.CustomUrl;
+					}
+					else
+					{
+						addin.AnalysisResult.Icon = IconAnalysisResult.Unspecified;
+					}
+
 					addin.AnalysisResult.TransferredToCakeContribOrganisation = addin.RepositoryOwner?.Equals(Constants.CAKE_CONTRIB_REPO_OWNER, StringComparison.OrdinalIgnoreCase) ?? false;
 					addin.AnalysisResult.ObsoleteLicenseUrlRemoved = !string.IsNullOrEmpty(addin.License);
 					addin.AnalysisResult.RepositoryInfoProvided = addin.RepositoryUrl != null;
@@ -63,8 +87,6 @@ namespace Cake.AddinDiscoverer.Steps
 					return addin;
 				})
 				.ToArray();
-
-			await Task.Delay(1).ConfigureAwait(false);
 		}
 	}
 }

@@ -44,8 +44,6 @@ namespace Cake.AddinDiscoverer.Steps
 											e => e.Name.LocalName,
 											e => (e.Value, (IDictionary<string, string>)e.Attributes().ToDictionary(a => a.Name.LocalName, a => a.Value)));
 
-									rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
-
 									var license = package.NuspecReader.GetMetadataValue("license");
 									var iconUrl = package.NuspecReader.GetIconUrl();
 									var projectUrl = package.NuspecReader.GetProjectUrl();
@@ -79,24 +77,24 @@ namespace Cake.AddinDiscoverer.Steps
 
 #pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
 									var assembliesPath = package.GetFiles()
-												.Where(f =>
-												{
-													return Path.GetExtension(f).EqualsIgnoreCase(".dll") &&
-															!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Core") &&
-															!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Common") &&
-															(
-																Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll") ||
-																string.IsNullOrEmpty(Path.GetDirectoryName(f)) ||
-																f.StartsWith("bin/", StringComparison.OrdinalIgnoreCase) ||
-																f.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)
-															);
-												})
-												.OrderByDescending(f =>
-													f.Contains("netstandard2", StringComparison.OrdinalIgnoreCase) ? 3 :
-													f.Contains("netstandard1", StringComparison.OrdinalIgnoreCase) ? 2 :
-													f.Contains("net4", StringComparison.OrdinalIgnoreCase) ? 1 :
-													0)
-												.ToArray();
+										.Where(f =>
+										{
+											return Path.GetExtension(f).EqualsIgnoreCase(".dll") &&
+													!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Core") &&
+													!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Common") &&
+													(
+														Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll") ||
+														string.IsNullOrEmpty(Path.GetDirectoryName(f)) ||
+														f.StartsWith("bin/", StringComparison.OrdinalIgnoreCase) ||
+														f.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)
+													);
+										})
+										.OrderByDescending(f =>
+											f.Contains("netstandard2", StringComparison.OrdinalIgnoreCase) ? 3 :
+											f.Contains("netstandard1", StringComparison.OrdinalIgnoreCase) ? 2 :
+											f.Contains("net4", StringComparison.OrdinalIgnoreCase) ? 1 :
+											0)
+										.ToArray();
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 
 									// Find the DLL that matches the naming convention
@@ -157,9 +155,26 @@ namespace Cake.AddinDiscoverer.Steps
 									if (addin.Type == AddinType.Unknown && !string.IsNullOrEmpty(assemblyPath)) addin.Type = AddinType.Addin;
 									if (!string.IsNullOrEmpty(assemblyPath)) addin.DllName = Path.GetFileName(assemblyPath);
 
+									rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
 									if (repositoryInfo != default && repositoryInfo.Attributes.TryGetValue("url", out string repoUrl))
 									{
 										addin.RepositoryUrl = new Uri(repoUrl);
+									}
+
+									rawNugetMetadata.TryGetValue("icon", out (string Value, IDictionary<string, string> Attributes) iconInfo);
+									if (iconInfo != default)
+									{
+										try
+										{
+											using (var iconFileContent = LoadFileFromPackage(package, iconInfo.Value))
+											{
+												addin.EmbeddedIcon = iconFileContent.ToArray();
+											}
+										}
+										catch
+										{
+											throw new Exception($"Unable to find {iconInfo.Value} in the package");
+										}
 									}
 								}
 
@@ -184,28 +199,34 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static Assembly LoadAssemblyFromPackage(IPackageCoreReader package, string assemblyPath, AssemblyLoadContext loadContext)
 		{
+			using (var assemblyStream = LoadFileFromPackage(package, assemblyPath))
+			{
+				return loadContext.LoadFromStream(LoadFileFromPackage(package, assemblyPath));
+			}
+		}
+
+		private static MemoryStream LoadFileFromPackage(IPackageCoreReader package, string filePath)
+		{
 			try
 			{
-				var cleanPath = assemblyPath.Replace('/', '\\');
+				var cleanPath = filePath.Replace('/', '\\');
 				if (cleanPath.IndexOf('%') > -1)
 				{
 					cleanPath = Uri.UnescapeDataString(cleanPath);
 				}
 
-				using (var assemblyStream = package.GetStream(cleanPath))
+				using (var fileStream = package.GetStream(cleanPath))
 				{
-					using (MemoryStream decompressedStream = new MemoryStream())
-					{
-						assemblyStream.CopyTo(decompressedStream);
-						decompressedStream.Position = 0;
-						return loadContext.LoadFromStream(decompressedStream);
-					}
+					var decompressedStream = new MemoryStream();
+					fileStream.CopyTo(decompressedStream);
+					decompressedStream.Position = 0;
+					return decompressedStream;
 				}
 			}
 			catch (FileLoadException e)
 			{
 				// Note: intentionally discarding the original exception because I want to ensure the following message is displayed in the 'Exceptions' report
-				throw new FileLoadException($"An error occured while loading {Path.GetFileName(assemblyPath)} from the Nuget package. {e.Message}");
+				throw new FileLoadException($"An error occured while loading {Path.GetFileName(filePath)} from the Nuget package. {e.Message}");
 			}
 		}
 	}

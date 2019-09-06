@@ -168,20 +168,35 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Icon",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.UsingNewCakeContribIcon.ToString().ToLower(),
-				(addin, cakeVersion) => addin.AnalysisResult.UsingNewCakeContribIcon ? Color.LightGreen : Color.Red,
+				(AddinMetadata addin) =>
+				{
+					switch (addin.AnalysisResult.Icon)
+					{
+						case IconAnalysisResult.Unspecified: return "not specified";
+						case IconAnalysisResult.RawgitUrl: return "rawgit";
+						case IconAnalysisResult.JsDelivrUrl: return "jsDelivr";
+						case IconAnalysisResult.CustomUrl: return "custom url";
+						case IconAnalysisResult.EmbeddedCakeContrib: return "embedded cake-contrib";
+						case IconAnalysisResult.EmbeddedCustom: return "embedded custom";
+						default: return "unknown";
+					}
+				},
+				(addin, cakeVersion) =>
+								{
+					switch (addin.AnalysisResult.Icon)
+					{
+						case IconAnalysisResult.Unspecified: return Color.Red;
+						case IconAnalysisResult.RawgitUrl: return Color.Red;
+						case IconAnalysisResult.JsDelivrUrl: return Color.Gold;
+						case IconAnalysisResult.CustomUrl: return Color.Gold;
+						case IconAnalysisResult.EmbeddedCakeContrib: return Color.LightGreen;
+						case IconAnalysisResult.EmbeddedCustom: return Color.Gold;
+						default: return Color.Red;
+					}
+				},
 				(addin) => null,
 				AddinType.All,
-				DataDestination.Excel
-			),
-			(
-				"Icon",
-				ExcelHorizontalAlignment.Center,
-				(addin) => string.Empty,
-				(addin, cakeVersion) => addin.AnalysisResult.UsingNewCakeContribIcon ? Color.LightGreen : Color.Red,
-				(addin) => null,
-				AddinType.All,
-				DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
+				DataDestination.Excel | DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
 			),
 			(
 				"Transferred to cake-contrib",
@@ -217,16 +232,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin, cakeVersion) => !addin.AnalysisResult.RepositoryInfoProvided ? Color.Red : (addin.RepositoryUrl.AbsolutePath.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? Color.LightGreen : Color.Gold),
 				(addin) => null,
 				AddinType.All,
-				DataDestination.Excel
-			),
-			(
-				"Repository",
-				ExcelHorizontalAlignment.Center,
-				(addin) => string.Empty,
-				(addin, cakeVersion) => !addin.AnalysisResult.RepositoryInfoProvided ? Color.Red : (addin.RepositoryUrl.AbsolutePath.EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? Color.LightGreen : Color.Gold),
-				(addin) => null,
-				AddinType.All,
-				DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
+				DataDestination.Excel | DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
 			),
 			(
 				"cake-contrib co-owner",

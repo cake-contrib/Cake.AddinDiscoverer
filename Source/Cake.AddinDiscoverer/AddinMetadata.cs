@@ -23,6 +23,8 @@ namespace Cake.AddinDiscoverer
 
 		public Uri IconUrl { get; set; }
 
+		public byte[] EmbeddedIcon { get; set; }
+
 		public string NuGetPackageVersion { get; set; }
 
 		public Uri NuGetPackageUrl { get; set; }
