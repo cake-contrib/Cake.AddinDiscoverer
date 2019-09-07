@@ -150,5 +150,11 @@ namespace Cake.AddinDiscoverer.Utilities
 
 			return (owner, name);
 		}
+
+		// byte[] is implicitly convertible to ReadOnlySpan<byte>
+		public static bool ByteArrayCompare(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
+		{
+			return a1.SequenceEqual(a2);
+		}
 	}
 }

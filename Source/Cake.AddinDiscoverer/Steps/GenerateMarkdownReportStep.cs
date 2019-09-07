@@ -50,8 +50,11 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine();
 
 			markdown.AppendLine($"- Of the {auditedAddins.Count()} audited addins:");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingOldCakeContribIcon)} are using the cake-contrib icon on the rawgit CDN (which will be shutdown in October 2019)");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.UsingNewCakeContribIcon)} are using the cake-contrib icon on the jsDelivr CDN (which is our preferred CDN to replace rawgit)");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.RawgitUrl)} are using the cake-contrib icon on the rawgit CDN (which will be shutdown in October 2019)");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.JsDelivrUrl)} are using the cake-contrib icon on the jsDelivr CDN (which is our preferred CDN to replace rawgit)");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.CustomUrl)} are using a custom icon hosted on a web site");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedCakeContrib)} are embedding the cake-contrib icon");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedCustom)} are embedding a custom icon");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferredToCakeContribOrganisation)} have been transferred to the cake-contrib organisation");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.ObsoleteLicenseUrlRemoved)} have replaced the obsolete `licenseUrl` with proper license metadata (see the `Additional audit results` section below for details)");
 			markdown.AppendLine();
@@ -79,6 +82,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `Issues count` column indicates the number of open issues in the addin's github repository.");
 			markdown.AppendLine("- The `Pull requests count` column indicates the number of open pull requests in the addin's github repository.");
 			markdown.AppendLine("- The `Cake.Recipe` column indicates what version of Cake.Recipe is used to build this addin.");
+			markdown.AppendLine("- The `Newtonsoft.Json` column indicates what version of Newtonsoft.Json is referenced by this addin (if any).");
 
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");

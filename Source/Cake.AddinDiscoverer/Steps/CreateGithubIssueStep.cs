@@ -54,9 +54,16 @@ namespace Cake.AddinDiscoverer.Steps
 							if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Common reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Common\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
 							if (!Misc.IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion)) issuesDescription.AppendLine($"- [ ] Your addin should target {recommendedCakeVersion.RequiredFramework} at a minimum. Optionally, your addin can also multi-target {recommendedCakeVersion.OptionalFramework}.");
 
-							if (!addin.AnalysisResult.UsingNewCakeContribIcon)
+							switch (addin.AnalysisResult.Icon)
 							{
-								issuesDescription.AppendLine($"- [ ] The nuget package for your addin should use the cake-contrib icon. Specifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{Constants.NEW_CAKE_CONTRIB_ICON_URL}</PackageIconUrl>`.");
+								case IconAnalysisResult.Unspecified:
+								case IconAnalysisResult.RawgitUrl:
+								case IconAnalysisResult.CustomUrl:
+									issuesDescription.AppendLine($"- [ ] The nuget package for your addin should use the cake-contrib icon. Specifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{Constants.NEW_CAKE_CONTRIB_ICON_URL}</PackageIconUrl>`.");
+									break;
+								case IconAnalysisResult.EmbeddedCustom:
+									issuesDescription.AppendLine("- [ ] The nuget package for your addin should embed the cake-contrib icon. Specifically, your addin's `.csproj` should have a line like this: `<PackageIcon>path/to/icon.png</PackageIcon>`.");
+									break;
 							}
 
 							if (issuesDescription.Length > 0)
