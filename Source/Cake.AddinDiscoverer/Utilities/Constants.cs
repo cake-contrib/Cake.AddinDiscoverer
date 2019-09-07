@@ -95,7 +95,7 @@ namespace Cake.AddinDiscoverer.Utilities
 					if (addin.AnalysisResult.CakeCoreVersion == null) return Color.Empty;
 
 					var comparisonResult = addin.AnalysisResult.CakeCoreVersion.CompareTo(cakeVersion.Version);
-					if (comparisonResult > 0) return Color.Yellow;
+					if (comparisonResult > 0) return Color.Gold;
 					else if (comparisonResult == 0) return Color.LightGreen;
 					else return Color.Red;
 				},
@@ -130,7 +130,7 @@ namespace Cake.AddinDiscoverer.Utilities
 					if (addin.AnalysisResult.CakeCommonVersion == null) return Color.Empty;
 
 					var comparisonResult = addin.AnalysisResult.CakeCommonVersion.CompareTo(cakeVersion.Version);
-					if (comparisonResult > 0) return Color.Yellow;
+					if (comparisonResult > 0) return Color.Gold;
 					else if (comparisonResult == 0) return Color.LightGreen;
 					else return Color.Red;
 				},
