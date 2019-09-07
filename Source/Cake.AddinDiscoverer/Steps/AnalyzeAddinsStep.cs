@@ -59,7 +59,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 					if (addin.EmbeddedIcon != null)
 					{
-						if (addin.EmbeddedIcon == recommendedCakeContribIcon)
+						if (Misc.ByteArrayCompare(addin.EmbeddedIcon, recommendedCakeContribIcon))
 						{
 							addin.AnalysisResult.Icon = IconAnalysisResult.EmbeddedCakeContrib;
 						}
