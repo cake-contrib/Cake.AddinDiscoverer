@@ -63,15 +63,15 @@ namespace Cake.AddinDiscoverer.Steps
 
 									addin.GithubPullRequestId = pullRequest.Number;
 									context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+
+									// This delay is important to avoid triggering GitHub's abuse protection
+									await Task.Delay(1000).ConfigureAwait(false);
 								}
 								else
 								{
 									Console.WriteLine($"  Only {requestsLeft} GitHub API requests left. Therefore skipping PR for {addin.Name} despite the fact that we have {commits.Count} commits.");
 								}
 							}
-
-							// This delay is important to avoid triggering GitHub's abuse protection
-							await Task.Delay(1000).ConfigureAwait(false);
 						}
 
 						return addin;
