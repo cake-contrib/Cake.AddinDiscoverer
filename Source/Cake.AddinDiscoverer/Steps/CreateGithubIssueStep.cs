@@ -3,6 +3,7 @@ using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -83,9 +84,18 @@ namespace Cake.AddinDiscoverer.Steps
 
 								try
 								{
-									var issue = await context.GithubClient.Issue.Create(addin.RepositoryOwner, addin.RepositoryName, newIssue).ConfigureAwait(false);
-									addin.GithubIssueId = issue.Number;
-									context.IssuesCreatedByCurrentUser.Add(issue);
+									bool debugging = false;
+
+									if (debugging)
+									{
+										await File.WriteAllTextAsync(Path.Combine(context.TempFolder, $"Issue_{addin.Name}.txt"), issueBody.ToString()).ConfigureAwait(false);
+									}
+									else
+									{
+										var issue = await context.GithubClient.Issue.Create(addin.RepositoryOwner, addin.RepositoryName, newIssue).ConfigureAwait(false);
+										addin.GithubIssueId = issue.Number;
+										context.IssuesCreatedByCurrentUser.Add(issue);
+									}
 								}
 								catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Issues are disabled for this repo"))
 								{
