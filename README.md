@@ -24,6 +24,7 @@ You can invoke this tool with the following arguments:
   -a, --addinname           Name of the specific addin to be audited. If omitted, all addins are audited.
   -u, --user                Github username.
   -p, --password            Github password.
+  -o, --token               Github token (takes precedence over username+password).
   -y, --proxy               The URL of your proxy. For example, to proxy request through Fiddler use: 'http://localhost:8888'.
   -c, --clearcache          (Default: false) Clear the list of addins that was previously cached.
   -i, --issue               (Default: false) Create issue in Github repositories that do not meet recommendations.
