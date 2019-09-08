@@ -25,6 +25,7 @@ namespace Cake.AddinDiscoverer
 					{
 						if (string.IsNullOrEmpty(opts.GithubUsername)) opts.GithubUsername = Environment.GetEnvironmentVariable("GITHUB_USERNAME");
 						if (string.IsNullOrEmpty(opts.GithuPassword)) opts.GithuPassword = Environment.GetEnvironmentVariable("GITHUB_PASSWORD");
+						if (string.IsNullOrEmpty(opts.GithubToken)) opts.GithubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
 						if (string.IsNullOrEmpty(opts.TemporaryFolder)) opts.TemporaryFolder = Path.GetTempPath();
 
 						// Make sure this is an absolute path

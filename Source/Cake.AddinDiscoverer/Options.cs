@@ -16,6 +16,9 @@ namespace Cake.AddinDiscoverer
 		[Option('p', "password", Required = false, HelpText = "Github password.")]
 		public string GithuPassword { get; set; }
 
+		[Option('o', "token", Required = false, HelpText = "Github token (takes precedence over username+password).")]
+		public string GithubToken { get; set; }
+
 		[Option('y', "proxy", Required = false, HelpText = "The URL of your proxy. For example, to proxy request through Fiddler use: 'http://localhost:8888'.")]
 		public string ProxyUrl { get; set; }
 
