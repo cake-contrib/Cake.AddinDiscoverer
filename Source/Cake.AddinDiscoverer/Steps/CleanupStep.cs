@@ -1,4 +1,5 @@
-﻿using System.IO;
+using Cake.AddinDiscoverer.Models;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps

@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Models;
 using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;

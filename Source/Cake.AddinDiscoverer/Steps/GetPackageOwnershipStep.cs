@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Models;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;

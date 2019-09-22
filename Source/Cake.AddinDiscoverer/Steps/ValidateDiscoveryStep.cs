@@ -1,4 +1,5 @@
-﻿using System;
+using Cake.AddinDiscoverer.Models;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 

@@ -1,6 +1,6 @@
 using Cake.AddinDiscoverer.Utilities;
 
-namespace Cake.AddinDiscoverer
+namespace Cake.AddinDiscoverer.Models
 {
 	/// <summary>
 	/// Contains the result of the analysis of a given addin.

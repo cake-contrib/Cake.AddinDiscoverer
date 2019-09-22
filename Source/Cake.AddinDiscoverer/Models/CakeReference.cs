@@ -1,4 +1,4 @@
-namespace Cake.AddinDiscoverer
+namespace Cake.AddinDiscoverer.Models
 {
 	internal class CakeReference
 	{

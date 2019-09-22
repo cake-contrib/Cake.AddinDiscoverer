@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Models;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using System;

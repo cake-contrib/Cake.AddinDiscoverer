@@ -2,7 +2,7 @@ using Cake.Incubator.StringExtensions;
 using System;
 using System.Diagnostics;
 
-namespace Cake.AddinDiscoverer
+namespace Cake.AddinDiscoverer.Models
 {
 	[DebuggerDisplay("Name = {Name}; Type = {Type}")]
 	internal class AddinMetadata

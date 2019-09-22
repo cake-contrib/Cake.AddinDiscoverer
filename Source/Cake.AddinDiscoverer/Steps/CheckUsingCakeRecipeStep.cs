@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using Octokit;
@@ -9,7 +10,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class CheckUsingCakeRecipeStep : IStep
 	{
-		private static string[] WELL_KNOWN_CAKE_FILES = new[]
+		private static string[] _wellKnownCakeFiles = new[]
 		{
 			"setup.cake",
 			"build.cake",
@@ -50,7 +51,7 @@ namespace Cake.AddinDiscoverer.Steps
 									// The purpose of ordering is to favor well known cake files if they are present in the repository
 									// and therefore limit the number of calls to github's API while at the same time account for the
 									// fact that addin authors may not necessarily follow the usual naming convention
-									foreach (var filePath in filePaths.OrderBy(path => WELL_KNOWN_CAKE_FILES.Contains(Path.GetFileName(path)) ? 0 : 1))
+									foreach (var filePath in filePaths.OrderBy(path => _wellKnownCakeFiles.Contains(Path.GetFileName(path)) ? 0 : 1))
 									{
 										// Get the content of the cake file
 										var cakeFileContent = await Misc.GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
