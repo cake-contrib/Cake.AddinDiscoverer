@@ -96,25 +96,23 @@ namespace Cake.AddinDiscoverer.Steps
 				{
 					if (!string.IsNullOrEmpty(addin.RepositoryName) && !string.IsNullOrEmpty(addin.RepositoryOwner))
 					{
-						// Get the issues and pull requests for this addin
-						var issuesAndPullRequestsForThisAddin = allIssuesAndPullRequests
+						// Get the previously created issue titled: "Recommended changes resulting from automated audit" for this addin
+						addin.AuditIssue = context.IssuesCreatedByCurrentUser
 							.Where(i =>
 							{
 								var (repoOwner, repoName) = Misc.DeriveRepoInfo(new Uri(i.Url));
 								return repoOwner.EqualsIgnoreCase(addin.RepositoryOwner) && repoName.EqualsIgnoreCase(addin.RepositoryName);
-							});
-
-						// Get the previously created issue titled: "Recommended changes resulting from automated audit"
-						addin.GithubIssueId = issuesAndPullRequestsForThisAddin
-							.Where(i => i.PullRequest == null)
-							.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.ISSUE_TITLE) || i.Body.StartsWith("We performed an automated audit of your Cake addin", StringComparison.OrdinalIgnoreCase))?
-							.Number;
+							})
+							.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.ISSUE_TITLE) || i.Body.StartsWith("We performed an automated audit of your Cake addin", StringComparison.OrdinalIgnoreCase));
 
 						// Get the previously created pull request titled: "Fix issues identified by automated audit"
-						addin.GithubPullRequestId = issuesAndPullRequestsForThisAddin
-							.Where(i => i.PullRequest != null)
-							.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.PULL_REQUEST_TITLE))?
-							.Number;
+						addin.AuditPullRequest = context.PullRequestsCreatedByCurrentUser
+							.Where(i =>
+							{
+								var (repoOwner, repoName) = Misc.DeriveRepoInfo(new Uri(i.Url));
+								return repoOwner.EqualsIgnoreCase(addin.RepositoryOwner) && repoName.EqualsIgnoreCase(addin.RepositoryName);
+							})
+							.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.PULL_REQUEST_TITLE));
 					}
 
 					return addin;

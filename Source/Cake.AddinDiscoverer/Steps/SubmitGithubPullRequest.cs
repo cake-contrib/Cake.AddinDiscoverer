@@ -28,8 +28,8 @@ namespace Cake.AddinDiscoverer.Steps
 					async addin =>
 					{
 						if (addin.Type != AddinType.Recipe &&
-							addin.GithubIssueId.HasValue &&
-							!addin.GithubPullRequestId.HasValue &&
+							addin.AuditIssue != null &&
+							addin.AuditPullRequest == null &&
 							!string.IsNullOrEmpty(addin.RepositoryName) &&
 							!string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
@@ -60,9 +60,9 @@ namespace Cake.AddinDiscoverer.Steps
 
 									// Commit changes to a new branch and submit PR
 									var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-									var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.GithubIssueId.Value, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
+									var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.AuditIssue.Number, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
 
-									addin.GithubPullRequestId = pullRequest.Number;
+									addin.AuditPullRequest = pullRequest;
 									context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 
 									// This delay is important to avoid triggering GitHub's abuse protection
