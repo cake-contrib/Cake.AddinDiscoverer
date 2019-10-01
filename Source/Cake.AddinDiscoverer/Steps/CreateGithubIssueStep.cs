@@ -67,7 +67,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (addin.AnalysisResult.Icon != IconAnalysisResult.EmbeddedCakeContrib)
 			{
-				comment.AppendLine($"Please also note that as soon as .netcore3.0 is released the recommendation will change once again to use an embedded icon. Read more about embedded icons in the [.nuspec reference](https://docs.microsoft.com/en-us/nuget/reference/nuspec#icon).{Environment.NewLine}");
+				comment.AppendLine($"Please also note that since .netcore3.0 was released recently, the recommendation has changed once again: you should now embedded the icon in your Nuget package. Read more about embedded icons in the [.nuspec reference](https://docs.microsoft.com/en-us/nuget/reference/nuspec#icon).{Environment.NewLine}");
 			}
 
 			comment.AppendLine($"{Environment.NewLine}This comment was created by a tool: Cake.AddinDiscoverer version {context.Version}{Environment.NewLine}");
@@ -139,10 +139,10 @@ namespace Cake.AddinDiscoverer.Steps
 				case IconAnalysisResult.Unspecified:
 				case IconAnalysisResult.RawgitUrl:
 				case IconAnalysisResult.CustomUrl:
-					issuesDescription.AppendLine($"- [ ] The nuget package for your addin should use the cake-contrib icon. Specifically, your addin's `.csproj` should have a line like this: `<PackageIconUrl>{Constants.NEW_CAKE_CONTRIB_ICON_URL}</PackageIconUrl>`.");
+					issuesDescription.AppendLine("- [ ] The nuget package for your addin should embed the cake-contrib icon. Specifically, your addin's `.csproj` should have a line like this: `<PackageIcon>path/to/icon.png</PackageIcon>`.");
 					break;
 				case IconAnalysisResult.EmbeddedCustom:
-					issuesDescription.AppendLine("- [ ] The nuget package for your addin should embed the cake-contrib icon. Specifically, your addin's `.csproj` should have a line like this: `<PackageIcon>path/to/icon.png</PackageIcon>`.");
+					issuesDescription.AppendLine("- [ ] The icon embedded in your nuget package doesn't appear to be the cake-contrib icon. We strongly recommend that you use the icon [available here](https://github.com/cake-contrib/graphics/blob/master/png/cake-contrib-medium.png).");
 					break;
 			}
 
