@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
@@ -365,8 +365,8 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <summary>
 		/// For serialization.
 		/// </summary>
-		/// <param name="info">The serialization info</param>
-		/// <param name="context">The context</param>
+		/// <param name="info">The serialization info.</param>
+		/// <param name="context">The context.</param>
 		[SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
 		public void GetObjectData(SerializationInfo info, StreamingContext context)
 		{
