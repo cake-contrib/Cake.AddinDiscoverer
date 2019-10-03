@@ -124,6 +124,15 @@ namespace Cake.AddinDiscoverer.Steps
 							addinMetadata.IsDeprecated = true;
 							addinMetadata.AnalysisResult.Notes = package.Description;
 						}
+						else
+						{
+							var deprecationMetadata = await package.GetDeprecationMetadataAsync().ConfigureAwait(false);
+							if (deprecationMetadata != null)
+							{
+								addinMetadata.IsDeprecated = true;
+								addinMetadata.AnalysisResult.Notes = deprecationMetadata.Message ?? "This package has been deprecated for the following reasons: " + string.Join(", ", deprecationMetadata.Reasons);
+							}
+						}
 
 						return addinMetadata;
 					}, Constants.MAX_NUGET_CONCURENCY)
