@@ -76,6 +76,7 @@ namespace Cake.AddinDiscoverer.Steps
 					i.User,
 					i.Assignee,
 					i.Assignees,
+					i.PullRequest.Draft,
 					i.PullRequest.Mergeable,
 					i.PullRequest.MergeableState?.Value,
 					i.PullRequest.MergedBy,
@@ -88,7 +89,8 @@ namespace Cake.AddinDiscoverer.Steps
 					i.PullRequest.Milestone,
 					i.Locked,
 					i.PullRequest.MaintainerCanModify,
-					i.PullRequest.RequestedReviewers))
+					i.PullRequest.RequestedReviewers,
+					i.PullRequest.Labels))
 				.ToList();
 
 			context.Addins = context.Addins

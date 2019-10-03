@@ -1,4 +1,5 @@
 using Cake.AddinDiscoverer.Models;
+using Cake.AddinDiscoverer.Utilities;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using System;
@@ -40,8 +41,8 @@ namespace Cake.AddinDiscoverer.Steps
 			if (!string.IsNullOrEmpty(context.Options.AddinName))
 			{
 				// Get metadata for one specific package
-				var nugetPackageMetadataClient = context.NugetRepository.GetResource<PackageMetadataResource>();
-				var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(context.Options.AddinName, true, false, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+				var nugetPackageMetadataClient = await context.NugetRepository.GetResourceAsync<PackageMetadataResource>().ConfigureAwait(false);
+				var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(context.Options.AddinName, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
 				var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
 				if (mostRecentPackageMetadata != null)
 				{
@@ -77,55 +78,56 @@ namespace Cake.AddinDiscoverer.Steps
 
 			//--------------------------------------------------
 			// Convert metadata from nuget into our own metadata
-			context.Addins = uniqueAddinPackages
-				.Select(package =>
-				{
-					// As of June 2019, the 'Owners' metadata value returned from NuGet is always null.
-					// This code is just in case they add this information to the metadata and don't let us know.
-					// See feature request: https://github.com/NuGet/NuGetGallery/issues/5647
-					var packageOwners = package.Owners?
+			context.Addins = await uniqueAddinPackages
+				.ForEachAsync(
+					async package =>
+					{
+						// As of June 2019, the 'Owners' metadata value returned from NuGet is always null.
+						// This code is just in case they add this information to the metadata and don't let us know.
+						// See feature request: https://github.com/NuGet/NuGetGallery/issues/5647
+						var packageOwners = package.Owners?
 						.Split(',', StringSplitOptions.RemoveEmptyEntries)
 						.Select(owner => owner.Trim())
 						.ToArray() ?? Array.Empty<string>();
 
-					var tags = package.Tags?
+						var tags = package.Tags?
 							.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
 							.Select(tag => tag.Trim())
 							.ToArray() ?? Array.Empty<string>();
 
-					var addinMetadata = new AddinMetadata()
-					{
-						AnalysisResult = new AddinAnalysisResult()
+						var addinMetadata = new AddinMetadata()
 						{
-							CakeRecipeIsUsed = false,
-							CakeRecipeVersion = null,
-							CakeRecipeIsPrerelease = false,
-							CakeRecipeIsLatest = false
-						},
-						Maintainer = package.Authors,
-						Description = package.Description,
-						ProjectUrl = package.ProjectUrl,
-						IconUrl = package.IconUrl,
-						Name = package.Identity.Id,
-						NuGetPackageUrl = new Uri($"https://www.nuget.org/packages/{package.Identity.Id}/"),
-						NuGetPackageOwners = packageOwners,
-						NuGetPackageVersion = package.Identity.Version.ToNormalizedString(),
-						IsDeprecated = false,
-						IsPrerelease = package.Identity.Version.IsPrerelease,
-						HasPrereleaseDependencies = false,
-						Tags = tags,
-						Type = AddinType.Unknown
-					};
+							AnalysisResult = new AddinAnalysisResult()
+							{
+								CakeRecipeIsUsed = false,
+								CakeRecipeVersion = null,
+								CakeRecipeIsPrerelease = false,
+								CakeRecipeIsLatest = false
+							},
+							Maintainer = package.Authors,
+							Description = package.Description,
+							ProjectUrl = package.ProjectUrl,
+							IconUrl = package.IconUrl,
+							Name = package.Identity.Id,
+							NuGetPackageUrl = new Uri($"https://www.nuget.org/packages/{package.Identity.Id}/"),
+							NuGetPackageOwners = packageOwners,
+							NuGetPackageVersion = package.Identity.Version.ToNormalizedString(),
+							IsDeprecated = false,
+							IsPrerelease = package.Identity.Version.IsPrerelease,
+							HasPrereleaseDependencies = false,
+							Tags = tags,
+							Type = AddinType.Unknown
+						};
 
-					if (package.Title.Contains("[DEPRECATED]", StringComparison.OrdinalIgnoreCase))
-					{
-						addinMetadata.IsDeprecated = true;
-						addinMetadata.AnalysisResult.Notes = package.Description;
-					}
+						if (package.Title.Contains("[DEPRECATED]", StringComparison.OrdinalIgnoreCase))
+						{
+							addinMetadata.IsDeprecated = true;
+							addinMetadata.AnalysisResult.Notes = package.Description;
+						}
 
-					return addinMetadata;
-				})
-				.ToArray();
+						return addinMetadata;
+					}, Constants.MAX_NUGET_CONCURENCY)
+				.ConfigureAwait(false);
 		}
 	}
 }
