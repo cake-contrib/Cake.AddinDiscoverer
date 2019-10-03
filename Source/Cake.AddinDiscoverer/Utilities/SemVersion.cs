@@ -8,7 +8,7 @@ namespace Cake.AddinDiscoverer.Utilities
 {
 	/// <summary>
 	/// A semantic version implementation.
-	/// Conforms to v2.0.0 of http://semver.org/
+	/// Conforms to v2.0.0 of http://semver.org/.
 	/// </summary>
 	[Serializable]
 	internal sealed class SemVersion : IComparable<SemVersion>, IComparable, ISerializable
@@ -65,7 +65,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </summary>
 		/// <param name="info">The serialization info.</param>
 		/// <param name="context">The serialization context.</param>
-		/// <exception cref="ArgumentNullException">If info is null</exception>
+		/// <exception cref="ArgumentNullException">If info is null.</exception>
 		private SemVersion(SerializationInfo info, StreamingContext context)
 		{
 			if (info == null) throw new ArgumentNullException("info");
