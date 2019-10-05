@@ -176,7 +176,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 			catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Issues are disabled for this repo"))
 			{
-				// There's a NuGet package with a project URL that points to a fork which doesn't allow issue.
+				// There's a NuGet package with a project URL that points to a fork which doesn't allow issues.
 				// Therefore it's safe to ignore this error.
 			}
 			catch (ApiException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound)
