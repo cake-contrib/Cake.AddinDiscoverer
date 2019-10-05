@@ -1,7 +1,7 @@
-﻿using Cake.AddinDiscoverer.Utilities;
+using Cake.AddinDiscoverer.Utilities;
 using System;
 
-namespace Cake.AddinDiscoverer
+namespace Cake.AddinDiscoverer.Models
 {
 	internal class CakeVersion : IComparable<CakeVersion>, IComparable
 	{

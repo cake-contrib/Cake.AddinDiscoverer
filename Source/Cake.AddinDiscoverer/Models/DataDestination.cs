@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Cake.AddinDiscoverer
+namespace Cake.AddinDiscoverer.Models
 {
 	[Flags]
 	internal enum DataDestination

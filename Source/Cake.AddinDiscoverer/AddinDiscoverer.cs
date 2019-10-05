@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Steps;
 using Cake.AddinDiscoverer.Utilities;
 using Newtonsoft.Json.Linq;
@@ -96,7 +97,7 @@ namespace Cake.AddinDiscoverer
 		{
 			// Setup the Github client
 			var proxy = string.IsNullOrEmpty(options.ProxyUrl) ? null : new WebProxy(options.ProxyUrl);
-			var credentials = new Credentials(options.GithubUsername, options.GithuPassword);
+			var credentials = !string.IsNullOrEmpty(options.GithubToken) ? new Credentials(options.GithubToken) : new Credentials(options.GithubUsername, options.GithuPassword);
 			var connection = new Connection(new ProductHeaderValue(Constants.PRODUCT_NAME), new HttpClientAdapter(() => HttpMessageHandlerFactory.CreateDefault(proxy)))
 			{
 				Credentials = credentials,

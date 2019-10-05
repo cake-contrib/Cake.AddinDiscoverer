@@ -1,7 +1,11 @@
-﻿using System.Threading.Tasks;
+using Cake.AddinDiscoverer.Models;
+using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer
 {
+	/// <summary>
+	/// Interface that describes the steps to be executed by the Addin Discoverer.
+	/// </summary>
 	internal interface IStep
 	{
 		/// <summary>

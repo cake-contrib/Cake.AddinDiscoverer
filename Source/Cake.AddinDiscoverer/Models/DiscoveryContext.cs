@@ -4,7 +4,7 @@ using Octokit.Internal;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Cake.AddinDiscoverer
+namespace Cake.AddinDiscoverer.Models
 {
 	internal class DiscoveryContext
 	{

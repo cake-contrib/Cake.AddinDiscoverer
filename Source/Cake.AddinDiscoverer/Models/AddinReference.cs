@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Cake.AddinDiscoverer
+namespace Cake.AddinDiscoverer.Models
 {
 	[DebuggerDisplay("{Name} {ReferencedVersion}")]
 	internal class AddinReference : CakeReference

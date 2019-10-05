@@ -1,8 +1,9 @@
 using Cake.Incubator.StringExtensions;
+using Octokit;
 using System;
 using System.Diagnostics;
 
-namespace Cake.AddinDiscoverer
+namespace Cake.AddinDiscoverer.Models
 {
 	[DebuggerDisplay("Name = {Name}; Type = {Type}")]
 	internal class AddinMetadata
@@ -37,9 +38,9 @@ namespace Cake.AddinDiscoverer
 
 		public Uri RepositoryUrl { get; set; }
 
-		public int? GithubPullRequestId { get; set; }
+		public PullRequest AuditPullRequest { get; set; }
 
-		public int? GithubIssueId { get; set; }
+		public Issue AuditIssue { get; set; }
 
 		public AddinType Type { get; set; }
 

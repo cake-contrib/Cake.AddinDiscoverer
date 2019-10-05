@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using Newtonsoft.Json.Linq;
