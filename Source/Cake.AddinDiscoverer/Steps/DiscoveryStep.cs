@@ -129,8 +129,23 @@ namespace Cake.AddinDiscoverer.Steps
 							var deprecationMetadata = await package.GetDeprecationMetadataAsync().ConfigureAwait(false);
 							if (deprecationMetadata != null)
 							{
+								// Derive a message based on the 'Reasons' enumeration in case an actual message has not been provided
+								var deprecationReasonMessage = default(string);
+								if (deprecationMetadata.Reasons == null || !deprecationMetadata.Reasons.Any())
+								{
+									deprecationReasonMessage = "This package has been deprecated but the author has not provided a reason.";
+								}
+								else if (deprecationMetadata.Reasons.Count() == 1)
+								{
+									deprecationReasonMessage = "This package has been deprecated for the following reason: " + deprecationMetadata.Reasons.First();
+								}
+								else
+								{
+									deprecationReasonMessage = "This package has been deprecated for the following reasons: " + string.Join(", ", deprecationMetadata.Reasons);
+								}
+
 								addinMetadata.IsDeprecated = true;
-								addinMetadata.AnalysisResult.Notes = deprecationMetadata.Message ?? "This package has been deprecated for the following reasons: " + string.Join(", ", deprecationMetadata.Reasons);
+								addinMetadata.AnalysisResult.Notes = deprecationMetadata.Message ?? deprecationReasonMessage;
 							}
 						}
 
