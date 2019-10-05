@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
@@ -8,7 +8,7 @@ namespace Cake.AddinDiscoverer.Utilities
 {
 	/// <summary>
 	/// A semantic version implementation.
-	/// Conforms to v2.0.0 of http://semver.org/
+	/// Conforms to v2.0.0 of http://semver.org/.
 	/// </summary>
 	[Serializable]
 	internal sealed class SemVersion : IComparable<SemVersion>, IComparable, ISerializable
@@ -65,7 +65,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </summary>
 		/// <param name="info">The serialization info.</param>
 		/// <param name="context">The serialization context.</param>
-		/// <exception cref="ArgumentNullException">If info is null</exception>
+		/// <exception cref="ArgumentNullException">If info is null.</exception>
 		private SemVersion(SerializationInfo info, StreamingContext context)
 		{
 			if (info == null) throw new ArgumentNullException("info");
@@ -365,8 +365,8 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <summary>
 		/// For serialization.
 		/// </summary>
-		/// <param name="info">The serialization info</param>
-		/// <param name="context">The context</param>
+		/// <param name="info">The serialization info.</param>
+		/// <param name="context">The context.</param>
 		[SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
 		public void GetObjectData(SerializationInfo info, StreamingContext context)
 		{

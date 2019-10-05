@@ -98,7 +98,7 @@ namespace Cake.AddinDiscoverer.Steps
 						await recipeFile.ToolReferences.ForEachAsync(
 							async toolReference =>
 							{
-								var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(toolReference.Name, false, false, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+								var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(toolReference.Name, false, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
 								var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
 								if (mostRecentPackageMetadata != null)
 								{
