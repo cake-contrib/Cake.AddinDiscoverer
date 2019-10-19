@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -26,7 +26,7 @@
     <PackageReference Include="EPPlus" Version="4.5.3.2" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
     <PackageReference Include="NuGet.Protocol" Version="5.3.0" />
-    <PackageReference Include="Octokit" Version="0.35.0" />
+    <PackageReference Include="Octokit" Version="0.36.0" />
     <PackageReference Include="OxyPlot.WindowsForms" Version="2.0.0-unstable1035" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
       <PrivateAssets>All</PrivateAssets>
