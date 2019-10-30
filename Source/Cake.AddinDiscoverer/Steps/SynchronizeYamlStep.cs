@@ -232,7 +232,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
 			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl.AbsoluteUri.TrimEnd('/') + '/'}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
-			yamlContent.AppendUnixLine($"Description: {addin.Description}");
+			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(addin.Description)}");
 			if (addin.IsPrerelease || addin.HasPrereleaseDependencies) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(categories);
@@ -295,6 +295,26 @@ namespace Cake.AddinDiscoverer.Steps
 			var categories = string.Join("\n", filteredAndFormatedTags);
 
 			return categories;
+		}
+
+		private static string QuotedYamlString(string value)
+		{
+			if (value.StartsWith('"') && value.EndsWith('"'))
+			{
+				return value;
+			}
+			else if (value.Contains("\n"))
+			{
+				var lines = value
+					.Replace("\r\n", "\n")
+					.Split('\n')
+					.Select(line => $"  {line}");
+				return "|-\n" + string.Join('\n', lines);
+			}
+			else
+			{
+				return value;
+			}
 		}
 	}
 }

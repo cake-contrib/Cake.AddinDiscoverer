@@ -34,6 +34,7 @@ namespace Cake.AddinDiscoverer.Steps
 				IncludeDelisted = false
 			};
 
+			var nugetPackageMetadataClient = await context.NugetRepository.GetResourceAsync<PackageMetadataResource>().ConfigureAwait(false);
 			var addinPackages = new List<IPackageSearchMetadata>(take);
 
 			//--------------------------------------------------
@@ -41,7 +42,6 @@ namespace Cake.AddinDiscoverer.Steps
 			if (!string.IsNullOrEmpty(context.Options.AddinName))
 			{
 				// Get metadata for one specific package
-				var nugetPackageMetadataClient = await context.NugetRepository.GetResourceAsync<PackageMetadataResource>().ConfigureAwait(false);
 				var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(context.Options.AddinName, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
 				var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
 				if (mostRecentPackageMetadata != null)
@@ -127,6 +127,16 @@ namespace Cake.AddinDiscoverer.Steps
 						else
 						{
 							var deprecationMetadata = await package.GetDeprecationMetadataAsync().ConfigureAwait(false);
+							if (deprecationMetadata == null)
+							{
+								var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(package.Title, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+								var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
+								if (mostRecentPackageMetadata != null)
+								{
+									deprecationMetadata = await mostRecentPackageMetadata.GetDeprecationMetadataAsync().ConfigureAwait(false);
+								}
+							}
+
 							if (deprecationMetadata != null)
 							{
 								// Derive a message based on the 'Reasons' enumeration in case an actual message has not been provided
