@@ -106,8 +106,8 @@ Task("Clean")
 
 	// Clean previous artifacts
 	Information("Cleaning {0}", outputDir);
-	if (!DirectoryExists(outputDir)) CreateDirectory(outputDir);
-	if (DirectoryExists(publishDir)) CleanDirectories(MakeAbsolute(Directory(publishDir)).FullPath);
+	if (DirectoryExists(outputDir)) CleanDirectories(MakeAbsolute(Directory(outputDir)).FullPath);
+	else CreateDirectory(outputDir);
 });
 
 Task("Restore-NuGet-Packages")
