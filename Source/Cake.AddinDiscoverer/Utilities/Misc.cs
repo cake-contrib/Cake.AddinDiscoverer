@@ -113,7 +113,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(addin.RepositoryOwner, addin.RepositoryName, ArchiveFormat.Zipball).ConfigureAwait(false);
 			using (var data = new MemoryStream(zipArchive))
 			{
-				var archive = new ZipArchive(data);
+				using var archive = new ZipArchive(data);
 				filesPathGroupedByExtension = archive.Entries
 					.Select(e => string.Join('/', e.FullName.Split('/', StringSplitOptions.RemoveEmptyEntries).Skip(1)))
 					.GroupBy(path => System.IO.Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)
