@@ -84,14 +84,12 @@ namespace Cake.AddinDiscoverer.Steps
 			var lastPageUrl = githubResponse.ApiInfo.GetLastPageUrl();
 			if (lastPageUrl != null)
 			{
-				var lastPageNumber = lastPageUrl.Query
-					.Split(new char[] { '&' }, StringSplitOptions.RemoveEmptyEntries)
-					.Select(value => value.Split(new char[] { '=' }, StringSplitOptions.RemoveEmptyEntries))
-					.Select(splitValue => new { Key = splitValue[0].Trim(), Value = splitValue[1].Trim() })
-					.SingleOrDefault(parameter => parameter.Key.EqualsIgnoreCase("page"))?
-					.Value;
-
-				int.TryParse(lastPageNumber, out recordsCount);
+				var pageParameter = lastPageUrl.ParseQuerystring().Where(p => p.Key.EqualsIgnoreCase("page"));
+				if (pageParameter.Any())
+				{
+					var lastPageNumber = pageParameter.Single().Value;
+					int.TryParse(lastPageNumber, out recordsCount);
+				}
 			}
 			else
 			{

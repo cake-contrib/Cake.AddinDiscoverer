@@ -304,6 +304,27 @@ namespace Cake.AddinDiscoverer
 			return (nsName == null) ? XName.Get(elementName) : XName.Get(elementName, nsName);
 		}
 
+		public static IEnumerable<KeyValuePair<string, string>> ParseQuerystring(this Uri uri)
+		{
+			var querystringParameters = uri
+				.Query.TrimStart('?')
+				.Split(new char[] { '&' }, StringSplitOptions.RemoveEmptyEntries)
+				.Select(value => value.Split(new char[] { '=' }, StringSplitOptions.RemoveEmptyEntries))
+				.Select(splitValue =>
+				{
+					if (splitValue.Length == 1)
+					{
+						return new KeyValuePair<string, string>(splitValue[0].Trim(), null);
+					}
+					else
+					{
+						return new KeyValuePair<string, string>(splitValue[0].Trim(), splitValue[1].Trim());
+					}
+				});
+
+			return querystringParameters;
+		}
+
 		private static void CheckIsEnum<T>(bool withFlags)
 		{
 			if (!typeof(T).IsEnum)
