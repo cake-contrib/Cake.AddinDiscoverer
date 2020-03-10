@@ -18,22 +18,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Ben.Demystifier" Version="0.1.4" />
-    <PackageReference Include="Cake.Common" Version="0.35.0" />
+    <PackageReference Include="Ben.Demystifier" Version="0.1.6" />
+    <PackageReference Include="Cake.Common" Version="0.37.0" />
     <PackageReference Include="Cake.Incubator" Version="5.1.0" />
-    <PackageReference Include="CommandLineParser" Version="2.6.0" />
-    <PackageReference Include="CsvHelper" Version="12.1.2" />
-    <PackageReference Include="EPPlus" Version="4.5.3.2" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
-    <PackageReference Include="NuGet.Protocol" Version="5.3.0" />
-    <PackageReference Include="Octokit" Version="0.36.0" />
-    <PackageReference Include="OxyPlot.WindowsForms" Version="2.0.0-unstable1035" />
+    <PackageReference Include="CommandLineParser" Version="2.7.82" />
+    <PackageReference Include="CsvHelper" Version="15.0.1" />
+    <PackageReference Include="EPPlus" Version="5.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="NuGet.Protocol" Version="5.4.0" />
+    <PackageReference Include="Octokit" Version="0.43.0" />
+    <PackageReference Include="OxyPlot.WindowsForms" Version="2.0.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="System.Memory" Version="4.5.3" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
-    <PackageReference Include="YamlDotNet" Version="7.0.0" />
+    <PackageReference Include="YamlDotNet" Version="8.1.0" />
   </ItemGroup>
 
   <ItemGroup>

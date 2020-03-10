@@ -2,6 +2,7 @@ using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using CsvHelper;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -26,7 +27,7 @@ namespace Cake.AddinDiscoverer.Steps
 			using (var fs = new FileStream(context.StatsSaveLocation, System.IO.FileMode.Append, FileAccess.Write))
 			using (TextWriter writer = new StreamWriter(fs))
 			{
-				var csv = new CsvWriter(writer);
+				var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
 				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter(Constants.CSV_DATE_FORMAT));
 
 				var addins = context.Addins.Where(addin => addin.Type == AddinType.Addin || addin.Type == AddinType.Module).ToArray();

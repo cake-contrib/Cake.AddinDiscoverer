@@ -6,6 +6,7 @@ using OxyPlot.Axes;
 using OxyPlot.Series;
 using OxyPlot.WindowsForms;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -58,7 +59,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			using (TextReader reader = new StreamReader(context.StatsSaveLocation))
 			{
-				var csv = new CsvReader(reader);
+				var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
 				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter("yyyy-MM-dd HH:mm:ss"));
 
 				var recordsGroupedByCakeVersion = csv

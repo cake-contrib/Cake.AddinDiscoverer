@@ -19,6 +19,8 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
+			ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
 			using (var excel = new ExcelPackage(new FileInfo(context.ExcelReportPath)))
 			{
 				var deprecatedAddins = context.Addins.Where(addin => addin.IsDeprecated).ToArray();
