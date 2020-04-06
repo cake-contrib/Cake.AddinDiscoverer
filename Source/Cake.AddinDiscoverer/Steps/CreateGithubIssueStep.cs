@@ -67,7 +67,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (addin.AnalysisResult.Icon != IconAnalysisResult.EmbeddedCakeContrib)
 			{
-				comment.AppendLine($"Please also note that since .netcore3.0 was released recently, the recommendation has changed once again: you should now embedded the icon in your Nuget package. Read more about embedded icons in the [.nuspec reference](https://docs.microsoft.com/en-us/nuget/reference/nuspec#icon).{Environment.NewLine}");
+				comment.AppendLine($"Please also note that the recommendation changed following .netcore3.0's release: you should now embedded the icon in your Nuget package. Read more about embedded icons in the [.nuspec reference](https://docs.microsoft.com/en-us/nuget/reference/nuspec#icon).{Environment.NewLine}");
 			}
 
 			comment.AppendLine($"{Environment.NewLine}This comment was created by a tool: Cake.AddinDiscoverer version {context.Version}{Environment.NewLine}");
