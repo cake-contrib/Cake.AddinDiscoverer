@@ -53,7 +53,7 @@ namespace Cake.AddinDiscoverer.Steps
 							}
 							else if (result.Status == DownloadResourceResultStatus.NotFound)
 							{
-								throw new Exception(string.Format("Package '{0} {1}' not found", package.Name, package.NuGetPackageVersion));
+								throw new Exception($"Package '{package.Name} {package.NuGetPackageVersion}' not found");
 							}
 							else
 							{

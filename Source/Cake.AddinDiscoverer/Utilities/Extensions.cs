@@ -328,9 +328,9 @@ namespace Cake.AddinDiscoverer
 		private static void CheckIsEnum<T>(bool withFlags)
 		{
 			if (!typeof(T).IsEnum)
-				throw new ArgumentException(string.Format("Type '{0}' is not an enum", typeof(T).FullName));
+				throw new ArgumentException($"Type '{typeof(T).FullName}' is not an enum");
 			if (withFlags && !Attribute.IsDefined(typeof(T), typeof(FlagsAttribute)))
-				throw new ArgumentException(string.Format("Type '{0}' doesn't have the 'Flags' attribute", typeof(T).FullName));
+				throw new ArgumentException($"Type '{typeof(T).FullName}' doesn't have the 'Flags' attribute");
 		}
 	}
 }
