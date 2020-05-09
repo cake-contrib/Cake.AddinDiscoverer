@@ -17,7 +17,7 @@ namespace Cake.AddinDiscoverer.Steps
 		public string GetDescription(DiscoveryContext context)
 		{
 			if (string.IsNullOrEmpty(context.Options.AddinName)) return "Download latest packages from NuGet";
-			else return $"Download latest pakage for {context.Options.AddinName}";
+			else return $"Download latest package for {context.Options.AddinName}";
 		}
 
 		public async Task ExecuteAsync(DiscoveryContext context)
@@ -42,29 +42,23 @@ namespace Cake.AddinDiscoverer.Steps
 							}
 
 							// Download the latest version of the package
-							using (var sourceCacheContext = new SourceCacheContext() { NoCache = true })
-							{
-								var downloadContext = new PackageDownloadContext(sourceCacheContext, Path.GetTempPath(), true);
-								var packageIdentity = new PackageIdentity(package.Name, new NuGet.Versioning.NuGetVersion(package.NuGetPackageVersion));
+							using var sourceCacheContext = new SourceCacheContext() { NoCache = true };
+							var downloadContext = new PackageDownloadContext(sourceCacheContext, Path.GetTempPath(), true);
+							var packageIdentity = new PackageIdentity(package.Name, new NuGet.Versioning.NuGetVersion(package.NuGetPackageVersion));
 
-								using (var result = await nugetPackageDownloadClient.GetDownloadResourceResultAsync(packageIdentity, downloadContext, string.Empty, NullLogger.Instance, CancellationToken.None))
-								{
-									if (result.Status == DownloadResourceResultStatus.Cancelled)
-									{
-										throw new OperationCanceledException();
-									}
-									else if (result.Status == DownloadResourceResultStatus.NotFound)
-									{
-										throw new Exception(string.Format("Package '{0} {1}' not found", package.Name, package.NuGetPackageVersion));
-									}
-									else
-									{
-										using (var fileStream = File.OpenWrite(packageFileName))
-										{
-											await result.PackageStream.CopyToAsync(fileStream);
-										}
-									}
-								}
+							using var result = await nugetPackageDownloadClient.GetDownloadResourceResultAsync(packageIdentity, downloadContext, string.Empty, NullLogger.Instance, CancellationToken.None);
+							if (result.Status == DownloadResourceResultStatus.Cancelled)
+							{
+								throw new OperationCanceledException();
+							}
+							else if (result.Status == DownloadResourceResultStatus.NotFound)
+							{
+								throw new Exception($"Package '{package.Name} {package.NuGetPackageVersion}' not found");
+							}
+							else
+							{
+								await using var fileStream = File.OpenWrite(packageFileName);
+								await result.PackageStream.CopyToAsync(fileStream);
 							}
 						}
 					}, Constants.MAX_NUGET_CONCURENCY)

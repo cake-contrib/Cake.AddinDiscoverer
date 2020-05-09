@@ -90,6 +90,7 @@ namespace Cake.AddinDiscoverer.Steps
 					i.Locked,
 					i.PullRequest.MaintainerCanModify,
 					i.PullRequest.RequestedReviewers,
+					i.PullRequest.RequestedTeams,
 					i.PullRequest.Labels))
 				.ToList();
 

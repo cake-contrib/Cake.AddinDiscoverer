@@ -67,7 +67,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (addin.AnalysisResult.Icon != IconAnalysisResult.EmbeddedCakeContrib)
 			{
-				comment.AppendLine($"Please also note that since .netcore3.0 was released recently, the recommendation has changed once again: you should now embedded the icon in your Nuget package. Read more about embedded icons in the [.nuspec reference](https://docs.microsoft.com/en-us/nuget/reference/nuspec#icon).{Environment.NewLine}");
+				comment.AppendLine($"Please also note that the recommendation changed following .netcore3.0's release: you should now embedded the icon in your Nuget package. Read more about embedded icons in the [.nuspec reference](https://docs.microsoft.com/en-us/nuget/reference/nuspec#icon).{Environment.NewLine}");
 			}
 
 			comment.AppendLine($"{Environment.NewLine}This comment was created by a tool: Cake.AddinDiscoverer version {context.Version}{Environment.NewLine}");
@@ -118,7 +118,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 			else if (!addin.AnalysisResult.CakeCoreVersion.IsUpToDate(recommendedCakeVersion.Version))
 			{
-				issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion.ToString()}. Please upgrade to {recommendedCakeVersion.Version.ToString()}");
+				issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {recommendedCakeVersion.Version}");
 			}
 
 			if (addin.AnalysisResult.CakeCommonVersion == Constants.UNKNOWN_VERSION)
@@ -127,12 +127,12 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 			else if (!addin.AnalysisResult.CakeCommonVersion.IsUpToDate(recommendedCakeVersion.Version))
 			{
-				issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion.ToString()}. Please upgrade to {recommendedCakeVersion.Version.ToString()}");
+				issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Common {addin.AnalysisResult.CakeCommonVersion}. Please upgrade to {recommendedCakeVersion.Version}");
 			}
 
 			if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Core reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Core\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
 			if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Common reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Common\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
-			if (!Misc.IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion)) issuesDescription.AppendLine($"- [ ] Your addin should target {recommendedCakeVersion.RequiredFramework} at a minimum. Optionally, your addin can also multi-target {recommendedCakeVersion.OptionalFramework}.");
+			if (!Misc.IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion)) issuesDescription.AppendLine($"- [ ] Your addin should target {recommendedCakeVersion.RequiredFramework} at a minimum. Optionally, your addin can also multi-target {string.Join(" or ", recommendedCakeVersion.OptionalFrameworks)}.");
 
 			switch (addin.AnalysisResult.Icon)
 			{

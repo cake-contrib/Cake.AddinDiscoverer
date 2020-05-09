@@ -14,11 +14,16 @@ namespace Cake.AddinDiscoverer.Utilities
 	{
 		public static bool IsFrameworkUpToDate(string[] currentFrameworks, CakeVersion desiredCakeVersion)
 		{
-			if (currentFrameworks == null) return false;
+			if (currentFrameworks == null || !currentFrameworks.Any()) return false;
 			else if (!currentFrameworks.Contains(desiredCakeVersion.RequiredFramework, StringComparer.InvariantCultureIgnoreCase)) return false;
-			else if (currentFrameworks.Length == 1) return true;
-			else if (currentFrameworks.Length == 2 && !string.IsNullOrEmpty(desiredCakeVersion.OptionalFramework) && currentFrameworks.Contains(desiredCakeVersion.OptionalFramework, StringComparer.InvariantCultureIgnoreCase)) return true;
-			else return false;
+
+			var unnecessaryFrameworks = currentFrameworks
+				.Except(new[] { desiredCakeVersion.RequiredFramework })
+				.Except(desiredCakeVersion.OptionalFrameworks)
+				.ToArray();
+			if (unnecessaryFrameworks.Any()) return false;
+
+			return true;
 		}
 
 		public static async Task<Issue> FindGithubIssueAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)

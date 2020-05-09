@@ -10,7 +10,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class CheckUsingCakeRecipeStep : IStep
 	{
-		private static string[] _wellKnownCakeFiles = new[]
+		private static readonly string[] _wellKnownCakeFiles = new[]
 		{
 			"setup.cake",
 			"build.cake",

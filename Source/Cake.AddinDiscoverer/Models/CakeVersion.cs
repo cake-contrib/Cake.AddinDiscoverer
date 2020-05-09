@@ -9,7 +9,7 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string RequiredFramework { get; set; }
 
-		public string OptionalFramework { get; set; }
+		public string[] OptionalFrameworks { get; set; }
 
 		public int CompareTo(object obj)
 		{
