@@ -25,12 +25,12 @@ namespace Cake.AddinDiscoverer.Models
 		/// <summary>
 		/// Gets or sets the list of addins that we specifically want to exclude from our reports.
 		/// </summary>
-		public string[] BlacklistedAddins { get; set; }
+		public string[] ExcludedAddins { get; set; }
 
 		/// <summary>
 		/// Gets or sets the list of tags to be filtered out when generating an addin's YAML.
 		/// </summary>
-		public string[] BlacklistedTags { get; set; }
+		public string[] ExcludedTags { get; set; }
 
 		/// <summary>
 		/// Gets or sets the list of issues created by the current user.

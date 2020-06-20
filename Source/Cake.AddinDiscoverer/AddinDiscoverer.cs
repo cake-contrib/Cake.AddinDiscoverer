@@ -3,7 +3,6 @@ using Cake.AddinDiscoverer.Steps;
 using Cake.AddinDiscoverer.Utilities;
 using Newtonsoft.Json.Linq;
 using NuGet.Configuration;
-using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using Octokit;
 using Octokit.Internal;
@@ -29,8 +28,8 @@ namespace Cake.AddinDiscoverer
 			// Discover all existing Cake addins on NuGet
 			typeof(DiscoveryStep),
 
-			// Remove blacklisted addins
-			typeof(BlacklistStep),
+			// Remove excluded addins
+			typeof(ExclusionlistStep),
 
 			// Sanity check on the list of addins we discovered
 			typeof(ValidateDiscoveryStep),
@@ -124,15 +123,15 @@ namespace Cake.AddinDiscoverer
 			// '.Location' would seem more intuitive but in the case of shadow copyied assemblies, it would return a path in a temp directory.
 			var currentPath = new Uri(System.Reflection.Assembly.GetExecutingAssembly().CodeBase).LocalPath;
 			var currentFolder = Path.GetDirectoryName(currentPath);
-			var blacklistFilePath = Path.Combine(currentFolder, "blacklist.json");
+			var exclusionFilePath = Path.Combine(currentFolder, "exclusionlist.json");
 
-			using (var sr = new StreamReader(blacklistFilePath))
+			using (var sr = new StreamReader(exclusionFilePath))
 			{
 				var json = sr.ReadToEnd();
 				var jObject = JObject.Parse(json);
 
-				_context.BlacklistedAddins = jObject.Property("packages").Value.ToObject<string[]>();
-				_context.BlacklistedTags = jObject.Property("labels").Value.ToObject<string[]>();
+				_context.ExcludedAddins = jObject.Property("packages").Value.ToObject<string[]>();
+				_context.ExcludedTags = jObject.Property("labels").Value.ToObject<string[]>();
 			}
 		}
 
