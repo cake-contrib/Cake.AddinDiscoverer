@@ -20,7 +20,9 @@
     "Cake.Xamarin.Build.CakeBuilder",
     "Cake.Storm.*",
     "Cake.Board.Abstractions",
-    "Cake.Board"
+    "Cake.Board",
+    "Cake.LycheeOS",
+    "Cake.OssIndex"
   ],
   "labels": [
     "Addin",
