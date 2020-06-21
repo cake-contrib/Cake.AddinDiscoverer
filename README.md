@@ -54,7 +54,7 @@ As of version 3.4.0 we have automated the following:
 
 1. Addin report
     - Discover all existing addins on nuget
-    - Exclude a few well-known packages (via a manually maintained "black list" file)
+    - Exclude a few well-known packages (via a manually maintained "exclusion list" file)
     - Generate a markdown report
     - Generate an Excel report
     - Generate graph showing progress over time
