@@ -4,20 +4,19 @@ using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
 {
-	internal class BlacklistStep : IStep
+	internal class ExclusionlistStep : IStep
 	{
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
 		public string GetDescription(DiscoveryContext context)
 		{
-			if (string.IsNullOrEmpty(context.Options.AddinName)) return "Download latest packages from NuGet";
-			else return $"Download latest pakage for {context.Options.AddinName}";
+			return $"Filter out addins that are on the exclusion list";
 		}
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
 			context.Addins = context.Addins
-				.Where(addin => !context.BlacklistedAddins.Any(blackListedAddinName => addin.Name.IsMatch(blackListedAddinName)))
+				.Where(addin => !context.ExcludedAddins.Any(excludedAddinName => addin.Name.IsMatch(excludedAddinName)))
 				.OrderBy(addin => addin.Name)
 				.ToArray();
 

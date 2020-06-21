@@ -288,7 +288,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.Where(t1 => !string.IsNullOrEmpty(t1))
 				.Select(t2 => t2.Replace('-', ' '))
 				.Select(t3 => t3.ToLowerInvariant())
-				.Except(context.BlacklistedTags, StringComparer.InvariantCultureIgnoreCase)
+				.Except(context.ExcludedTags, StringComparer.InvariantCultureIgnoreCase)
 				.Distinct(StringComparer.InvariantCultureIgnoreCase)
 				.Select(tag => $"- {tag}");
 
