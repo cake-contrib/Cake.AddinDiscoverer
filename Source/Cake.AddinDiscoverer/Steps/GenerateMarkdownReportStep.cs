@@ -56,7 +56,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.CustomUrl)} are using a custom icon hosted on a web site");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedCakeContrib)} are embedding the cake-contrib icon (which is the current recommendation)");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedCustom)} are embedding a custom icon");
-			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferredToCakeContribOrganisation)} have been transferred to the cake-contrib organisation");
+			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.TransferredToCakeContribOrganization)} have been transferred to the cake-contrib organisation");
 			markdown.AppendLine($"  - {auditedAddins.Count(addin => addin.AnalysisResult.ObsoleteLicenseUrlRemoved)} have replaced the obsolete `licenseUrl` with proper license metadata (see the `Additional audit results` section below for details)");
 			markdown.AppendLine();
 

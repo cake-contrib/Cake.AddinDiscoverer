@@ -80,7 +80,7 @@ namespace Cake.AddinDiscoverer.Steps
 						addin.AnalysisResult.Icon = IconAnalysisResult.Unspecified;
 					}
 
-					addin.AnalysisResult.TransferredToCakeContribOrganisation = addin.RepositoryOwner?.Equals(Constants.CAKE_CONTRIB_REPO_OWNER, StringComparison.OrdinalIgnoreCase) ?? false;
+					addin.AnalysisResult.TransferredToCakeContribOrganization = addin.RepositoryOwner?.Equals(Constants.CAKE_CONTRIB_REPO_OWNER, StringComparison.OrdinalIgnoreCase) ?? false;
 					addin.AnalysisResult.ObsoleteLicenseUrlRemoved = !string.IsNullOrEmpty(addin.License);
 					addin.AnalysisResult.RepositoryInfoProvided = addin.RepositoryUrl != null;
 					addin.AnalysisResult.PackageCoOwnedByCakeContrib = addin.NuGetPackageOwners.Contains("cake-contrib", StringComparer.OrdinalIgnoreCase);
