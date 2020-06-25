@@ -33,12 +33,12 @@ namespace Cake.AddinDiscoverer.Models
 		public IconAnalysisResult Icon { get; set; }
 
 		/// <summary>
-		/// Gets or sets a value indicating whether the addin was transferred to the cake-contrib github organisation.
+		/// Gets or sets a value indicating whether the addin was transferred to the cake-contrib github organization.
 		/// </summary>
-		public bool TransferredToCakeContribOrganisation { get; set; }
+		public bool TransferredToCakeContribOrganization { get; set; }
 
 		/// <summary>
-		/// Gets or sets a value indicating whether the cake-contrib user has been added as an owner ofthe NuGet package.
+		/// Gets or sets a value indicating whether the cake-contrib user has been added as an owner of the NuGet package.
 		/// </summary>
 		public bool PackageCoOwnedByCakeContrib { get; set; }
 

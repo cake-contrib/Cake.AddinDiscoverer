@@ -33,6 +33,7 @@ namespace Cake.AddinDiscoverer.Steps
 						if (repo != null)
 						{
 							addin.ProjectUrl = new Uri(repo.HtmlUrl);
+							addin.RepositoryUrl = new Uri(repo.CloneUrl);
 						}
 
 						// Force HTTPS for Github URLs

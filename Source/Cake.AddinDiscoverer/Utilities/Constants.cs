@@ -202,8 +202,8 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Transferred to cake-contrib",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.TransferredToCakeContribOrganisation.ToString().ToLower(),
-				(addin, cakeVersion) => addin.AnalysisResult.TransferredToCakeContribOrganisation ? Color.LightGreen : Color.Red,
+				(addin) => addin.AnalysisResult.TransferredToCakeContribOrganization.ToString().ToLower(),
+				(addin, cakeVersion) => addin.AnalysisResult.TransferredToCakeContribOrganization ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel
@@ -212,7 +212,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				"Transferred to cake-contrib",
 				ExcelHorizontalAlignment.Center,
 				(addin) => string.Empty,
-				(addin, cakeVersion) => addin.AnalysisResult.TransferredToCakeContribOrganisation ? Color.LightGreen : Color.Red,
+				(addin, cakeVersion) => addin.AnalysisResult.TransferredToCakeContribOrganization ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.All,
 				DataDestination.MarkdownForRecipes // This column not displayed in markdown for addins due to space restriction
