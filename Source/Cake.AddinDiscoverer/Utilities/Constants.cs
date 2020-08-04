@@ -298,6 +298,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin) => null,
 				AddinType.All,
 				DataDestination.Excel
+			),
+			(
+				"Includes PDB",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.PdbIncludedInPackage.ToString().ToLower(),
+				(addin, cakeVersion) => addin.PdbIncludedInPackage ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.Addin | AddinType.Module,
+				DataDestination.Excel
 			)
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly

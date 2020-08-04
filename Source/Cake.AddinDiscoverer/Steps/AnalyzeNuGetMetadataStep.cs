@@ -114,6 +114,12 @@ namespace Cake.AddinDiscoverer.Steps
 									}
 								}
 
+								// Check if the PDB is included in the package
+								addin.PdbIncludedInPackage = package.GetFiles()
+									.Any(f =>
+										Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
+										Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
+
 								// Find the DLL references
 								var dllReferences = Array.Empty<DllReference>();
 								if (!string.IsNullOrEmpty(assemblyPath))
