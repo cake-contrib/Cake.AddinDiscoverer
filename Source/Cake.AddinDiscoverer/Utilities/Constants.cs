@@ -302,8 +302,27 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"PDB",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.PdbStatus.ToString().ToLower(),
-				(addin, cakeVersion) => addin.PdbStatus == PdbStatus.IncludedInPackage ? Color.LightGreen : (addin.PdbStatus == PdbStatus.IncludedInSymbolsPackage ? Color.Gold : Color.Red),
+				(addin) =>
+				{
+					switch (addin.PdbStatus)
+					{
+						case PdbStatus.Embedded: return "embedded";
+						case PdbStatus.IncludedInPackage: return "included in nupkg";
+						case PdbStatus.IncludedInSymbolsPackage: return "included in snupkg";
+						case PdbStatus.NotAvailable: return "unavailable";
+						default: return "unknown";
+					}
+				},
+				(addin, cakeVersion) =>
+				{
+					switch (addin.PdbStatus)
+					{
+						case PdbStatus.Embedded: return Color.LightGreen;
+						case PdbStatus.IncludedInPackage: return Color.LightGreen;
+						case PdbStatus.IncludedInSymbolsPackage: return Color.Gold;
+						default: return Color.Red;
+					}
+				},
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
 				DataDestination.Excel
