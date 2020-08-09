@@ -300,10 +300,10 @@ namespace Cake.AddinDiscoverer.Utilities
 				DataDestination.Excel
 			),
 			(
-				"Includes PDB",
+				"PDB",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.PdbIncludedInPackage.ToString().ToLower(),
-				(addin, cakeVersion) => addin.PdbIncludedInPackage ? Color.LightGreen : Color.Red,
+				(addin) => addin.PdbStatus.ToString().ToLower(),
+				(addin, cakeVersion) => addin.PdbStatus == PdbStatus.IncludedInPackage ? Color.LightGreen : (addin.PdbStatus == PdbStatus.IncludedInSymbolsPackage ? Color.Gold : Color.Red),
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
 				DataDestination.Excel
