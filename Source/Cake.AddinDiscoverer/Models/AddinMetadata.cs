@@ -56,7 +56,7 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string DllName { get; set; }
 
-		public bool PdbIncludedInPackage { get; set; }
+		public PdbStatus PdbStatus { get; set; }
 
 		public string GetMaintainerName()
 		{
