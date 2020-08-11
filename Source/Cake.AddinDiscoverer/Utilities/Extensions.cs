@@ -208,7 +208,7 @@ namespace Cake.AddinDiscoverer
 		/// * - any characters(zero or more).
 		/// </summary>
 		/// <param name="source">The string to search for a match.</param>
-		/// <param name="pattern">The patern to match.</param>
+		/// <param name="pattern">The pattern to match.</param>
 		/// <returns>true if a match was found, false otherwise.</returns>
 		public static bool IsMatch(this string source, string pattern)
 		{

@@ -312,9 +312,8 @@ namespace Cake.AddinDiscoverer.Steps
 				var customDebugInfo = pdbReader.GetCustomDebugInformation(customDebugInfoHandle);
 				if (pdbReader.GetGuid(customDebugInfo.Kind) == SourceLinkCustomDebugInfoGuid)
 				{
-					//var sourceLinkContent = pdbReader.GetBlobBytes(customDebugInfo.Value);
-					//var sourceLinkText = System.Text.Encoding.UTF8.GetString(sourceLinkContent);
-
+					// var sourceLinkContent = pdbReader.GetBlobBytes(customDebugInfo.Value);
+					// var sourceLinkText = System.Text.Encoding.UTF8.GetString(sourceLinkContent);
 					return true;
 				}
 			}
