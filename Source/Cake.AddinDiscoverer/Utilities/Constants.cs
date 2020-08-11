@@ -169,7 +169,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Icon",
 				ExcelHorizontalAlignment.Center,
-				(AddinMetadata addin) =>
+				(addin) =>
 				{
 					switch (addin.AnalysisResult.Icon)
 					{
@@ -293,10 +293,47 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Newtonsoft.Json",
 				ExcelHorizontalAlignment.Center,
-				(AddinMetadata addin) => addin.References.FirstOrDefault(r => r.Id.EqualsIgnoreCase("Newtonsoft.Json"))?.Version.ToString(),
+				(addin) => addin.References.FirstOrDefault(r => r.Id.EqualsIgnoreCase("Newtonsoft.Json"))?.Version.ToString(),
 				(addin, cakeVersion) => Color.Empty,
 				(addin) => null,
 				AddinType.All,
+				DataDestination.Excel
+			),
+			(
+				"Symbols",
+				ExcelHorizontalAlignment.Center,
+				(addin) =>
+				{
+					switch (addin.PdbStatus)
+					{
+						case PdbStatus.Embedded: return "embedded";
+						case PdbStatus.IncludedInPackage: return "included in nupkg";
+						case PdbStatus.IncludedInSymbolsPackage: return "included in snupkg";
+						case PdbStatus.NotAvailable: return "unavailable";
+						default: return "unknown";
+					}
+				},
+				(addin, cakeVersion) =>
+				{
+					switch (addin.PdbStatus)
+					{
+						case PdbStatus.Embedded: return Color.LightGreen;
+						case PdbStatus.IncludedInPackage: return Color.LightGreen;
+						case PdbStatus.IncludedInSymbolsPackage: return Color.Gold;
+						default: return Color.Red;
+					}
+				},
+				(addin) => null,
+				AddinType.Addin | AddinType.Module,
+				DataDestination.Excel
+			),
+			(
+				"SourceLink",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.SourceLinkEnabled.ToString().ToLower(),
+				(addin, cakeVersion) => addin.SourceLinkEnabled ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.Addin | AddinType.Module,
 				DataDestination.Excel
 			)
 		};
