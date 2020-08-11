@@ -300,7 +300,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				DataDestination.Excel
 			),
 			(
-				"PDB",
+				"Symbols",
 				ExcelHorizontalAlignment.Center,
 				(addin) =>
 				{
@@ -323,6 +323,15 @@ namespace Cake.AddinDiscoverer.Utilities
 						default: return Color.Red;
 					}
 				},
+				(addin) => null,
+				AddinType.Addin | AddinType.Module,
+				DataDestination.Excel
+			),
+			(
+				"SourceLink",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.SourceLinkEnabled.ToString().ToLower(),
+				(addin, cakeVersion) => addin.SourceLinkEnabled ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
 				DataDestination.Excel

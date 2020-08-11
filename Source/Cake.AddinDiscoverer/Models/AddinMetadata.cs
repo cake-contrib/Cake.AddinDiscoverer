@@ -58,6 +58,8 @@ namespace Cake.AddinDiscoverer.Models
 
 		public PdbStatus PdbStatus { get; set; }
 
+		public bool SourceLinkEnabled { get; set; }
+
 		public string GetMaintainerName()
 		{
 			var maintainer = RepositoryOwner ?? Maintainer;

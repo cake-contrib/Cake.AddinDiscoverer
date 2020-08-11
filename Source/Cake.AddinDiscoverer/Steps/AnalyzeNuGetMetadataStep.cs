@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
@@ -16,6 +17,9 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class AnalyzeNuGetMetadataStep : IStep
 	{
+		// https://github.com/dotnet/roslyn/blob/b3cbe7abce7633e45d7dd468bde96bfe24ccde47/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L18
+		private static readonly Guid SourceLinkCustomDebugInfoGuid = new Guid("CC110556-A091-4D38-9FEC-25AB9A351A6A");
+
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
 		public string GetDescription(DiscoveryContext context) => "Analyze nuget packages metadata";
@@ -120,16 +124,23 @@ namespace Cake.AddinDiscoverer.Steps
 							}
 
 							//--------------------------------------------------
-							// Check if the symbols are available
+							// Check if the symbols are available.
+							// If so, check if SourceLink is enabled.
 							addin.PdbStatus = PdbStatus.NotAvailable;
+							addin.SourceLinkEnabled = false;
 
 							// First, check if the PDB is included in the nupkg
-							if (package.GetFiles()
-								.Any(f =>
+							var pdbFileInNupkg = package.GetFiles()
+								.FirstOrDefault(f =>
 									Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
-									Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name)))
+									Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
+
+							if (!string.IsNullOrEmpty(pdbFileInNupkg))
 							{
 								addin.PdbStatus = PdbStatus.IncludedInPackage;
+
+								var pdbStream = package.GetStream(pdbFileInNupkg);
+								addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbStream);
 							}
 
 							// Secondly, check if symbols are embedded in the DLL
@@ -138,10 +149,14 @@ namespace Cake.AddinDiscoverer.Steps
 								assemblyStream.Position = 0;
 								var peReader = new PEReader(assemblyStream);
 
-								if (peReader.ReadDebugDirectory().Any(de =>
-									de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb))
+								if (peReader.ReadDebugDirectory().Any(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb))
 								{
 									addin.PdbStatus = PdbStatus.Embedded;
+
+									var embeddedEntry = peReader.ReadDebugDirectory().First(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb);
+									using var embeddedMetadataProvider = peReader.ReadEmbeddedPortablePdbDebugDirectoryData(embeddedEntry);
+									var pdbReader = embeddedMetadataProvider.GetMetadataReader();
+									addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbReader);
 								}
 							}
 
@@ -154,12 +169,17 @@ namespace Cake.AddinDiscoverer.Steps
 									using var symbolsStream = File.Open(symbolsFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
 									using var symbolsPackage = new PackageArchiveReader(symbolsStream);
 
-									if (symbolsPackage.GetFiles()
-										.Any(f =>
+									var pdbFileInSnupkg = symbolsPackage.GetFiles()
+										.FirstOrDefault(f =>
 											Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
-											Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name)))
+											Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
+
+									if (!string.IsNullOrEmpty(pdbFileInSnupkg))
 									{
 										addin.PdbStatus = PdbStatus.IncludedInSymbolsPackage;
+
+										var pdbStream = package.GetStream(pdbFileInSnupkg);
+										addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbStream);
 									}
 								}
 							}
@@ -266,6 +286,40 @@ namespace Cake.AddinDiscoverer.Steps
 				// Note: intentionally discarding the original exception because I want to ensure the following message is displayed in the 'Exceptions' report
 				throw new FileLoadException($"An error occured while loading {Path.GetFileName(filePath)} from the Nuget package. {e.Message}");
 			}
+		}
+
+		private bool HasSourceLinkDebugInformation(Stream pdbStream)
+		{
+			if (!pdbStream.CanSeek)
+			{
+				using var seekablePdbStream = new MemoryStream();
+				pdbStream.CopyTo(seekablePdbStream);
+				seekablePdbStream.Position = 0;
+
+				return HasSourceLinkDebugInformation(seekablePdbStream);
+			}
+
+			using var pdbReaderProvider = MetadataReaderProvider.FromPortablePdbStream(pdbStream);
+			var pdbReader = pdbReaderProvider.GetMetadataReader();
+
+			return HasSourceLinkDebugInformation(pdbReader);
+		}
+
+		private bool HasSourceLinkDebugInformation(MetadataReader pdbReader)
+		{
+			foreach (var customDebugInfoHandle in pdbReader.CustomDebugInformation)
+			{
+				var customDebugInfo = pdbReader.GetCustomDebugInformation(customDebugInfoHandle);
+				if (pdbReader.GetGuid(customDebugInfo.Kind) == SourceLinkCustomDebugInfoGuid)
+				{
+					//var sourceLinkContent = pdbReader.GetBlobBytes(customDebugInfo.Value);
+					//var sourceLinkText = System.Text.Encoding.UTF8.GetString(sourceLinkContent);
+
+					return true;
+				}
+			}
+
+			return false;
 		}
 	}
 }
