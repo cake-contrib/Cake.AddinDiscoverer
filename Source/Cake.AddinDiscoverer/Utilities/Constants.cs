@@ -169,7 +169,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Icon",
 				ExcelHorizontalAlignment.Center,
-				(AddinMetadata addin) =>
+				(addin) =>
 				{
 					switch (addin.AnalysisResult.Icon)
 					{
@@ -293,7 +293,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Newtonsoft.Json",
 				ExcelHorizontalAlignment.Center,
-				(AddinMetadata addin) => addin.References.FirstOrDefault(r => r.Id.EqualsIgnoreCase("Newtonsoft.Json"))?.Version.ToString(),
+				(addin) => addin.References.FirstOrDefault(r => r.Id.EqualsIgnoreCase("Newtonsoft.Json"))?.Version.ToString(),
 				(addin, cakeVersion) => Color.Empty,
 				(addin) => null,
 				AddinType.All,
