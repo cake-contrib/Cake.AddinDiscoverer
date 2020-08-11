@@ -293,7 +293,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Newtonsoft.Json",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.References.FirstOrDefault(r => r.Id.EqualsIgnoreCase("Newtonsoft.Json"))?.Version.ToString(),
+				(addin) => addin.References?.FirstOrDefault(r => r.Id.EqualsIgnoreCase("Newtonsoft.Json"))?.Version.ToString(),
 				(addin, cakeVersion) => Color.Empty,
 				(addin) => null,
 				AddinType.All,
