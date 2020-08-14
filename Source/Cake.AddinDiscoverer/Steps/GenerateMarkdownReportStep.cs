@@ -76,7 +76,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `NuGet package version` column indicates the version of the package that was audited.");
 			markdown.AppendLine("- The `Maintainer` column indicates who is maintaining the source for this project");
 			markdown.AppendLine("- The `Icon` column indicates if the nuget package for your addin uses the cake-contrib icon.");
-			markdown.AppendLine("- The `Transferred to cake-contrib` column indicates if the project has been moved to the cake-contrib github organisation.");
+			markdown.AppendLine("- The `Transferred to cake-contrib` column indicates if the project has been moved to the cake-contrib github organization.");
 			markdown.AppendLine("- The `License` column indicates the license selected by the addin author. PLEASE NOTE: this information is only available if the nuget package includes the new `license` metadata information (documented [here](https://docs.microsoft.com/en-us/nuget/reference/nuspec#license) and [here](https://docs.microsoft.com/en-us/nuget/reference/msbuild-targets#packing-a-license-expression-or-a-license-file)) as opposed to the [obsolete](https://github.com/NuGet/Announcements/issues/32) `licenseUrl`.");
 			markdown.AppendLine("- The `Repository` column indicates if the repository information is present in the package nuspec as documented [here](https://docs.microsoft.com/en-us/nuget/reference/nuspec#repository) and [here](https://docs.microsoft.com/en-us/nuget/reference/msbuild-targets#pack-target).");
 			markdown.AppendLine("- The `cake-contrib co-owner` column indicates if the cake-contrib user is a co-owner of the nuget package.");
@@ -84,6 +84,8 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `Pull requests count` column indicates the number of open pull requests in the addin's github repository.");
 			markdown.AppendLine("- The `Cake.Recipe` column indicates what version of Cake.Recipe is used to build this addin.");
 			markdown.AppendLine("- The `Newtonsoft.Json` column indicates what version of Newtonsoft.Json is referenced by this addin (if any).");
+			markdown.AppendLine("- The `Symbols` column indicates whether we found debugging symbols in the NuGet package, in the symbols package or embedded in the DLL.");
+			markdown.AppendLine("- The `SourceLink` column indicates whether the SourceLink has been configured.");
 
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
