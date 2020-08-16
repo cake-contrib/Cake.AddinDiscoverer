@@ -130,57 +130,78 @@ namespace Cake.AddinDiscoverer.Steps
 							addin.SourceLinkEnabled = false;
 
 							// First, check if the PDB is included in the nupkg
-							var pdbFileInNupkg = package.GetFiles()
-								.FirstOrDefault(f =>
-									Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
-									Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
-
-							if (!string.IsNullOrEmpty(pdbFileInNupkg))
+							try
 							{
-								addin.PdbStatus = PdbStatus.IncludedInPackage;
+								var pdbFileInNupkg = package.GetFiles()
+									.FirstOrDefault(f =>
+										Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
+										Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
 
-								var pdbStream = package.GetStream(pdbFileInNupkg);
-								addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbStream);
+								if (!string.IsNullOrEmpty(pdbFileInNupkg))
+								{
+									addin.PdbStatus = PdbStatus.IncludedInPackage;
+
+									var pdbStream = package.GetStream(pdbFileInNupkg);
+									addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbStream);
+								}
+							}
+							catch
+							{
+								// Ignore exceptions
 							}
 
 							// Secondly, check if symbols are embedded in the DLL
 							if (addin.PdbStatus == PdbStatus.NotAvailable && assemblyStream != null)
 							{
-								assemblyStream.Position = 0;
-								var peReader = new PEReader(assemblyStream);
-
-								if (peReader.ReadDebugDirectory().Any(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb))
+								try
 								{
-									addin.PdbStatus = PdbStatus.Embedded;
+									assemblyStream.Position = 0;
+									var peReader = new PEReader(assemblyStream);
 
-									var embeddedEntry = peReader.ReadDebugDirectory().First(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb);
-									using var embeddedMetadataProvider = peReader.ReadEmbeddedPortablePdbDebugDirectoryData(embeddedEntry);
-									var pdbReader = embeddedMetadataProvider.GetMetadataReader();
-									addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbReader);
+									if (peReader.ReadDebugDirectory().Any(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb))
+									{
+										addin.PdbStatus = PdbStatus.Embedded;
+
+										var embeddedEntry = peReader.ReadDebugDirectory().First(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb);
+										using var embeddedMetadataProvider = peReader.ReadEmbeddedPortablePdbDebugDirectoryData(embeddedEntry);
+										var pdbReader = embeddedMetadataProvider.GetMetadataReader();
+										addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbReader);
+									}
+								}
+								catch
+								{
+									// Ignore exceptions
 								}
 							}
 
 							// Finally, check if the PDB is included in the snupkg
 							if (addin.PdbStatus == PdbStatus.NotAvailable)
 							{
-								var symbolsFileName = Path.Combine(context.PackagesFolder, $"{addin.Name}.{addin.NuGetPackageVersion}.snupkg");
-								if (File.Exists(symbolsFileName))
+								try
 								{
-									using var symbolsStream = File.Open(symbolsFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
-									using var symbolsPackage = new PackageArchiveReader(symbolsStream);
-
-									var pdbFileInSnupkg = symbolsPackage.GetFiles()
-										.FirstOrDefault(f =>
-											Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
-											Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
-
-									if (!string.IsNullOrEmpty(pdbFileInSnupkg))
+									var symbolsFileName = Path.Combine(context.PackagesFolder, $"{addin.Name}.{addin.NuGetPackageVersion}.snupkg");
+									if (File.Exists(symbolsFileName))
 									{
-										addin.PdbStatus = PdbStatus.IncludedInSymbolsPackage;
+										using var symbolsStream = File.Open(symbolsFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
+										using var symbolsPackage = new PackageArchiveReader(symbolsStream);
 
-										var pdbStream = package.GetStream(pdbFileInSnupkg);
-										addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbStream);
+										var pdbFileInSnupkg = symbolsPackage.GetFiles()
+											.FirstOrDefault(f =>
+												Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
+												Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
+
+										if (!string.IsNullOrEmpty(pdbFileInSnupkg))
+										{
+											addin.PdbStatus = PdbStatus.IncludedInSymbolsPackage;
+
+											var pdbStream = package.GetStream(pdbFileInSnupkg);
+											addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbStream);
+										}
 									}
+								}
+								catch
+								{
+									// Ignore exceptions
 								}
 							}
 
