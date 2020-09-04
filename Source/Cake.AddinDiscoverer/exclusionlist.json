@@ -13,6 +13,7 @@
     "Cake.NuGet",
     "Cake.Scripting.Abstractions",
     "Cake.Scripting.Transport",
+    "Cake.SendMail",  // This is a clone of Cake.Email
     "Cake.ServiceOrchestration",
     "Cake.Testing",
     "Cake.Tin",
