@@ -6,7 +6,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
-    <Version>3.44.1</Version>
+    <Version>3.45.0</Version>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
