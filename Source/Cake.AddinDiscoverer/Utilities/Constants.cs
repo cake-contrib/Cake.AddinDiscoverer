@@ -79,6 +79,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				DataDestination.Excel
 			),
 			(
+				"Type",
+				ExcelHorizontalAlignment.Left,
+				(addin) => addin.Type,
+				(addin, cakeVersion) => Color.Empty,
+				(addin) => null,
+				AddinType.Addin | AddinType.Module,
+				DataDestination.Excel
+			),
+			(
 				"Maintainer",
 				ExcelHorizontalAlignment.Left,
 				(addin) => addin.GetMaintainerName(),
