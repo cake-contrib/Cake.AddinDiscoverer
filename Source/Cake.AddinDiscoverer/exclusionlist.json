@@ -1,29 +1,30 @@
 {
   "packages": [
     "Cake.Bakery",
+    "Cake.Board",
+    "Cake.Board.Abstractions",
     "Cake.Bridge",
     "Cake.Common",
+    "Cake.CompressionNetStandard",
     "Cake.Core",
     "Cake.CoreCLR",
     "Cake.Email.Common",
     "Cake.Frosting",
     "Cake.Frosting.Template",
+    "Cake.LycheeOS",
     "Cake.Mix",
-    "Cake.CompressionNetStandard",
     "Cake.NuGet",
+    "Cake.OssIndex",
     "Cake.Scripting.Abstractions",
     "Cake.Scripting.Transport",
-    "Cake.SendMail",  // This is a clone of Cake.Email
+    "Cake.SendMail", // This is a clone of Cake.Email
     "Cake.ServiceOrchestration",
+    "Cake.Storm.*",
+    "Cake.Task.*",
     "Cake.Testing",
     "Cake.Tin",
     "Cake.Xamarin.Build",
-    "Cake.Xamarin.Build.CakeBuilder",
-    "Cake.Storm.*",
-    "Cake.Board.Abstractions",
-    "Cake.Board",
-    "Cake.LycheeOS",
-    "Cake.OssIndex"
+    "Cake.Xamarin.Build.CakeBuilder"
   ],
   "labels": [
     "Addin",
