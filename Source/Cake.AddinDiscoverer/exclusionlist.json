@@ -13,7 +13,7 @@
     "Cake.NuGet",
     "Cake.Scripting.Abstractions",
     "Cake.Scripting.Transport",
-    "Cake.SendMail",  // This is a clone of Cake.Email
+    "Cake.SendMail", // This is a clone of Cake.Email
     "Cake.ServiceOrchestration",
     "Cake.Testing",
     "Cake.Tin",
@@ -23,7 +23,8 @@
     "Cake.Board.Abstractions",
     "Cake.Board",
     "Cake.LycheeOS",
-    "Cake.OssIndex"
+    "Cake.OssIndex",
+    "Cake.Task.*"
   ],
   "labels": [
     "Addin",
