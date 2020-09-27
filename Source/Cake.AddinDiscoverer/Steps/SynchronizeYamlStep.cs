@@ -119,7 +119,7 @@ namespace Cake.AddinDiscoverer.Steps
 							(CommitMessage: issueTitle, FilesToDelete: new[] { yamlToBeDeleted.Path }, FilesToUpsert: null)
 						};
 
-						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 
 						// This delay is important to avoid triggering GitHub's abuse protection
@@ -163,7 +163,7 @@ namespace Cake.AddinDiscoverer.Steps
 							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"addins/{addinToBeCreated.Addin.Name}.yml", Content: addinToBeCreated.NewContent) })
 						};
 
-						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 
 						// This delay is important to avoid triggering GitHub's abuse protection
@@ -207,7 +207,7 @@ namespace Cake.AddinDiscoverer.Steps
 							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"addins/{addinToBeUpdated.Addin.Name}.yml", Content: addinToBeUpdated.NewContent) })
 						};
 
-						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 
 						// This delay is important to avoid triggering GitHub's abuse protection

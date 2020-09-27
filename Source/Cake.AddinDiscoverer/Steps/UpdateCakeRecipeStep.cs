@@ -158,7 +158,7 @@ namespace Cake.AddinDiscoverer.Steps
 							(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, outdatedReference.Recipe.Path, Content: outdatedReference.Recipe.GetContentForCurrentCake(outdatedReference.Reference)) })
 						};
 
-						await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
+						await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
 					}, Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 		}
@@ -238,7 +238,7 @@ namespace Cake.AddinDiscoverer.Steps
 						(CommitMessage: "Update Cake version in package.config", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
 					};
 
-					pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);
+					pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);
 					context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 				}
 			}

@@ -60,7 +60,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 									// Commit changes to a new branch and submit PR
 									var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-									var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.AuditIssue.Number, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
+									var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.AuditIssue?.Number, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
 
 									addin.AuditPullRequest = pullRequest;
 									context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
