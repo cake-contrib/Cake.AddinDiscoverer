@@ -134,7 +134,7 @@ namespace Cake.AddinDiscoverer
 			var fork = await githubClient.Repository.Forks.Create(repoOwner, repoName, new NewRepositoryFork()).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
-			var compareResult = await githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}").ConfigureAwait(false);
+			var compareResult = await githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{upstream.DefaultBranch}").ConfigureAwait(false);
 			if (compareResult.BehindBy > 0)
 			{
 				var upstreamBranchReference = await githubClient.Git.Reference.Get(upstream.Owner.Login, upstream.Name, $"heads/{upstream.DefaultBranch}").ConfigureAwait(false);
