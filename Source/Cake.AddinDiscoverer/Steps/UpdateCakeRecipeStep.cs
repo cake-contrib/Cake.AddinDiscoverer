@@ -132,7 +132,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (!outdatedReferences.Any()) return;
 
 			// Ensure the fork is up-to-date
-			var fork = await context.GithubClient.RefreshFork(context.Options.GithubUsername, Constants.CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
+			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
 			// Create an issue and PR for each outdated reference
@@ -174,7 +174,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (!recipeFilesWithAtLeastOneReference.Any()) return;
 
 			// Ensure the fork is up-to-date
-			var fork = await context.GithubClient.RefreshFork(context.Options.GithubUsername, Constants.CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
+			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
 			// The content of the issue body

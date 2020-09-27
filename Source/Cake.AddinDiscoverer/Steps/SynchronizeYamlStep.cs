@@ -24,7 +24,7 @@ namespace Cake.AddinDiscoverer.Steps
 			const int MAX_FILES_TO_COMMIT = 75;
 
 			// Ensure the fork is up-to-date
-			var fork = await context.GithubClient.RefreshFork(context.Options.GithubUsername, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
+			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
 			// --------------------------------------------------
