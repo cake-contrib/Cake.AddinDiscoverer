@@ -1,5 +1,7 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using Octokit;
@@ -10,7 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
+using Constants = Cake.AddinDiscoverer.Utilities.Constants;
 
 namespace Cake.AddinDiscoverer.Steps
 {
@@ -28,12 +30,13 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private async Task<SemVersion> FindCakeVersionUsedByRecipe(DiscoveryContext context)
 		{
-			var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.PACKAGES_CONFIG_PATH).ConfigureAwait(false);
+			var dotNetToolsConfig = await Misc.GetCakeRecipeDotNetToolsConfig(context).ConfigureAwait(false);
+			var jObject = JObject.Parse(dotNetToolsConfig);
+			var versionNode = jObject["tools"]?["cake.tool"]?["version"];
 
-			var xmlDoc = new XmlDocument();
-			xmlDoc.LoadXml(contents[0].Content);
+			if (versionNode == null) throw new Exception($"{Constants.DOT_NET_TOOLS_CONFIG_PATH} does not contain tools/cake.tool/version.");
 
-			var cakeVersion = xmlDoc.SelectSingleNode("/packages/package[@id=\"Cake\"]/@version").InnerText;
+			var cakeVersion = versionNode.Value<string>();
 			return SemVersion.Parse(cakeVersion);
 		}
 
@@ -219,11 +222,12 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (availableForLatestCakeVersionCount == totalReferencesCount)
 			{
-				var packagesConfig = new StringBuilder();
-				packagesConfig.AppendUnixLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-				packagesConfig.AppendUnixLine("<packages>");
-				packagesConfig.AppendUnixLine($"    <package id=\"Cake\" version=\"{latestCakeVersion.Version.ToString(3)}\" />");
-				packagesConfig.AppendUnixLine("</packages>");
+				var dotNetToolsConfig = await Misc.GetCakeRecipeDotNetToolsConfig(context).ConfigureAwait(false);
+				var dotNetToolsConfigJObject = JObject.Parse(dotNetToolsConfig);
+				dotNetToolsConfigJObject["tools"]?["cake.tool"]?["version"]?.Replace(new JValue(latestCakeVersion.Version.ToString(3)));
+				dotNetToolsConfig = dotNetToolsConfigJObject
+					.ToString(Formatting.Indented)
+					.Replace("\r\n", "\n"); // Replace Windows line endings with Unix line endings
 
 				// Commit changes to a new branch and submit PR
 				var pullRequestTitle = $"Upgrade to Cake {latestCakeVersion.Version.ToString(3)}";
@@ -235,7 +239,7 @@ namespace Cake.AddinDiscoverer.Steps
 					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
 					{
 						(CommitMessage: "Update addins references", FilesToDelete: null, FilesToUpsert: recipeFilesWithAtLeastOneReference.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake())).ToArray()),
-						(CommitMessage: "Update Cake version in package.config", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.PACKAGES_CONFIG_PATH, Content: packagesConfig.ToString()) })
+						(CommitMessage: "Update Cake version in dotnet-tools.json", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.DOT_NET_TOOLS_CONFIG_PATH, Content: dotNetToolsConfig) })
 					};
 
 					pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);
