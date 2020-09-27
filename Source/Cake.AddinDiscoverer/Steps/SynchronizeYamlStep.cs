@@ -249,25 +249,18 @@ namespace Cake.AddinDiscoverer.Steps
 			var mapping = (YamlMappingNode)yaml.Documents[0].RootNode;
 
 			var yamlContent = new StringBuilder();
-			yamlContent.AppendUnixLine($"Name: {GetChildNodeValue(mapping, "Name")}");
-			yamlContent.AppendUnixLine($"NuGet: {GetChildNodeValue(mapping, "NuGet")}");
+			yamlContent.AppendUnixLine($"Name: {mapping.GetChildNodeValue("Name")}");
+			yamlContent.AppendUnixLine($"NuGet: {mapping.GetChildNodeValue("NuGet")}");
 			yamlContent.AppendUnixLine("Assemblies:");
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
 			yamlContent.AppendUnixLine($"Repository: {(addin.ProjectUrl ?? addin.NuGetPackageUrl).AbsoluteUri.TrimEnd('/') + '/'}");
-			yamlContent.AppendUnixLine($"Author: {GetChildNodeValue(mapping, "Author")}");
-			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(GetChildNodeValue(mapping, "Description"))}");
+			yamlContent.AppendUnixLine($"Author: {mapping.GetChildNodeValue("Author")}");
+			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(mapping.GetChildNodeValue("Description"))}");
 			if (addin.IsPrerelease || addin.HasPrereleaseDependencies) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
 
 			return yamlContent.ToString();
-		}
-
-		private static string GetChildNodeValue(YamlMappingNode mapping, string name)
-		{
-			var key = new YamlScalarNode(name);
-			if (!mapping.Children.ContainsKey(key)) return string.Empty;
-			return mapping.Children[key].ToString();
 		}
 
 		private static string GetCategoriesForYaml(DiscoveryContext context, YamlMappingNode mapping)

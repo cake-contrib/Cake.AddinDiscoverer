@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using YamlDotNet.RepresentationModel;
 
 namespace Cake.AddinDiscoverer
 {
@@ -323,6 +324,13 @@ namespace Cake.AddinDiscoverer
 				});
 
 			return querystringParameters;
+		}
+
+		public static string GetChildNodeValue(this YamlMappingNode mapping, string name)
+		{
+			var key = new YamlScalarNode(name);
+			if (!mapping.Children.ContainsKey(key)) return string.Empty;
+			return mapping.Children[key].ToString();
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)
