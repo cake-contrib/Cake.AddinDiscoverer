@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Utilities
@@ -84,7 +85,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 		}
 
-		public static async Task<PullRequest> CommitToNewBranchAndSubmitPullRequestAsync(DiscoveryContext context, Octokit.Repository fork, int issueNumber, string newBranchName, string pullRequestTitle, IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		public static async Task<PullRequest> CommitToNewBranchAndSubmitPullRequestAsync(DiscoveryContext context, Octokit.Repository fork, int? issueNumber, string newBranchName, string pullRequestTitle, IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			if (commits == null || !commits.Any()) throw new ArgumentNullException("You must provide at least one commit", nameof(commits));
 
@@ -97,14 +98,23 @@ namespace Cake.AddinDiscoverer.Utilities
 
 			foreach (var (commitMessage, filesToDelete, filesToUpsert) in commits)
 			{
-				latestCommit = await context.GithubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, filesToUpsert, $"(GH-{issueNumber}) {commitMessage}").ConfigureAwait(false);
+				latestCommit = await context.GithubClient.ModifyFilesAsync(fork, latestCommit, filesToDelete, filesToUpsert, issueNumber.HasValue ? $"(GH-{issueNumber.Value}) {commitMessage}" : commitMessage).ConfigureAwait(false);
 			}
 
 			await context.GithubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha)).ConfigureAwait(false);
 
+			var body = new StringBuilder();
+			body.AppendFormat("This pull request was created by a tool: Cake.AddinDiscoverer version {0}", context.Version);
+			if (issueNumber.HasValue)
+			{
+				body.AppendLine();
+				body.AppendLine();
+				body.AppendFormat("Resolves #{0}", issueNumber.Value);
+			}
+
 			var newPullRequest = new NewPullRequest(pullRequestTitle, $"{fork.Owner.Login}:{newBranchName}", upstream.DefaultBranch)
 			{
-				Body = $"This pull request was created by a tool: Cake.AddinDiscoverer version {context.Version}{Environment.NewLine}{Environment.NewLine}Resolves #{issueNumber}"
+				Body = body.ToString()
 			};
 			var pullRequest = await context.GithubClient.PullRequest.Create(upstream.Owner.Login, upstream.Name, newPullRequest).ConfigureAwait(false);
 
@@ -161,6 +171,12 @@ namespace Cake.AddinDiscoverer.Utilities
 		public static bool ByteArrayCompare(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
 		{
 			return a1.SequenceEqual(a2);
+		}
+
+		public static async Task<string> GetCakeRecipeDotNetToolsConfig(DiscoveryContext context)
+		{
+			var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.DOT_NET_TOOLS_CONFIG_PATH).ConfigureAwait(false);
+			return contents[0].Content;
 		}
 	}
 }

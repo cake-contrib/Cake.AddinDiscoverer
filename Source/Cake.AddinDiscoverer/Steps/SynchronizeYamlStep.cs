@@ -24,7 +24,7 @@ namespace Cake.AddinDiscoverer.Steps
 			const int MAX_FILES_TO_COMMIT = 75;
 
 			// Ensure the fork is up-to-date
-			var fork = await context.GithubClient.RefreshFork(context.Options.GithubUsername, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
+			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
 			// --------------------------------------------------
@@ -119,7 +119,7 @@ namespace Cake.AddinDiscoverer.Steps
 							(CommitMessage: issueTitle, FilesToDelete: new[] { yamlToBeDeleted.Path }, FilesToUpsert: null)
 						};
 
-						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 
 						// This delay is important to avoid triggering GitHub's abuse protection
@@ -163,7 +163,7 @@ namespace Cake.AddinDiscoverer.Steps
 							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"addins/{addinToBeCreated.Addin.Name}.yml", Content: addinToBeCreated.NewContent) })
 						};
 
-						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 
 						// This delay is important to avoid triggering GitHub's abuse protection
@@ -207,7 +207,7 @@ namespace Cake.AddinDiscoverer.Steps
 							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"addins/{addinToBeUpdated.Addin.Name}.yml", Content: addinToBeUpdated.NewContent) })
 						};
 
-						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
 						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 
 						// This delay is important to avoid triggering GitHub's abuse protection
@@ -249,25 +249,18 @@ namespace Cake.AddinDiscoverer.Steps
 			var mapping = (YamlMappingNode)yaml.Documents[0].RootNode;
 
 			var yamlContent = new StringBuilder();
-			yamlContent.AppendUnixLine($"Name: {GetChildNodeValue(mapping, "Name")}");
-			yamlContent.AppendUnixLine($"NuGet: {GetChildNodeValue(mapping, "NuGet")}");
+			yamlContent.AppendUnixLine($"Name: {mapping.GetChildNodeValue("Name")}");
+			yamlContent.AppendUnixLine($"NuGet: {mapping.GetChildNodeValue("NuGet")}");
 			yamlContent.AppendUnixLine("Assemblies:");
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
 			yamlContent.AppendUnixLine($"Repository: {(addin.ProjectUrl ?? addin.NuGetPackageUrl).AbsoluteUri.TrimEnd('/') + '/'}");
-			yamlContent.AppendUnixLine($"Author: {GetChildNodeValue(mapping, "Author")}");
-			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(GetChildNodeValue(mapping, "Description"))}");
+			yamlContent.AppendUnixLine($"Author: {mapping.GetChildNodeValue("Author")}");
+			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(mapping.GetChildNodeValue("Description"))}");
 			if (addin.IsPrerelease || addin.HasPrereleaseDependencies) yamlContent.AppendUnixLine("Prerelease: \"true\"");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
 
 			return yamlContent.ToString();
-		}
-
-		private static string GetChildNodeValue(YamlMappingNode mapping, string name)
-		{
-			var key = new YamlScalarNode(name);
-			if (!mapping.Children.ContainsKey(key)) return string.Empty;
-			return mapping.Children[key].ToString();
 		}
 
 		private static string GetCategoriesForYaml(DiscoveryContext context, YamlMappingNode mapping)
