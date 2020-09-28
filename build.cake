@@ -19,8 +19,9 @@ var clearCache = Argument<bool>("clearcache", false);
 var appName = "Cake.AddinDiscoverer";
 var gitHubRepo = "Cake.AddinDiscoverer";
 
-var gitHubUserName = EnvironmentVariable("GITHUB_USERNAME");
-var gitHubPassword = EnvironmentVariable("GITHUB_PASSWORD");
+var gitHubToken = Argument<string>("GITHUB_TOKEN", EnvironmentVariable("GITHUB_TOKEN"));
+var gitHubUserName = Argument<string>("GITHUB_USERNAME", EnvironmentVariable("GITHUB_USERNAME"));
+var gitHubPassword = Argument<string>("GITHUB_PASSWORD", EnvironmentVariable("GITHUB_PASSWORD"));
 
 var sourceFolder = "./Source/";
 var outputDir = "./artifacts/";
@@ -30,7 +31,7 @@ var versionInfo = GitVersion(new GitVersionSettings() { OutputType = GitVersionO
 var cakeVersion = typeof(ICakeContext).Assembly.GetName().Version.ToString();
 var isLocalBuild = BuildSystem.IsLocalBuild;
 var isMainBranch = StringComparer.OrdinalIgnoreCase.Equals("main", BuildSystem.AppVeyor.Environment.Repository.Branch);
-var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals(gitHubUserName + "/" + gitHubRepo, BuildSystem.AppVeyor.Environment.Repository.Name);
+var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals($"{gitHubRepoOwner}/{gitHubRepo}", BuildSystem.AppVeyor.Environment.Repository.Name);
 var isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
 var isTagged = (
 	BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag &&
@@ -66,11 +67,22 @@ Setup(context =>
 		isTagged
 	);
 
-	Information("GitHub Info:\r\n\tRepo: {0}\r\n\tUserName: {1}\r\n\tPassword: {2}",
-		gitHubRepo,
-		gitHubUserName,
-		string.IsNullOrEmpty(gitHubPassword) ? "[NULL]" : new string('*', gitHubPassword.Length)
-	);
+	if (!string.IsNullOrEmpty(gitHubToken))
+	{
+		Information("GitHub Info:\r\n\tRepo: {0}\r\n\tUserName: {1}\r\n\tToken: {2}",
+			gitHubRepo",
+			gitHubUserName,
+			new string('*', gitHubToken.Length)
+		);
+	}
+	else
+	{
+		Information("GitHub Info:\r\n\tRepo: {0}\r\n\tUserName: {1}\r\n\tPassword: {2}",
+			gitHubRepo,
+			gitHubUserName,
+			string.IsNullOrEmpty(gitHubPassword) ? "[NULL]" : new string('*', gitHubPassword.Length)
+		);
+	}
 });
 
 Teardown(context =>
@@ -141,6 +153,7 @@ Task("Publish")
 	DotNetCorePublish($"{sourceFolder}{appName}.sln", new DotNetCorePublishSettings
 	{
 		Configuration = configuration,
+		NoBuild = true,
 		NoRestore = true,
 		OutputDirectory = publishDir
 	});
@@ -179,7 +192,7 @@ Task("Run")
 	var processResult = StartProcess(
 		new FilePath($"{publishDir}{appName}.exe"),
 		new ProcessSettings()
-		{
+	{
 			Arguments = string.Join(" ", args.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim()))
 		});
 	if (processResult != 0)
@@ -191,7 +204,7 @@ Task("Run")
 Task("Upload-Artifacts")  
 	.IsDependentOn("Run")
 	.WithCriteria(() => AppVeyor.IsRunningOnAppVeyor)
-	.Does(() => 
+	.Does(() =>
 {
 	var markdownReport = $"{outputDir}{appName}/AddinDiscoveryReport.md";
 	if (FileExists(markdownReport))
@@ -203,7 +216,7 @@ Task("Upload-Artifacts")
 	if (FileExists(excelReport))
 	{
 		AppVeyor.UploadArtifact(excelReport);
-	}
+    }
 });
 
 
