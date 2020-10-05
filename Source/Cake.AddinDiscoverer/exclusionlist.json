@@ -20,7 +20,7 @@
     "Cake.SendMail", // This is a clone of Cake.Email
     "Cake.ServiceOrchestration",
     "Cake.Storm.*",
-    "Cake.Task.*",
+    "Cake.Tasks.*",
     "Cake.Testing",
     "Cake.Tin",
     "Cake.Xamarin.Build",
