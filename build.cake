@@ -31,7 +31,7 @@ var versionInfo = GitVersion(new GitVersionSettings() { OutputType = GitVersionO
 var cakeVersion = typeof(ICakeContext).Assembly.GetName().Version.ToString();
 var isLocalBuild = BuildSystem.IsLocalBuild;
 var isMainBranch = StringComparer.OrdinalIgnoreCase.Equals("main", BuildSystem.AppVeyor.Environment.Repository.Branch);
-var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals($"{gitHubRepoOwner}/{gitHubRepo}", BuildSystem.AppVeyor.Environment.Repository.Name);
+var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals($"{gitHubUserName}/{gitHubRepo}", BuildSystem.AppVeyor.Environment.Repository.Name);
 var isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
 var isTagged = (
 	BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag &&
@@ -70,7 +70,7 @@ Setup(context =>
 	if (!string.IsNullOrEmpty(gitHubToken))
 	{
 		Information("GitHub Info:\r\n\tRepo: {0}\r\n\tUserName: {1}\r\n\tToken: {2}",
-			gitHubRepo",
+			gitHubRepo,
 			gitHubUserName,
 			new string('*', gitHubToken.Length)
 		);
