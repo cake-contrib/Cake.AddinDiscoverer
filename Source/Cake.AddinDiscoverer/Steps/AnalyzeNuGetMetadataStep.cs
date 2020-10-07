@@ -102,14 +102,8 @@ namespace Cake.AddinDiscoverer.Steps
 
 							if (string.IsNullOrEmpty(assemblyPath))
 							{
-								// This package does not contain DLLs. We'll assume it contains "recipes" .cake files.
-								if (assembliesPath.Length == 0)
-								{
-									addin.Type = AddinType.Recipe;
-								}
-
 								// If a package contains only one DLL, we will analyze this DLL even if it doesn't match the expected naming convention
-								else if (assembliesPath.Length == 1)
+								if (assembliesPath.Length == 1)
 								{
 									assemblyPath = assembliesPath.First();
 								}
@@ -125,6 +119,22 @@ namespace Cake.AddinDiscoverer.Steps
 							{
 								assemblyStream = LoadFileFromPackage(package, assemblyPath);
 								assembly = loadContext.LoadFromStream(assemblyStream);
+							}
+
+							//--------------------------------------------------
+							// Determine the type of the nuget package
+							if (assembliesPath.Length == 0)
+							{
+								// This package does not contain DLLs. We'll assume it contains "recipes" .cake files.
+								addin.Type = AddinType.Recipe;
+							}
+							else if (addin.Name.EndsWith(".Module", StringComparison.OrdinalIgnoreCase))
+							{
+								addin.Type = AddinType.Module;
+							}
+							else
+							{
+								addin.Type = AddinType.Unknown;
 							}
 
 							//--------------------------------------------------
@@ -242,8 +252,6 @@ namespace Cake.AddinDiscoverer.Steps
 							addin.References = dllReferences;
 							addin.HasPrereleaseDependencies = hasPreReleaseDependencies;
 
-							if (addin.Name.EndsWith(".Module", StringComparison.OrdinalIgnoreCase)) addin.Type = AddinType.Module;
-							if (addin.Type == AddinType.Unknown && !string.IsNullOrEmpty(assemblyPath)) addin.Type = AddinType.Addin;
 							if (!string.IsNullOrEmpty(assemblyPath)) addin.DllName = Path.GetFileName(assemblyPath);
 
 							rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
