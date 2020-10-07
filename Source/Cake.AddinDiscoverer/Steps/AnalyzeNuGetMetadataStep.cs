@@ -1,5 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
+using Cake.Core.Annotations;
 using Cake.Incubator.StringExtensions;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
@@ -122,6 +123,20 @@ namespace Cake.AddinDiscoverer.Steps
 							}
 
 							//--------------------------------------------------
+							// Find public methods that are decorated with one of
+							// the Cake alias attributes (i.e.: 'CakePropertyAlias'
+							// or 'CakeMethodAlias').
+							if (assembly != null)
+							{
+								addin.DecoratedMethods = assembly
+									.GetExportedTypes()
+									.SelectMany(t =>
+										t.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
+									.Where(m => m.GetCustomAttributes<CakeAliasAttribute>(true).Any())
+									.ToArray();
+							}
+
+							//--------------------------------------------------
 							// Determine the type of the nuget package
 							if (assembliesPath.Length == 0)
 							{
@@ -132,9 +147,14 @@ namespace Cake.AddinDiscoverer.Steps
 							{
 								addin.Type = AddinType.Module;
 							}
+							else if (addin.DecoratedMethods.Any())
+							{
+								addin.Type = AddinType.Addin;
+							}
 							else
 							{
 								addin.Type = AddinType.Unknown;
+								addin.AnalysisResult.Notes += $"This addin does not have any decorated method.{Environment.NewLine}";
 							}
 
 							//--------------------------------------------------
