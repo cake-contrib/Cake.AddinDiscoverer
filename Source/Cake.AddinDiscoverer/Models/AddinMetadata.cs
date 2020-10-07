@@ -2,6 +2,7 @@ using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Diagnostics;
+using System.Reflection;
 
 namespace Cake.AddinDiscoverer.Models
 {
@@ -59,6 +60,8 @@ namespace Cake.AddinDiscoverer.Models
 		public PdbStatus PdbStatus { get; set; }
 
 		public bool SourceLinkEnabled { get; set; }
+
+		public MethodInfo[] DecoratedMethods { get; set; }
 
 		public string GetMaintainerName()
 		{
