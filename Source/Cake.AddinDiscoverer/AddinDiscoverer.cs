@@ -37,6 +37,9 @@ namespace Cake.AddinDiscoverer
 			// Download the packages from NuGet if they are not already in the cache
 			typeof(DownloadStep),
 
+			// Detect Cake aliases
+			//typeof(DetectCakeAliasesStep),
+
 			// Analyze the metadata in the downloaded nuget package
 			typeof(AnalyzeNuGetMetadataStep),
 
@@ -48,7 +51,7 @@ namespace Cake.AddinDiscoverer
 			// Also, this step forces HTTPS for github URLs.
 			typeof(ValidateUrlStep),
 
-			// Use the info from previous steps to determine if addins meet the best pratices
+			// Use the info from previous steps to determine if addins meet the best practices
 			typeof(AnalyzeAddinsStep),
 
 			// Get previously created issue and pull request from the Github repo
