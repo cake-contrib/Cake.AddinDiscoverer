@@ -96,6 +96,10 @@ namespace Cake.AddinDiscoverer.Steps
 							//--------------------------------------------------
 							// Find the DLL that matches the naming convention
 							var assemblyPath = assembliesPath.FirstOrDefault(f => Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll"));
+
+							// Fallback on the first assembly with name that starts with 'Cake.*' if an exact match is not found
+							if (string.IsNullOrEmpty(assemblyPath)) assemblyPath = assembliesPath.FirstOrDefault(f => Path.GetFileName(f).StartsWithIgnoreCase("Cake."));
+
 							if (string.IsNullOrEmpty(assemblyPath))
 							{
 								// This package does not contain DLLs. We'll assume it contains "recipes" .cake files.
