@@ -335,7 +335,6 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			foreach (var assemblyPath in assembliesPath)
 			{
-				// It's important to create a new load context for each assembly to ensure one addin does not interfere with another
 				var mscorlibPath = typeof(object).Assembly.Location;
 
 				// The assembly resolver makes the assemblies referenced by THIS APPLICATION (i.e.: the AddinDiscoverer) available
@@ -344,10 +343,8 @@ namespace Cake.AddinDiscoverer.Steps
 				// problem, I added a reference to FSharp.Core in Cake.AddinDiscoverer.csproj
 				var assemblyResolver = new PathAssemblyResolver(Directory.GetFiles(Path.GetDirectoryName(mscorlibPath), "*.dll"));
 
-				var loadContext = new MetadataLoadContext(
-					assemblyResolver,
-					Path.GetFileNameWithoutExtension(mscorlibPath)
-				);
+				// It's important to create a new load context for each assembly to ensure one addin does not interfere with another
+				var loadContext = new MetadataLoadContext(assemblyResolver, Path.GetFileNameWithoutExtension(mscorlibPath));
 
 				// Load the assembly
 				var assemblyStream = LoadFileFromPackage(package, assemblyPath);

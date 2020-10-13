@@ -95,7 +95,9 @@ namespace Cake.AddinDiscoverer.Steps
 				// I know of at least one case where the URL in the NuGet metadata points to a repo that has been deleted.
 				// Therefore it's safe to ignore this error.
 			}
+#pragma warning disable CS0168 // Variable is declared but never used
 			catch (Exception e)
+#pragma warning restore CS0168 // Variable is declared but never used
 			{
 				Debugger.Break();
 				throw;
@@ -184,7 +186,9 @@ namespace Cake.AddinDiscoverer.Steps
 				// I know of at least one case where the URL in the NuGet metadata points to a repo that has been deleted.
 				// Therefore it's safe to ignore this error.
 			}
+#pragma warning disable CS0168 // Variable is declared but never used
 			catch (Exception e)
+#pragma warning restore CS0168 // Variable is declared but never used
 			{
 				Debugger.Break();
 				throw;

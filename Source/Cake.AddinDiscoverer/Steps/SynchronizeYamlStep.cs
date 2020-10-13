@@ -32,7 +32,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "addins").ConfigureAwait(false);
 			var yamlFiles = directoryContent
 				.Where(file => file.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-				.Where(file => !string.IsNullOrEmpty(context.Options.AddinName) ? Path.GetFileNameWithoutExtension(file.Name) == context.Options.AddinName : true)
+				.Where(file => string.IsNullOrEmpty(context.Options.AddinName) || Path.GetFileNameWithoutExtension(file.Name) == context.Options.AddinName)
 				.ToArray();
 
 			var yamlsToBeDeleted = yamlFiles
