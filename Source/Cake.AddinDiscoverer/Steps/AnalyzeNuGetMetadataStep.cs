@@ -1,6 +1,5 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
-using Cake.Core.Annotations;
 using Cake.Incubator.StringExtensions;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
@@ -11,7 +10,6 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
-using System.Runtime.Loader;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -91,50 +89,16 @@ namespace Cake.AddinDiscoverer.Steps
 									f.Contains("netstandard1", StringComparison.OrdinalIgnoreCase) ? 2 :
 									f.Contains("net4", StringComparison.OrdinalIgnoreCase) ? 1 :
 									0)
+								.ThenByDescending(f =>
+									Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll") ? 2 :
+									Path.GetFileName(f).StartsWithIgnoreCase("Cake.") ? 1 :
+									0)
 								.ToArray();
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 
 							//--------------------------------------------------
-							// Find the DLL that matches the naming convention
-							var assemblyPath = assembliesPath.FirstOrDefault(f => Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll"));
-
-							// Fallback on the first assembly with name that starts with 'Cake.*' if an exact match is not found
-							if (string.IsNullOrEmpty(assemblyPath)) assemblyPath = assembliesPath.FirstOrDefault(f => Path.GetFileName(f).StartsWithIgnoreCase("Cake."));
-
-							if (string.IsNullOrEmpty(assemblyPath))
-							{
-								// If a package contains only one DLL, we will analyze this DLL even if it doesn't match the expected naming convention
-								if (assembliesPath.Length == 1)
-								{
-									assemblyPath = assembliesPath.First();
-								}
-							}
-
-							//--------------------------------------------------
-							// Load the assembly
-							var loadContext = new AssemblyLoaderContext();
-							var assemblyStream = (Stream)null;
-							var assembly = (Assembly)null;
-
-							if (!string.IsNullOrEmpty(assemblyPath))
-							{
-								assemblyStream = LoadFileFromPackage(package, assemblyPath);
-								assembly = loadContext.LoadFromStream(assemblyStream);
-							}
-
-							//--------------------------------------------------
-							// Find public methods that are decorated with one of
-							// the Cake alias attributes (i.e.: 'CakePropertyAlias'
-							// or 'CakeMethodAlias').
-							if (assembly != null)
-							{
-								addin.DecoratedMethods = assembly
-									.GetExportedTypes()
-									.SelectMany(t =>
-										t.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
-									.Where(m => m.GetCustomAttributes<CakeAliasAttribute>(true).Any())
-									.ToArray();
-							}
+							// Find the first DLL that contains Cake alias attributes (i.e.: 'CakePropertyAlias' or 'CakeMethodAlias')
+							var assemblyInfoToAnalyze = FindAssemblyToAnalyze(package, assembliesPath);
 
 							//--------------------------------------------------
 							// Determine the type of the nuget package
@@ -147,14 +111,14 @@ namespace Cake.AddinDiscoverer.Steps
 							{
 								addin.Type = AddinType.Module;
 							}
-							else if (addin.DecoratedMethods.Any())
+							else if (assemblyInfoToAnalyze.DecoratedMethods.Any())
 							{
 								addin.Type = AddinType.Addin;
+								addin.DecoratedMethods = assemblyInfoToAnalyze.DecoratedMethods;
 							}
 							else
 							{
 								addin.Type = AddinType.Unknown;
-								addin.AnalysisResult.Notes += $"This addin does not have any decorated method.{Environment.NewLine}";
 							}
 
 							//--------------------------------------------------
@@ -185,12 +149,12 @@ namespace Cake.AddinDiscoverer.Steps
 							}
 
 							// Secondly, check if symbols are embedded in the DLL
-							if (addin.PdbStatus == PdbStatus.NotAvailable && assemblyStream != null)
+							if (addin.PdbStatus == PdbStatus.NotAvailable && assemblyInfoToAnalyze.AssemblyStream != null)
 							{
 								try
 								{
-									assemblyStream.Position = 0;
-									var peReader = new PEReader(assemblyStream);
+									assemblyInfoToAnalyze.AssemblyStream.Position = 0;
+									var peReader = new PEReader(assemblyInfoToAnalyze.AssemblyStream);
 
 									if (peReader.ReadDebugDirectory().Any(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb))
 									{
@@ -242,9 +206,9 @@ namespace Cake.AddinDiscoverer.Steps
 							//--------------------------------------------------
 							// Find the DLL references
 							var dllReferences = Array.Empty<DllReference>();
-							if (assembly != null)
+							if (assemblyInfoToAnalyze.Assembly != null)
 							{
-								var assemblyReferences = assembly
+								var assemblyReferences = assemblyInfoToAnalyze.Assembly
 									.GetReferencedAssemblies()
 									.Select(r => new DllReference()
 									{
@@ -271,8 +235,7 @@ namespace Cake.AddinDiscoverer.Steps
 							addin.Frameworks = frameworks;
 							addin.References = dllReferences;
 							addin.HasPrereleaseDependencies = hasPreReleaseDependencies;
-
-							if (!string.IsNullOrEmpty(assemblyPath)) addin.DllName = Path.GetFileName(assemblyPath);
+							addin.DllName = string.IsNullOrEmpty(assemblyInfoToAnalyze.AssemblyPath) ? string.Empty : Path.GetFileName(assemblyInfoToAnalyze.AssemblyPath);
 
 							rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
 							if (repositoryInfo != default && repositoryInfo.Attributes.TryGetValue("url", out string repoUrl))
@@ -297,7 +260,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 						if (addin.Type == AddinType.Unknown)
 						{
-							throw new Exception("We are unable to determine the type of this addin. One likely reason is that it contains multiple DLLs but none of them respect the naming convention.");
+							throw new Exception($"This addin does not contain any decorated method.{Environment.NewLine}");
 						}
 					}
 					catch (Exception e)
@@ -310,12 +273,6 @@ namespace Cake.AddinDiscoverer.Steps
 				.ToArray();
 
 			await Task.Delay(1).ConfigureAwait(false);
-		}
-
-		private static Assembly LoadAssemblyFromPackage(IPackageCoreReader package, string assemblyPath, AssemblyLoadContext loadContext)
-		{
-			using var assemblyStream = LoadFileFromPackage(package, assemblyPath);
-			return loadContext.LoadFromStream(LoadFileFromPackage(package, assemblyPath));
 		}
 
 		private static MemoryStream LoadFileFromPackage(IPackageCoreReader package, string filePath)
@@ -372,6 +329,42 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 
 			return false;
+		}
+
+		private (Stream AssemblyStream, Assembly Assembly, MethodInfo[] DecoratedMethods, string AssemblyPath) FindAssemblyToAnalyze(IPackageCoreReader package, string[] assembliesPath)
+		{
+			foreach (var assemblyPath in assembliesPath)
+			{
+				// It's important to create a new load context for each assembly to ensure one addin does not interfere with another
+				var mscorlibPath = typeof(object).Assembly.Location;
+
+				var loadContext = new MetadataLoadContext(
+					new PathAssemblyResolver(Directory.GetFiles(Path.GetDirectoryName(mscorlibPath), "*.dll")),
+					Path.GetFileNameWithoutExtension(mscorlibPath)
+				);
+
+				// Load the assembly
+				var assemblyStream = LoadFileFromPackage(package, assemblyPath);
+				var assembly = loadContext.LoadFromStream(assemblyStream);
+
+				// Search for decorated methods.
+				// Please note that it's important to use the '.ExportedTypes' and the '.CustomAttributes' properties rather than
+				// the '.GetExportedTypes' and the '.GetCustomAttributes' methods because the latter will instantiate the custom
+				// attributes which, in our case, will cause exceptions because they are defined in dependencies which are most
+				// likely not available in the load context.
+				var decoratedMethods = assembly
+					.ExportedTypes
+					.SelectMany(type => type.GetTypeInfo().DeclaredMethods)
+					.Where(method => method.CustomAttributes.Any(a => a.AttributeType.Namespace == "Cake.Core.Annotations"))
+					.ToArray();
+
+				if (decoratedMethods.Any())
+				{
+					return (assemblyStream, assembly, decoratedMethods, assemblyPath);
+				}
+			}
+
+			return (null, null, Array.Empty<MethodInfo>(), string.Empty);
 		}
 	}
 }
