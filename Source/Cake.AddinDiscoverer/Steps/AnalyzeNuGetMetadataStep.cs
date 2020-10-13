@@ -338,8 +338,14 @@ namespace Cake.AddinDiscoverer.Steps
 				// It's important to create a new load context for each assembly to ensure one addin does not interfere with another
 				var mscorlibPath = typeof(object).Assembly.Location;
 
+				// The assembly resolver makes the assemblies referenced by THIS APPLICATION (i.e.: the AddinDiscoverer) available
+				// for resolving types when looping through custom attributes. As of this writing, there is one addin written in
+				// FSharp which was causing 'Could not find FSharp.Core' when looping through its custom attributes. To solve this
+				// problem, I added a reference to FSharp.Core in Cake.AddinDiscoverer.csproj
+				var assemblyResolver = new PathAssemblyResolver(Directory.GetFiles(Path.GetDirectoryName(mscorlibPath), "*.dll"));
+
 				var loadContext = new MetadataLoadContext(
-					new PathAssemblyResolver(Directory.GetFiles(Path.GetDirectoryName(mscorlibPath), "*.dll")),
+					assemblyResolver,
 					Path.GetFileNameWithoutExtension(mscorlibPath)
 				);
 
