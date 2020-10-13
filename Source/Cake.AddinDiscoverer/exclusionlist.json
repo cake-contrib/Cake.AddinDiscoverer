@@ -11,6 +11,8 @@
     "Cake.Email.Common",
     "Cake.Frosting",
     "Cake.Frosting.Template",
+    "Cake.Git.NonPortable", // This is a clone of Cake.Git
+    "Cake.LocalMarkdownToPdf", // This is a clone of Cake.MarkdownToPdf
     "Cake.LycheeOS",
     "Cake.Mix",
     "Cake.NuGet",
