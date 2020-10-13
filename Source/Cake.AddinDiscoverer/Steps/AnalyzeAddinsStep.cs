@@ -22,6 +22,8 @@ namespace Cake.AddinDiscoverer.Steps
 			context.Addins = context.Addins
 				.Select(addin =>
 				{
+					addin.AnalysisResult.AtLeastOneDecoratedMethod = addin.DecoratedMethods?.Any() ?? false;
+
 					if (addin.References != null)
 					{
 						var cakeCommonReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Common"));
