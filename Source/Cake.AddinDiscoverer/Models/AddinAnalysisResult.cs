@@ -86,5 +86,7 @@ namespace Cake.AddinDiscoverer.Models
 		/// Gets or sets a value indicating whether the latest version of Cake.Recipe is used to build this addin.
 		/// </summary>
 		public bool CakeRecipeIsLatest { get; set; }
+
+		public bool AtLeastOneDecoratedMethod { get; set; }
 	}
 }
