@@ -17,21 +17,21 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string RepositoryOwner { get; set; }
 
-		public string[] Frameworks { get; set; }
+		public string[] Frameworks { get; set; } = Array.Empty<string>();
 
-		public DllReference[] References { get; set; }
+		public DllReference[] References { get; set; } = Array.Empty<DllReference>();
 
 		public AddinAnalysisResult AnalysisResult { get; set; }
 
 		public Uri IconUrl { get; set; }
 
-		public byte[] EmbeddedIcon { get; set; }
+		public byte[] EmbeddedIcon { get; set; } = Array.Empty<byte>();
 
 		public string NuGetPackageVersion { get; set; }
 
 		public Uri NuGetPackageUrl { get; set; }
 
-		public string[] NuGetPackageOwners { get; set; }
+		public string[] NuGetPackageOwners { get; set; } = Array.Empty<string>();
 
 		public string License { get; set; }
 
@@ -49,7 +49,7 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string Description { get; set; }
 
-		public string[] Tags { get; set; }
+		public string[] Tags { get; set; } = Array.Empty<string>();
 
 		public bool IsPrerelease { get; set; }
 
@@ -61,7 +61,7 @@ namespace Cake.AddinDiscoverer.Models
 
 		public bool SourceLinkEnabled { get; set; }
 
-		public MethodInfo[] DecoratedMethods { get; set; }
+		public MethodInfo[] DecoratedMethods { get; set; } = Array.Empty<MethodInfo>();
 
 		public string GetMaintainerName()
 		{
