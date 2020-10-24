@@ -21,6 +21,7 @@
     "Cake.Scripting.Transport",
     "Cake.SendMail", // This is a clone of Cake.Email
     "Cake.ServiceOrchestration",
+    "Cake.Sitecore",
     "Cake.Storm.*",
     "Cake.Tasks.*",
     "Cake.Testing",
