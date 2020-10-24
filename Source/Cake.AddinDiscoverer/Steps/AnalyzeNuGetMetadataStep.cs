@@ -204,6 +204,17 @@ namespace Cake.AddinDiscoverer.Steps
 							}
 
 							//--------------------------------------------------
+							// Find the XML documentation
+							var assemblyFolder = Path.GetDirectoryName(assemblyInfoToAnalyze.AssemblyPath);
+							var xmlDocumentation = package.GetFiles()
+								.FirstOrDefault(f =>
+									Path.GetExtension(f).EqualsIgnoreCase(".xml") &&
+									Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name) &&
+									Path.GetDirectoryName(f).EqualsIgnoreCase(assemblyFolder));
+
+							addin.XmlDocumentationAvailable = !string.IsNullOrEmpty(xmlDocumentation);
+
+							//--------------------------------------------------
 							// Find the DLL references
 							var dllReferences = Array.Empty<DllReference>();
 							if (assemblyInfoToAnalyze.Assembly != null)

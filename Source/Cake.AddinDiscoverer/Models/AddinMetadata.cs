@@ -61,6 +61,8 @@ namespace Cake.AddinDiscoverer.Models
 
 		public bool SourceLinkEnabled { get; set; }
 
+		public bool XmlDocumentationAvailable { get; set; }
+
 		public MethodInfo[] DecoratedMethods { get; set; }
 
 		public string GetMaintainerName()
