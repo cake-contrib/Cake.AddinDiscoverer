@@ -86,7 +86,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("- The `Newtonsoft.Json` column indicates what version of Newtonsoft.Json is referenced by this addin (if any).");
 			markdown.AppendLine("- The `Symbols` column indicates whether we found debugging symbols in the NuGet package, in the symbols package or embedded in the DLL.");
 			markdown.AppendLine("- The `SourceLink` column indicates whether the SourceLink has been configured.");
-			markdown.AppendLine("- The `XML Documentation` column indicates whether XML documentatyion is included in the nuget package.");
+			markdown.AppendLine("- The `XML Documentation` column indicates whether XML documentation is included in the nuget package.");
 
 			markdown.AppendLine();
 			markdown.AppendLine("Click [here](Audit.xlsx) to download the Excel spreadsheet.");
