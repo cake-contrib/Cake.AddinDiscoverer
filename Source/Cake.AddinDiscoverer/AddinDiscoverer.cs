@@ -38,6 +38,9 @@ namespace Cake.AddinDiscoverer
 			// Sanity check on the list of addins we discovered
 			typeof(ValidateDiscoveryStep),
 
+			// Load the packages into memory
+			typeof(LoadStep),
+
 			// Analyze the addins
 			typeof(AnalyzeStep),
 
