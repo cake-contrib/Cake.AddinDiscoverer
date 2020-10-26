@@ -70,7 +70,6 @@ As of version 3.4.0 we have automated the following:
       | Repository  | Updated                      |
       | Author      | Not updated                  |
       | Description | Only line endings normalized |
-      | Prerelease  | Updated                      |
       | Categories  | Updated                      |
     - Delete YAML file when addin package is removed from nuget
     - Create issue and submit PR in `cake-build/website` with all the deleted/modified/created YAML files
