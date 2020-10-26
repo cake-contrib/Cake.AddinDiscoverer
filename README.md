@@ -61,7 +61,17 @@ As of version 3.4.0 we have automated the following:
     - Commit the generated files to the `cake-contrib/home` repo
 2. Synchronize YAML files
     - Create YAML file for addins that do not already one
-    - Update existing YAML file when metadata for a given addin package has changed
+    - Update existing YAML file when metadata for a given addin package has changed.
+      | Attribute   | Processing                   |
+      |-------------|------------------------------|
+      | Name        | Not updated                  |
+      | NuGet       | Not updated                  |
+      | Assemblies  | Updated                      |
+      | Repository  | Updated                      |
+      | Author      | Not updated                  |
+      | Description | Only line endings normalized |
+      | Prerelease  | Updated                      |
+      | Categories  | Updated                      |
     - Delete YAML file when addin package is removed from nuget
     - Create issue and submit PR in `cake-build/website` with all the deleted/modified/created YAML files
     - PR must be reviewed by Cake staff

@@ -192,8 +192,9 @@ Task("Run")
 	var processResult = StartProcess(
 		new FilePath($"{publishDir}{appName}.exe"),
 		new ProcessSettings()
-	{
-			Arguments = string.Join(" ", args.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim()))
+		{
+			Arguments = string.Join(" ", args.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim())),
+			Silent = true
 		});
 	if (processResult != 0)
 	{
