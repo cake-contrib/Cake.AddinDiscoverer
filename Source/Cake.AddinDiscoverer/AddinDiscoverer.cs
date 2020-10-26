@@ -41,6 +41,9 @@ namespace Cake.AddinDiscoverer
 			// Load the packages into memory
 			typeof(LoadStep),
 
+			// Analyze the XML documentation
+			typeof(AnalyzeXmlDocumentationStep),
+
 			// Analyze the addins
 			typeof(AnalyzeStep),
 
