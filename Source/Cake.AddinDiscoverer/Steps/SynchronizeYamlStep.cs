@@ -301,7 +301,7 @@ namespace Cake.AddinDiscoverer.Steps
 				var lines = value
 					.Replace("\r\n", "\n")
 					.Split('\n')
-					.Select(line => $"  {line}");
+					.Select(line => string.IsNullOrWhiteSpace(line) ? string.Empty : $"  {line}");
 				return "|-\n" + string.Join('\n', lines);
 			}
 			else
