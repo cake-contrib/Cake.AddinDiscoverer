@@ -160,7 +160,7 @@ Task("Publish")
 });
 
 Task("Run")
-//	.IsDependentOn("Publish")
+	.IsDependentOn("Publish")
 	.Does(() =>
 {
 	var args = new ProcessArgumentBuilder()
@@ -183,15 +183,18 @@ Task("Run")
 	}
 
 	// Execute the command
-	var processResult = StartProcess(
-		new FilePath($"{publishDir}{appName}.exe"),
-		new ProcessSettings()
-		{
-			Arguments = args
-		});
-	if (processResult != 0)
+	using (DiagnosticVerbosity())
 	{
-		throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
+		var processResult = StartProcess(
+			new FilePath($"{publishDir}{appName}.exe"),
+			new ProcessSettings()
+			{
+				Arguments = args
+			});
+		if (processResult != 0)
+		{
+			throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
+		}
 	}
 });
 
