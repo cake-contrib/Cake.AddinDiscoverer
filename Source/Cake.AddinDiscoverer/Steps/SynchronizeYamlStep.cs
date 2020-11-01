@@ -29,7 +29,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// --------------------------------------------------
 			// Discover if any files need to be added/deleted/modified
-			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "addins").ConfigureAwait(false);
+			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "extensions").ConfigureAwait(false);
 			var yamlFiles = directoryContent
 				.Where(file => file.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
 				.Where(file => string.IsNullOrEmpty(context.Options.AddinName) || Path.GetFileNameWithoutExtension(file.Name) == context.Options.AddinName)
@@ -53,7 +53,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ForEachAsync(
 					async addin =>
 					{
-						var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"addins/{addin.Name}.yml").ConfigureAwait(false);
+						var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"extensions/{addin.Name}.yml").ConfigureAwait(false);
 						return new
 						{
 							Addin = addin,
@@ -160,7 +160,7 @@ namespace Cake.AddinDiscoverer.Steps
 						var newBranchName = $"add_{addinToBeCreated.Addin.Name}.yml_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
 						{
-							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"addins/{addinToBeCreated.Addin.Name}.yml", Content: addinToBeCreated.NewContent) })
+							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"extensions/{addinToBeCreated.Addin.Name}.yml", Content: addinToBeCreated.NewContent) })
 						};
 
 						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
@@ -204,7 +204,7 @@ namespace Cake.AddinDiscoverer.Steps
 						var newBranchName = $"update_{addinToBeUpdated.Addin.Name}.yml_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
 						{
-							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"addins/{addinToBeUpdated.Addin.Name}.yml", Content: addinToBeUpdated.NewContent) })
+							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"extensions/{addinToBeUpdated.Addin.Name}.yml", Content: addinToBeUpdated.NewContent) })
 						};
 
 						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
@@ -226,6 +226,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (string.IsNullOrEmpty(categories)) return null;
 
 			var yamlContent = new StringBuilder();
+			yamlContent.AppendUnixLine($"Type: Addin");
 			yamlContent.AppendUnixLine($"Name: {addin.Name}");
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
 			yamlContent.AppendUnixLine("Assemblies:");
@@ -248,6 +249,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var mapping = (YamlMappingNode)yaml.Documents[0].RootNode;
 
 			var yamlContent = new StringBuilder();
+			yamlContent.AppendUnixLine($"Type: Addin");
 			yamlContent.AppendUnixLine($"Name: {mapping.GetChildNodeValue("Name")}");
 			yamlContent.AppendUnixLine($"NuGet: {mapping.GetChildNodeValue("NuGet")}");
 			yamlContent.AppendUnixLine("Assemblies:");
