@@ -163,42 +163,38 @@ Task("Run")
 	.IsDependentOn("Publish")
 	.Does(() =>
 {
-	var args = new Dictionary<string, string>()
-	{
-		{ "-t", $"\"{outputDir}\"" },
-		{ "-u", $"\"{gitHubUserName}\"" },
-		{ "-p", $"\"{gitHubPassword}\"" },
-	};
-	if (clearCache) args.Add("-c", null);
+	var args = new ProcessArgumentBuilder()
+		.AppendSwitchQuoted("-t", outputDir)
+		.AppendSwitchQuoted("-u", gitHubUserName)
+		.AppendSwitchQuotedSecret("-p", gitHubPassword);
+
+	if (clearCache) args.Append("-c");
 	if (isMainBranch)
 	{
-		args.Add("-r", null);
-		args.Add("-x", null);
-		args.Add("-s", null);
-		args.Add("-k", null);
+		args.Append("-r");
+		args.Append("-x");
+		args.Append("-s");
+		args.Append("-k");
 	}
 	else
 	{
-		args.Add("-m", null);
-		args.Add("-e", null);
+		args.Append("-m");
+		args.Append("-e");
 	}
 
-	// Display the command we are about to execute (be careful to avoid displaying the password)
-	var safeArgs = args.Where(arg => arg.Key != "-p").Union(new[] { new KeyValuePair<string, string>("-p", "\"<REDACTED>\"") });
-	var displayArgs = string.Join(" ", safeArgs.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim()));
-	Information($"{publishDir}{appName}.exe {displayArgs}");
-
 	// Execute the command
-	var processResult = StartProcess(
-		new FilePath($"{publishDir}{appName}.exe"),
-		new ProcessSettings()
-		{
-			Arguments = string.Join(" ", args.Select(arg => $"{arg.Key} {arg.Value ?? string.Empty}".Trim())),
-			Silent = true
-		});
-	if (processResult != 0)
+	using (DiagnosticVerbosity())
 	{
-		throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
+		var processResult = StartProcess(
+			new FilePath($"{publishDir}{appName}.exe"),
+			new ProcessSettings()
+			{
+				Arguments = args
+			});
+		if (processResult != 0)
+		{
+			throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
+		}
 	}
 });
 
