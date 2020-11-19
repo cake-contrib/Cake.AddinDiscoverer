@@ -226,7 +226,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (string.IsNullOrEmpty(categories)) return null;
 
 			var yamlContent = new StringBuilder();
-			yamlContent.AppendUnixLine($"Type: Addin");
+			yamlContent.AppendUnixLine($"Type: {addin.Type}");
 			yamlContent.AppendUnixLine($"Name: {addin.Name}");
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
 			yamlContent.AppendUnixLine("Assemblies:");
@@ -249,7 +249,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var mapping = (YamlMappingNode)yaml.Documents[0].RootNode;
 
 			var yamlContent = new StringBuilder();
-			yamlContent.AppendUnixLine($"Type: Addin");
+			yamlContent.AppendUnixLine($"Type: {addin.Type}");
 			yamlContent.AppendUnixLine($"Name: {mapping.GetChildNodeValue("Name")}");
 			yamlContent.AppendUnixLine($"NuGet: {mapping.GetChildNodeValue("NuGet")}");
 			yamlContent.AppendUnixLine("Assemblies:");
