@@ -92,7 +92,7 @@ namespace Cake.AddinDiscoverer.Steps
 				var threshold = yamlsToBeDeleted.Count() * 5;
 				if (requestsLeft < threshold)
 				{
-					Console.WriteLine("  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to delete yaml files.");
+					Console.WriteLine($"  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to delete yaml files.");
 				}
 
 				foreach (var yamlToBeDeleted in yamlsToBeDeleted)
@@ -136,7 +136,7 @@ namespace Cake.AddinDiscoverer.Steps
 				var threshold = addinsToBeCreated.Count() * 5;
 				if (requestsLeft < threshold)
 				{
-					Console.WriteLine("  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to add yaml files.");
+					Console.WriteLine($"  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to add yaml files.");
 				}
 
 				foreach (var addinToBeCreated in addinsToBeCreated)
@@ -180,7 +180,7 @@ namespace Cake.AddinDiscoverer.Steps
 				var threshold = addinsToBeUpdated.Count() * 5;
 				if (requestsLeft < threshold)
 				{
-					Console.WriteLine("  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to update yaml files.");
+					Console.WriteLine($"  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to update yaml files.");
 				}
 
 				foreach (var addinToBeUpdated in addinsToBeUpdated)
@@ -194,7 +194,7 @@ namespace Cake.AddinDiscoverer.Steps
 						// Create issue
 						var newIssue = new NewIssue(issueTitle)
 						{
-							Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between {addinToBeUpdated.Addin.Name}.yaml on Cake's web site and the metadata in the packages discovered on NuGet.org.{Environment.NewLine}" +
+							Body = $"The Cake.AddinDiscoverer tool has discovered discrepancies between {addinToBeUpdated.Addin.Name}.yaml on Cake's web site and the metadata in the packages discovered on NuGet.org.{Environment.NewLine}" +
 									$"{Environment.NewLine}{addinToBeUpdated.Addin.Name}.yaml must be updated.{Environment.NewLine}"
 						};
 						issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
