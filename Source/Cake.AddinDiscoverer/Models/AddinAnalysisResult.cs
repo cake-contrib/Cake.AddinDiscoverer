@@ -99,6 +99,5 @@ namespace Cake.AddinDiscoverer.Models
 			else if (CakeCommonVersion == null) return CakeCoreVersion;
 			else return CakeCoreVersion >= CakeCommonVersion ? CakeCoreVersion : CakeCommonVersion;
 		}
-
 	}
 }
