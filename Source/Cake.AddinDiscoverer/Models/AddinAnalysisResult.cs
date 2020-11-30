@@ -88,5 +88,16 @@ namespace Cake.AddinDiscoverer.Models
 		public bool CakeRecipeIsLatest { get; set; }
 
 		public bool AtLeastOneDecoratedMethod { get; set; }
+
+		/// <summary>
+		/// Get the version of Cake targeted by this addin.
+		/// </summary>
+		/// <returns>The version of Cake targeted by this addin.</returns>
+		public SemVersion GetTargetedCakeVersion()
+		{
+			if (CakeCoreVersion == null) return CakeCommonVersion;
+			else if (CakeCommonVersion == null) return CakeCoreVersion;
+			else return CakeCoreVersion >= CakeCommonVersion ? CakeCoreVersion : CakeCommonVersion;
+		}
 	}
 }
