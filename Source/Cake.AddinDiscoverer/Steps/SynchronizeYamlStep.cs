@@ -195,7 +195,7 @@ namespace Cake.AddinDiscoverer.Steps
 						var newIssue = new NewIssue(issueTitle)
 						{
 							Body = $"The Cake.AddinDiscoverer tool has discovered discrepencies between {addinToBeUpdated.Addin.Name}.yaml on Cake's web site and the metadata in the packages discovered on NuGet.org.{Environment.NewLine}" +
-								$"{Environment.NewLine}{addinToBeUpdated.Addin.Name}.yaml must be updated.{Environment.NewLine}"
+									$"{Environment.NewLine}{addinToBeUpdated.Addin.Name}.yaml must be updated.{Environment.NewLine}"
 						};
 						issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
 						context.IssuesCreatedByCurrentUser.Add(issue);
@@ -236,6 +236,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(addin.Description)}");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(categories);
+			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion().ToString(3)}");
 
 			return yamlContent.ToString();
 		}
@@ -259,6 +260,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(mapping.GetChildNodeValue("Description"))}");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
+			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion().ToString(3)}");
 
 			return yamlContent.ToString();
 		}
