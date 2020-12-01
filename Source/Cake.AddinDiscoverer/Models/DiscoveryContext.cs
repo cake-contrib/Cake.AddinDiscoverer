@@ -23,6 +23,12 @@ namespace Cake.AddinDiscoverer.Models
 		public AddinMetadata[] Addins { get; set; }
 
 		/// <summary>
+		/// Gets or sets the list of addins that we specifically want to include in our reports
+		/// (in addition to all addins matching the naming convention).
+		/// </summary>
+		public string[] IncludedAddins { get; set; }
+
+		/// <summary>
 		/// Gets or sets the list of addins that we specifically want to exclude from our reports.
 		/// </summary>
 		public string[] ExcludedAddins { get; set; }
