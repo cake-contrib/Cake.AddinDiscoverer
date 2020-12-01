@@ -5,6 +5,7 @@ using NuGet.Protocol.Core.Types;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,49 +23,36 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
-			// The max value allowed by the NuGet search API is 1000.
-			// This large value is important to ensure results fit in a single page therefore avoiding the problem with duplicates.
-			// For more details, see: https://github.com/NuGet/NuGetGallery/issues/7494
-			var take = 1000;
-
-			var skip = 0;
-			var searchTerm = "Cake";
-			var filters = new SearchFilter(true)
-			{
-				IncludeDelisted = false
-			};
-
 			var nugetPackageMetadataClient = await context.NugetRepository.GetResourceAsync<PackageMetadataResource>().ConfigureAwait(false);
-			var addinPackages = new List<IPackageSearchMetadata>(take);
+			var addinPackages = new List<IPackageSearchMetadata>();
 
 			//--------------------------------------------------
 			// Get the metadata from NuGet.org
 			if (!string.IsNullOrEmpty(context.Options.AddinName))
 			{
 				// Get metadata for one specific package
-				var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(context.Options.AddinName, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
-				var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
-				if (mostRecentPackageMetadata != null)
+				var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, context.Options.AddinName).ConfigureAwait(false);
+				if (packageMetadata != null)
 				{
-					addinPackages.Add(mostRecentPackageMetadata);
+					addinPackages.Add(packageMetadata);
 				}
 			}
 			else
 			{
-				var nugetSearchClient = context.NugetRepository.GetResource<PackageSearchResource>();
-
-				// Search for all package matching the search term
-				while (true)
+				// Search for all packages matching the naming convention
+				await foreach (var packageMetadata in SearchForPackages(context.NugetRepository, "Cake", CancellationToken.None))
 				{
-					var searchResult = await nugetSearchClient.SearchAsync(searchTerm, filters, skip, take, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
-					skip += take;
+					addinPackages.Add(packageMetadata);
+				}
 
-					if (!searchResult.Any())
+				// Get metadata for the packages we specifically want to include
+				foreach (var additionalPackageName in context.IncludedAddins)
+				{
+					var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, additionalPackageName).ConfigureAwait(false);
+					if (packageMetadata != null)
 					{
-						break;
+						addinPackages.Add(packageMetadata);
 					}
-
-					addinPackages.AddRange(searchResult.Where(r => r.Identity.Id.StartsWith($"{searchTerm}.", StringComparison.OrdinalIgnoreCase)));
 				}
 			}
 
@@ -162,6 +150,48 @@ namespace Cake.AddinDiscoverer.Steps
 						return addinMetadata;
 					}, Constants.MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
+		}
+
+		private async Task<IPackageSearchMetadata> FetchPackageMetadata(PackageMetadataResource nugetPackageMetadataClient, string name)
+		{
+			var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(name, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+			var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
+			return mostRecentPackageMetadata;
+		}
+
+		private async IAsyncEnumerable<IPackageSearchMetadata> SearchForPackages(SourceRepository nugetRepository, string searchTerm, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		{
+			// The max value allowed by the NuGet search API is 1000.
+			// This large value is important to ensure results fit in a single page therefore avoiding the problem with duplicates.
+			// For more details, see: https://github.com/NuGet/NuGetGallery/issues/7494
+			const int take = 1000;
+
+			var skip = 0;
+			var filters = new SearchFilter(true)
+			{
+				IncludeDelisted = false
+			};
+
+			var nugetSearchClient = nugetRepository.GetResource<PackageSearchResource>();
+
+			while (true)
+			{
+				var searchResult = await nugetSearchClient.SearchAsync(searchTerm, filters, skip, take, NullLogger.Instance, cancellationToken).ConfigureAwait(false);
+				skip += take;
+
+				if (!searchResult.Any())
+				{
+					break;
+				}
+
+				foreach (var packageMetadata in searchResult)
+				{
+					if (packageMetadata.Identity.Id.StartsWith($"{searchTerm}.", StringComparison.OrdinalIgnoreCase))
+					{
+						yield return packageMetadata;
+					}
+				}
+			}
 		}
 	}
 }

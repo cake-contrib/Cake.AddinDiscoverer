@@ -124,6 +124,7 @@ namespace Cake.AddinDiscoverer
 			var currentPath = new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
 			var currentFolder = Path.GetDirectoryName(currentPath);
 			var exclusionFilePath = Path.Combine(currentFolder, "exclusionlist.json");
+			var inclusionFilePath = Path.Combine(currentFolder, "inclusionlist.json");
 
 			using (var sr = new StreamReader(exclusionFilePath))
 			{
@@ -132,6 +133,14 @@ namespace Cake.AddinDiscoverer
 
 				_context.ExcludedAddins = jObject.Property("packages").Value.ToObject<string[]>();
 				_context.ExcludedTags = jObject.Property("labels").Value.ToObject<string[]>();
+			}
+
+			using (var sr = new StreamReader(inclusionFilePath))
+			{
+				var json = sr.ReadToEnd();
+				var jObject = JObject.Parse(json);
+
+				_context.IncludedAddins = jObject.Property("packages").Value.ToObject<string[]>();
 			}
 		}
 

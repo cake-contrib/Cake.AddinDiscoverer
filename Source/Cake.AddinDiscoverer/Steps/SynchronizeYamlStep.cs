@@ -41,7 +41,6 @@ namespace Cake.AddinDiscoverer.Steps
 					var addin = context.Addins.FirstOrDefault(a => a.Name == Path.GetFileNameWithoutExtension(f.Name));
 					return addin == null || addin.IsDeprecated;
 				})
-				.Where(f => f.Name != "Magic-Chunks.yml") // Ensure that MagicChunk's yaml file is not deleted despite the fact that is doesn't follow the naming convention. See: https://github.com/cake-build/website/issues/535#issuecomment-399692891
 				.OrderBy(f => f.Name)
 				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
