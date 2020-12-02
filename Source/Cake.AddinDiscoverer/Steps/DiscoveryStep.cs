@@ -34,13 +34,19 @@ namespace Cake.AddinDiscoverer.Steps
 				var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, context.Options.AddinName).ConfigureAwait(false);
 				if (packageMetadata != null)
 				{
-					addinPackages.Add(packageMetadata);
+					addinPackages.AddRange(packageMetadata);
 				}
 			}
 			else
 			{
-				// Search for all packages matching the naming convention
-				await foreach (var packageMetadata in SearchForPackages(context.NugetRepository, "Cake", CancellationToken.None))
+				// Get the most recent "stable" version of packages matching the naming convention.
+				await foreach (var packageMetadata in SearchForPackages(context.NugetRepository, "Cake", false, CancellationToken.None))
+				{
+					addinPackages.Add(packageMetadata);
+				}
+
+				// Get the most recent version of packages matching the naming convention (regardless of the stable/prerelease status)
+				await foreach (var packageMetadata in SearchForPackages(context.NugetRepository, "Cake", true, CancellationToken.None))
 				{
 					addinPackages.Add(packageMetadata);
 				}
@@ -51,18 +57,20 @@ namespace Cake.AddinDiscoverer.Steps
 					var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, additionalPackageName).ConfigureAwait(false);
 					if (packageMetadata != null)
 					{
-						addinPackages.Add(packageMetadata);
+						addinPackages.AddRange(packageMetadata);
 					}
 				}
 			}
 
 			//--------------------------------------------------
-			// Remove duplicates.
-			// NuGet changed their search API in August 2019 and I discovered that it returns duplicates when paging
-			// See: https://github.com/NuGet/NuGetGallery/issues/7494
+			// Select the most recent "stable" release of each addin.
+			// If an addin does not have any stable release, select the most recent, regardless of its stable/prerelease status
 			var uniqueAddinPackages = addinPackages
-				.GroupBy(p => p.Identity)
-				.Select(g => g.First());
+				.GroupBy(p => p.Identity.Id)
+				.Select(g => g
+					.OrderByDescending(p => p.Published)
+					.ThenBy(p => p.Identity.Version.IsPrerelease ? 1 : 0) // Stable versions are sorted first, prerelease versions sorted second
+					.First());
 
 			//--------------------------------------------------
 			// Convert metadata from nuget into our own metadata
@@ -152,14 +160,13 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private async Task<IPackageSearchMetadata> FetchPackageMetadata(PackageMetadataResource nugetPackageMetadataClient, string name)
+		private async Task<IEnumerable<IPackageSearchMetadata>> FetchPackageMetadata(PackageMetadataResource nugetPackageMetadataClient, string name)
 		{
 			var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(name, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
-			var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
-			return mostRecentPackageMetadata;
+			return searchMetadata;
 		}
 
-		private async IAsyncEnumerable<IPackageSearchMetadata> SearchForPackages(SourceRepository nugetRepository, string searchTerm, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		private async IAsyncEnumerable<IPackageSearchMetadata> SearchForPackages(SourceRepository nugetRepository, string searchTerm, bool includePrerelease, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 		{
 			// The max value allowed by the NuGet search API is 1000.
 			// This large value is important to ensure results fit in a single page therefore avoiding the problem with duplicates.
@@ -167,9 +174,10 @@ namespace Cake.AddinDiscoverer.Steps
 			const int take = 1000;
 
 			var skip = 0;
-			var filters = new SearchFilter(true)
+			var filters = new SearchFilter(includePrerelease)
 			{
-				IncludeDelisted = false
+				IncludeDelisted = false,
+				OrderBy = SearchOrderBy.Id
 			};
 
 			var nugetSearchClient = nugetRepository.GetResource<PackageSearchResource>();
