@@ -236,6 +236,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(categories);
 			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion().ToString()}");
+			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 
 			return yamlContent.ToString();
 		}
@@ -260,6 +261,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
 			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion().ToString()}");
+			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 
 			return yamlContent.ToString();
 		}
