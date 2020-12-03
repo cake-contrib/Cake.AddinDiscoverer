@@ -333,6 +333,17 @@ namespace Cake.AddinDiscoverer
 			return mapping.Children[key].ToString();
 		}
 
+		public static IEnumerable<string> GetChildrenNodesValue(this YamlMappingNode mapping, string name)
+		{
+			var key = new YamlScalarNode(name);
+			if (!mapping.Children.ContainsKey(key)) yield break;
+
+			foreach (var childNode in (YamlSequenceNode)mapping.Children[key])
+			{
+				yield return childNode.ToString();
+			}
+		}
+
 		private static void CheckIsEnum<T>(bool withFlags)
 		{
 			if (!typeof(T).IsEnum)
