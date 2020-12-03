@@ -182,36 +182,38 @@ namespace Cake.AddinDiscoverer.Steps
 					Console.WriteLine($"  Only {requestsLeft} GitHub API requests left. Therefore skipping PRs to update yaml files.");
 				}
 
-				foreach (var addinToBeUpdated in addinsToBeUpdated)
+				var issueTitle = $"Add AnalyzedPackageVersion";
+
+				// Check if an issue already exists
+				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
+				if (issue == null)
 				{
-					var issueTitle = $"Update {addinToBeUpdated.Addin.Name}.yml";
-
-					// Check if an issue already exists
-					var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
-					if (issue == null)
+					// Create issue
+					var newIssue = new NewIssue(issueTitle)
 					{
-						// Create issue
-						var newIssue = new NewIssue(issueTitle)
-						{
-							Body = $"The Cake.AddinDiscoverer tool has discovered discrepancies between {addinToBeUpdated.Addin.Name}.yaml on Cake's web site and the metadata in the packages discovered on NuGet.org.{Environment.NewLine}" +
-									$"{Environment.NewLine}{addinToBeUpdated.Addin.Name}.yaml must be updated.{Environment.NewLine}"
-						};
-						issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
-						context.IssuesCreatedByCurrentUser.Add(issue);
+						Body = "Add AnalyzedPackageVersion"
+					};
+					issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+					context.IssuesCreatedByCurrentUser.Add(issue);
 
-						// Commit changes to a new branch and submit PR
-						var newBranchName = $"update_{addinToBeUpdated.Addin.Name}.yml_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
-						{
-							(CommitMessage: issueTitle, FilesToDelete: null, FilesToUpsert: new[] { (Encoding: EncodingType.Utf8, Path: $"extensions/{addinToBeUpdated.Addin.Name}.yml", Content: addinToBeUpdated.NewContent) })
-						};
+					// Commit changes to a new branch and submit PR
+					var newBranchName = $"add_AnalyzedPackageVersion_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+					{
+						(
+							CommitMessage: issueTitle,
+							FilesToDelete: null,
+							FilesToUpsert: addinsToBeUpdated
+								.Select(a => (Encoding: EncodingType.Utf8, Path: $"extensions/{a.Addin.Name}.yml", Content: a.NewContent))
+								.ToArray()
+						)
+					};
 
-						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
-						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+					var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
+					context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 
-						// This delay is important to avoid triggering GitHub's abuse protection
-						await Task.Delay(1000).ConfigureAwait(false);
-					}
+					// This delay is important to avoid triggering GitHub's abuse protection
+					await Task.Delay(1000).ConfigureAwait(false);
 				}
 			}
 		}
