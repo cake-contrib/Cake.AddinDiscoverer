@@ -33,7 +33,7 @@
     "Addins",
     "Build",
     "Cake",
-    "Script",
-    "Cake-Contrib"
+    "Cake-Contrib",
+    "Script"
   ]
 }
