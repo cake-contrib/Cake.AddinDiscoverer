@@ -1,5 +1,6 @@
 {
   "packages": [
+    "Cake.Addins.Sample", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
     "Cake.Bakery",
     "Cake.Board",
     "Cake.Board.Abstractions",
