@@ -370,7 +370,10 @@ namespace Cake.AddinDiscoverer.Steps
 				var decoratedMethods = assembly
 					.ExportedTypes
 					.SelectMany(type => type.GetTypeInfo().DeclaredMethods)
-					.Where(method => method.CustomAttributes.Any(a => a.AttributeType.Namespace == "Cake.Core.Annotations"))
+					.Where(method =>
+						method.CustomAttributes.Any(a =>
+							a.AttributeType.Namespace == "Cake.Core.Annotations" &&
+							(a.AttributeType.Name == "CakeMethodAliasAttribute" || a.AttributeType.Name == "CakePropertyAliasAttribute")))
 					.ToArray();
 
 				// Search for alias categories
