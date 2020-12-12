@@ -24,6 +24,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string YELLOW_EMOJI = ":warning: ";
 		public const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 		public const string DOT_NET_TOOLS_CONFIG_PATH = ".config/dotnet-tools.json";
+		public const string NO_DESCRIPTION_PROVIDED = "No description has been provided";
 
 		public const string CAKE_REPO_OWNER = "cake-build";
 		public const string CAKE_WEBSITE_REPO_NAME = "website";
