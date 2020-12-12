@@ -353,6 +353,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
 				DataDestination.Excel
+			),
+			(
+				"Alias Categories",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.Join(", ", addin.AliasCategories),
+				(addin, cakeVersion) => addin.AliasCategories.Any() ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.Addin | AddinType.Module,
+				DataDestination.Excel
 			)
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
