@@ -221,8 +221,8 @@ namespace Cake.AddinDiscoverer.Steps
 			var categories = GetCategoriesForYaml(context, addin.Tags);
 
 			if (addin.ProjectUrl == null) return null;
-			if (string.IsNullOrEmpty(addin.Description)) return null;
-			if (string.IsNullOrEmpty(categories)) return null;
+
+			var description = string.IsNullOrEmpty(addin.Description) ? Constants.NO_DESCRIPTION_PROVIDED : addin.Description;
 
 			var yamlContent = new StringBuilder();
 			yamlContent.AppendUnixLine($"Type: {addin.Type}");
@@ -232,10 +232,10 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
 			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl.AbsoluteUri.TrimEnd('/') + '/'}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
-			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(addin.Description)}");
+			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(description)}");
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(categories);
-			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion().ToString()}");
+			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion()?.ToString()}");
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 
 			return yamlContent.ToString();

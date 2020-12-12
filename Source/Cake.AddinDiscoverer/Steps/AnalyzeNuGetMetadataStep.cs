@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -247,6 +248,7 @@ namespace Cake.AddinDiscoverer.Steps
 							addin.References = dllReferences;
 							addin.HasPrereleaseDependencies = hasPreReleaseDependencies;
 							addin.DllName = string.IsNullOrEmpty(assemblyInfoToAnalyze.AssemblyPath) ? string.Empty : Path.GetFileName(assemblyInfoToAnalyze.AssemblyPath);
+							addin.AliasCategories = assemblyInfoToAnalyze.AliasCategories;
 
 							rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
 							if (repositoryInfo != default && repositoryInfo.Attributes.TryGetValue("url", out string repoUrl))
@@ -342,20 +344,20 @@ namespace Cake.AddinDiscoverer.Steps
 			return false;
 		}
 
-		private (Stream AssemblyStream, Assembly Assembly, MethodInfo[] DecoratedMethods, string AssemblyPath) FindAssemblyToAnalyze(IPackageCoreReader package, string[] assembliesPath)
+		private (Stream AssemblyStream, Assembly Assembly, MethodInfo[] DecoratedMethods, string AssemblyPath, string[] AliasCategories) FindAssemblyToAnalyze(IPackageCoreReader package, string[] assembliesPath)
 		{
 			foreach (var assemblyPath in assembliesPath)
 			{
-				var mscorlibPath = typeof(object).Assembly.Location;
+				var runtimeAssemblies = Directory.GetFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll");
 
 				// The assembly resolver makes the assemblies referenced by THIS APPLICATION (i.e.: the AddinDiscoverer) available
 				// for resolving types when looping through custom attributes. As of this writing, there is one addin written in
 				// FSharp which was causing 'Could not find FSharp.Core' when looping through its custom attributes. To solve this
 				// problem, I added a reference to FSharp.Core in Cake.AddinDiscoverer.csproj
-				var assemblyResolver = new PathAssemblyResolver(Directory.GetFiles(Path.GetDirectoryName(mscorlibPath), "*.dll"));
+				var assemblyResolver = new PathAssemblyResolver(runtimeAssemblies);
 
 				// It's important to create a new load context for each assembly to ensure one addin does not interfere with another
-				var loadContext = new MetadataLoadContext(assemblyResolver, Path.GetFileNameWithoutExtension(mscorlibPath));
+				var loadContext = new MetadataLoadContext(assemblyResolver);
 
 				// Load the assembly
 				var assemblyStream = LoadFileFromPackage(package, assemblyPath);
@@ -369,16 +371,29 @@ namespace Cake.AddinDiscoverer.Steps
 				var decoratedMethods = assembly
 					.ExportedTypes
 					.SelectMany(type => type.GetTypeInfo().DeclaredMethods)
-					.Where(method => method.CustomAttributes.Any(a => a.AttributeType.Namespace == "Cake.Core.Annotations"))
+					.Where(method =>
+						method.CustomAttributes.Any(a =>
+							a.AttributeType.Namespace == "Cake.Core.Annotations" &&
+							(a.AttributeType.Name == "CakeMethodAliasAttribute" || a.AttributeType.Name == "CakePropertyAliasAttribute")))
+					.ToArray();
+
+				// Search for alias categories
+				var aliasCategories = assembly
+					.ExportedTypes
+					.SelectMany(t => t.CustomAttributes)
+					.Where(a => a.AttributeType.Namespace == "Cake.Core.Annotations" && a.AttributeType.Name == "CakeAliasCategoryAttribute")
+					.Select(a => a.ConstructorArguments[0].Value?.ToString())
+					.Where(category => !string.IsNullOrEmpty(category))
+					.Distinct(StringComparer.OrdinalIgnoreCase)
 					.ToArray();
 
 				if (decoratedMethods.Any())
 				{
-					return (assemblyStream, assembly, decoratedMethods, assemblyPath);
+					return (assemblyStream, assembly, decoratedMethods, assemblyPath, aliasCategories);
 				}
 			}
 
-			return (null, null, Array.Empty<MethodInfo>(), string.Empty);
+			return (null, null, Array.Empty<MethodInfo>(), string.Empty, Array.Empty<string>());
 		}
 	}
 }
