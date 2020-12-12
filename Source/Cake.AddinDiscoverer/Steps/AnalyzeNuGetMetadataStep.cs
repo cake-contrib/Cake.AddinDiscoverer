@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -347,16 +348,16 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			foreach (var assemblyPath in assembliesPath)
 			{
-				var mscorlibPath = typeof(object).Assembly.Location;
+				var runtimeAssemblies = Directory.GetFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll");
 
 				// The assembly resolver makes the assemblies referenced by THIS APPLICATION (i.e.: the AddinDiscoverer) available
 				// for resolving types when looping through custom attributes. As of this writing, there is one addin written in
 				// FSharp which was causing 'Could not find FSharp.Core' when looping through its custom attributes. To solve this
 				// problem, I added a reference to FSharp.Core in Cake.AddinDiscoverer.csproj
-				var assemblyResolver = new PathAssemblyResolver(Directory.GetFiles(Path.GetDirectoryName(mscorlibPath), "*.dll"));
+				var assemblyResolver = new PathAssemblyResolver(runtimeAssemblies);
 
 				// It's important to create a new load context for each assembly to ensure one addin does not interfere with another
-				var loadContext = new MetadataLoadContext(assemblyResolver, Path.GetFileNameWithoutExtension(mscorlibPath));
+				var loadContext = new MetadataLoadContext(assemblyResolver);
 
 				// Load the assembly
 				var assemblyStream = LoadFileFromPackage(package, assemblyPath);
