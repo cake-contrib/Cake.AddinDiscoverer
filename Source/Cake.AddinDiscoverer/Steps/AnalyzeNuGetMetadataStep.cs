@@ -247,6 +247,7 @@ namespace Cake.AddinDiscoverer.Steps
 							addin.References = dllReferences;
 							addin.HasPrereleaseDependencies = hasPreReleaseDependencies;
 							addin.DllName = string.IsNullOrEmpty(assemblyInfoToAnalyze.AssemblyPath) ? string.Empty : Path.GetFileName(assemblyInfoToAnalyze.AssemblyPath);
+							addin.AliasCategories = assemblyInfoToAnalyze.AliasCategories;
 
 							rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
 							if (repositoryInfo != default && repositoryInfo.Attributes.TryGetValue("url", out string repoUrl))
@@ -342,7 +343,7 @@ namespace Cake.AddinDiscoverer.Steps
 			return false;
 		}
 
-		private (Stream AssemblyStream, Assembly Assembly, MethodInfo[] DecoratedMethods, string AssemblyPath) FindAssemblyToAnalyze(IPackageCoreReader package, string[] assembliesPath)
+		private (Stream AssemblyStream, Assembly Assembly, MethodInfo[] DecoratedMethods, string AssemblyPath, string[] AliasCategories) FindAssemblyToAnalyze(IPackageCoreReader package, string[] assembliesPath)
 		{
 			foreach (var assemblyPath in assembliesPath)
 			{
@@ -369,16 +370,29 @@ namespace Cake.AddinDiscoverer.Steps
 				var decoratedMethods = assembly
 					.ExportedTypes
 					.SelectMany(type => type.GetTypeInfo().DeclaredMethods)
-					.Where(method => method.CustomAttributes.Any(a => a.AttributeType.Namespace == "Cake.Core.Annotations"))
+					.Where(method =>
+						method.CustomAttributes.Any(a =>
+							a.AttributeType.Namespace == "Cake.Core.Annotations" &&
+							(a.AttributeType.Name == "CakeMethodAliasAttribute" || a.AttributeType.Name == "CakePropertyAliasAttribute")))
+					.ToArray();
+
+				// Search for alias categories
+				var aliasCategories = assembly
+					.ExportedTypes
+					.SelectMany(t => t.CustomAttributes)
+					.Where(a => a.AttributeType.Namespace == "Cake.Core.Annotations" && a.AttributeType.Name == "CakeAliasCategoryAttribute")
+					.Select(a => a.ConstructorArguments[0].Value?.ToString())
+					.Where(category => !string.IsNullOrEmpty(category))
+					.Distinct(StringComparer.OrdinalIgnoreCase)
 					.ToArray();
 
 				if (decoratedMethods.Any())
 				{
-					return (assemblyStream, assembly, decoratedMethods, assemblyPath);
+					return (assemblyStream, assembly, decoratedMethods, assemblyPath, aliasCategories);
 				}
 			}
 
-			return (null, null, Array.Empty<MethodInfo>(), string.Empty);
+			return (null, null, Array.Empty<MethodInfo>(), string.Empty, Array.Empty<string>());
 		}
 	}
 }

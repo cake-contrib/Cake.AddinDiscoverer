@@ -19,8 +19,8 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE = "Support Cake {0}";
 		public const int MAX_GITHUB_CONCURENCY = 10;
 		public const int MAX_NUGET_CONCURENCY = 25; // I suspect nuget allows a much large number of concurrent connections but 25 seems like a safe value.
-		public const string GREEN_EMOJI = ":white_check_mark: ";
-		public const string RED_EMOJI = ":small_red_triangle: ";
+		public const string GREEN_EMOJI = ":heavy_check_mark: ";
+		public const string RED_EMOJI = ":x: ";
 		public const string YELLOW_EMOJI = ":warning: ";
 		public const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 		public const string DOT_NET_TOOLS_CONFIG_PATH = ".config/dotnet-tools.json";
@@ -350,6 +350,15 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.XmlDocumentationAvailable.ToString().ToLower(),
 				(addin, cakeVersion) => addin.XmlDocumentationAvailable ? Color.LightGreen : Color.Red,
+				(addin) => null,
+				AddinType.Addin | AddinType.Module,
+				DataDestination.Excel
+			),
+			(
+				"Alias Categories",
+				ExcelHorizontalAlignment.Center,
+				(addin) => string.Join(", ", addin.AliasCategories),
+				(addin, cakeVersion) => addin.AliasCategories.Any() ? Color.LightGreen : Color.Red,
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
 				DataDestination.Excel

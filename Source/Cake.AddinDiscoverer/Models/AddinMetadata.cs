@@ -65,6 +65,8 @@ namespace Cake.AddinDiscoverer.Models
 
 		public MethodInfo[] DecoratedMethods { get; set; }
 
+		public string[] AliasCategories { get; set; }
+
 		public string GetMaintainerName()
 		{
 			var maintainer = RepositoryOwner ?? Maintainer;
