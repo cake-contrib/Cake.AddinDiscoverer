@@ -222,7 +222,6 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (addin.ProjectUrl == null) return null;
 			if (string.IsNullOrEmpty(addin.Description)) return null;
-			if (string.IsNullOrEmpty(categories)) return null;
 
 			var yamlContent = new StringBuilder();
 			yamlContent.AppendUnixLine($"Type: {addin.Type}");
