@@ -276,9 +276,12 @@ namespace Cake.AddinDiscoverer.Steps
 			var key = new YamlScalarNode("Categories");
 			if (!mapping.Children.ContainsKey(key)) return string.Empty;
 
-			var tags = Enumerable.Empty<string>();
-			if (mapping.Children[key] is YamlScalarNode scalarNode) tags = new[] { scalarNode.ToString() };
-			else if (mapping.Children[key] is YamlSequenceNode sequenceNode) tags = sequenceNode.Select(node => node.ToString());
+			var tags = mapping.Children[key] switch
+			{
+				YamlScalarNode scalarNode => new[] { scalarNode.ToString() },
+				YamlSequenceNode sequenceNode => sequenceNode.Select(node => node.ToString()),
+				_ => Enumerable.Empty<string>()
+			};
 
 			return GetCategoriesForYaml(context, tags);
 		}
