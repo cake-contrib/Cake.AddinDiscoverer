@@ -26,6 +26,7 @@
     "Cake.Tasks.*",
     "Cake.Testing",
     "Cake.Tin",
+    "Cake.Utility",
     "Cake.Xamarin.Build",
     "Cake.Xamarin.Build.CakeBuilder"
   ],
