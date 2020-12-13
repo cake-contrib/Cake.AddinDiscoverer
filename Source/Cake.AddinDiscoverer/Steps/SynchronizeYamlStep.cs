@@ -286,8 +286,8 @@ namespace Cake.AddinDiscoverer.Steps
 		private static string GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
 		{
 			var filteredAndFormattedTags = tags
-				.Where(t1 => !string.IsNullOrEmpty(t1))
-				.Select(t2 => t2.Replace('-', ' '))
+				.Where(t1 => !string.IsNullOrWhiteSpace(t1))
+				.Select(t2 => t2.Trim())
 				.Select(t3 => t3.ToLowerInvariant())
 				.Except(context.ExcludedTags, StringComparer.InvariantCultureIgnoreCase)
 				.Distinct(StringComparer.InvariantCultureIgnoreCase)
