@@ -276,9 +276,12 @@ namespace Cake.AddinDiscoverer.Steps
 			var key = new YamlScalarNode("Categories");
 			if (!mapping.Children.ContainsKey(key)) return string.Empty;
 
-			var tags = Enumerable.Empty<string>();
-			if (mapping.Children[key] is YamlScalarNode scalarNode) tags = new[] { scalarNode.ToString() };
-			else if (mapping.Children[key] is YamlSequenceNode sequenceNode) tags = sequenceNode.Select(node => node.ToString());
+			var tags = mapping.Children[key] switch
+			{
+				YamlScalarNode scalarNode => new[] { scalarNode.ToString() },
+				YamlSequenceNode sequenceNode => sequenceNode.Select(node => node.ToString()),
+				_ => Enumerable.Empty<string>()
+			};
 
 			return GetCategoriesForYaml(context, tags);
 		}
@@ -286,8 +289,8 @@ namespace Cake.AddinDiscoverer.Steps
 		private static string GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
 		{
 			var filteredAndFormattedTags = tags
-				.Where(t1 => !string.IsNullOrEmpty(t1))
-				.Select(t2 => t2.Replace('-', ' '))
+				.Where(t1 => !string.IsNullOrWhiteSpace(t1))
+				.Select(t2 => t2.Trim())
 				.Select(t3 => t3.ToLowerInvariant())
 				.Except(context.ExcludedTags, StringComparer.InvariantCultureIgnoreCase)
 				.Distinct(StringComparer.InvariantCultureIgnoreCase)
