@@ -131,8 +131,8 @@ namespace Cake.AddinDiscoverer
 				var json = sr.ReadToEnd();
 				var jObject = JObject.Parse(json);
 
-				_context.ExcludedAddins = jObject.Property("packages").Value.ToObject<string[]>();
-				_context.ExcludedTags = jObject.Property("labels").Value.ToObject<string[]>();
+				_context.ExcludedAddins = jObject.Property("packages")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
+				_context.ExcludedTags = jObject.Property("labels")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
 			}
 
 			using (var sr = new StreamReader(inclusionFilePath))
@@ -140,7 +140,7 @@ namespace Cake.AddinDiscoverer
 				var json = sr.ReadToEnd();
 				var jObject = JObject.Parse(json);
 
-				_context.IncludedAddins = jObject.Property("packages").Value.ToObject<string[]>();
+				_context.IncludedAddins = jObject.Property("packages")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
 			}
 		}
 
