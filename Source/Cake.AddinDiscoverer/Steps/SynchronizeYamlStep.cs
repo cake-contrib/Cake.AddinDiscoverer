@@ -234,6 +234,8 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, addin.Tags));
 			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion()?.ToString()}");
+			yamlContent.AppendUnixLine("TargetFrameworks:");
+			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 
 			return yamlContent.ToString();
@@ -264,6 +266,8 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
 			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion().ToString()}");
+			yamlContent.AppendUnixLine("TargetFrameworks:");
+			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 
 			return yamlContent.ToString();
@@ -297,6 +301,20 @@ namespace Cake.AddinDiscoverer.Steps
 			var categories = string.Join("\n", filteredAndFormattedTags);
 
 			return categories;
+		}
+
+		private static string GetFrameworksForYaml(IEnumerable<string> frameworks)
+		{
+			var filteredAndFormattedFrameworks = frameworks
+				.Where(f1 => !string.IsNullOrWhiteSpace(f1))
+				.Select(f2 => f2.Trim())
+				.Select(f3 => f3.ToLowerInvariant())
+				.Distinct(StringComparer.InvariantCultureIgnoreCase)
+				.Select(framework => $"- {framework}");
+
+			var targetFrameworks = string.Join("\n", filteredAndFormattedFrameworks);
+
+			return targetFrameworks;
 		}
 
 		private static string QuotedYamlString(string value)
