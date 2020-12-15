@@ -18,7 +18,7 @@ namespace Cake.AddinDiscoverer
 		///
 		public static int Main(string[] args)
 		{
-			// Parse comand line arguments and proceed with analysis if parsing was succesfull
+			// Parse command line arguments and proceed with analysis if parsing was successful
 			var result = Parser.Default.ParseArguments<Options>(args)
 				.MapResult(
 					opts =>
