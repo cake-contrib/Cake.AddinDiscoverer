@@ -218,8 +218,6 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static string GenerateYamlFile(DiscoveryContext context, AddinMetadata addin)
 		{
-			var categories = GetCategoriesForYaml(context, addin.Tags);
-
 			if (addin.ProjectUrl == null) return null;
 
 			var description = string.IsNullOrEmpty(addin.Description) ? Constants.NO_DESCRIPTION_PROVIDED : addin.Description;
@@ -234,7 +232,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(description)}");
 			yamlContent.AppendUnixLine("Categories:");
-			yamlContent.AppendUnixLine(categories);
+			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, addin.Tags));
 			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion()?.ToString()}");
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 
