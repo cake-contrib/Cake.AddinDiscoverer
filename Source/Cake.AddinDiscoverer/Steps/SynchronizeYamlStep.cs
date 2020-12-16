@@ -320,6 +320,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine("TargetFrameworks:");
 			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
+			yamlContent.AppendUnixLine($"AnalyzedPackageIsPrerelease: {(addin.IsPrerelease ? "true" : "false")}");
 
 			return yamlContent.ToString();
 		}
@@ -353,6 +354,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine("TargetFrameworks:");
 			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
+			yamlContent.AppendUnixLine($"AnalyzedPackageIsPrerelease: {(addin.IsPrerelease ? "true" : "false")}");
 
 			return yamlContent.ToString();
 		}
