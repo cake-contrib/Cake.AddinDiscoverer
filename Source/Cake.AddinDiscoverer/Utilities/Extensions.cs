@@ -216,27 +216,6 @@ namespace Cake.AddinDiscoverer
 			return Regex.IsMatch(source, "^" + Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$");
 		}
 
-		public static Uri StandardizeGitHubUri(this Uri originalUri)
-		{
-			if (originalUri == null) return null;
-
-			if (!originalUri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) &&
-				!originalUri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase))
-			{
-				return originalUri;
-			}
-
-			var standardizedUri = new UriBuilder(
-					Uri.UriSchemeHttps, // Force HTTPS
-					originalUri.Host,
-					originalUri.IsDefaultPort ? -1 : originalUri.Port, // -1 => default port for scheme
-					$"{originalUri.LocalPath.TrimEnd('/')}/", // Force final slash
-					originalUri.Query)
-				.Uri;
-
-			return standardizedUri;
-		}
-
 		public static bool IsUpToDate(this SemVersion currentVersion, SemVersion desiredVersion)
 		{
 			if (desiredVersion == null) throw new ArgumentNullException(nameof(desiredVersion));

@@ -204,5 +204,26 @@ namespace Cake.AddinDiscoverer.Utilities
 			var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.DOT_NET_TOOLS_CONFIG_PATH).ConfigureAwait(false);
 			return contents[0].Content;
 		}
+
+		public static Uri StandardizeGitHubUri(Uri originalUri)
+		{
+			if (originalUri == null) return null;
+
+			if (!originalUri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) &&
+				!originalUri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase))
+			{
+				return originalUri;
+			}
+
+			var standardizedUri = new UriBuilder(
+					Uri.UriSchemeHttps, // Force HTTPS
+					originalUri.Host,
+					originalUri.IsDefaultPort ? -1 : originalUri.Port, // -1 => default port for scheme
+					$"{originalUri.LocalPath.TrimEnd('/')}/", // Force final slash
+					originalUri.Query)
+				.Uri;
+
+			return standardizedUri;
+		}
 	}
 }

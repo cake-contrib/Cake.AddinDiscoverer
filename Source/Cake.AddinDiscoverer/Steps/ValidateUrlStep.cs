@@ -37,8 +37,8 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 
 						// Standardize GitHub URLs
-						addin.RepositoryUrl = addin.RepositoryUrl.StandardizeGitHubUri();
-						addin.ProjectUrl = addin.ProjectUrl.StandardizeGitHubUri();
+						addin.RepositoryUrl = Misc.StandardizeGitHubUri(addin.RepositoryUrl);
+						addin.ProjectUrl = Misc.StandardizeGitHubUri(addin.ProjectUrl);
 
 						// Make sure the project URL is valid
 						if (addin.ProjectUrl != null && !context.Options.ExcludeSlowSteps)
