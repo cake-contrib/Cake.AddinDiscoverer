@@ -87,9 +87,28 @@ namespace Cake.AddinDiscoverer.Utilities
 
 		public static async Task<PullRequest> CommitToNewBranchAndSubmitPullRequestAsync(DiscoveryContext context, Octokit.Repository fork, int? issueNumber, string newBranchName, string pullRequestTitle, IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
-			if (commits == null || !commits.Any()) throw new ArgumentNullException("You must provide at least one commit", nameof(commits));
+			if (context.Options.DryRun)
+			{
+				await Misc.CommitToNewBranchAsync(context, fork, issueNumber, newBranchName, commits).ConfigureAwait(false);
 
-			var upstream = fork.Parent;
+				const string githubUrl = "https://github.com";
+				var upstream = fork.Parent;
+				Console.WriteLine($"DRY RUN - view diff here: {githubUrl}/{upstream.Owner.Login}/{upstream.Name}/compare/{upstream.DefaultBranch}...{fork.Owner.Login}:{newBranchName}");
+
+				return null;
+			}
+			else
+			{
+				await Misc.CommitToNewBranchAsync(context, fork, issueNumber, newBranchName, commits).ConfigureAwait(false);
+				var pullRequest = await Misc.SubmitPullRequestAsync(context, fork, issueNumber, newBranchName, pullRequestTitle).ConfigureAwait(false);
+				return pullRequest;
+			}
+		}
+
+		public static async Task<Commit> CommitToNewBranchAsync(DiscoveryContext context, Octokit.Repository fork, int? issueNumber, string newBranchName, IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		{
+			if (commits == null || !commits.Any()) throw new ArgumentNullException(nameof(commits), "You must provide at least one commit");
+
 			var defaultBranchReference = await context.GithubClient.Git.Reference.Get(context.Options.GithubUsername, fork.Name, $"heads/{fork.DefaultBranch}").ConfigureAwait(false);
 			var newReference = new NewReference($"heads/{newBranchName}", defaultBranchReference.Object.Sha);
 			var newBranch = await context.GithubClient.Git.Reference.Create(context.Options.GithubUsername, fork.Name, newReference).ConfigureAwait(false);
@@ -102,6 +121,13 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 
 			await context.GithubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{newBranchName}", new ReferenceUpdate(latestCommit.Sha)).ConfigureAwait(false);
+
+			return latestCommit;
+		}
+
+		public static async Task<PullRequest> SubmitPullRequestAsync(DiscoveryContext context, Octokit.Repository fork, int? issueNumber, string newBranchName, string pullRequestTitle)
+		{
+			var upstream = fork.Parent;
 
 			var body = new StringBuilder();
 			body.AppendFormat("This pull request was created by a tool: Cake.AddinDiscoverer version {0}", context.Version);

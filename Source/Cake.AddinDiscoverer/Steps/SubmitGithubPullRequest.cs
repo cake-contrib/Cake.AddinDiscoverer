@@ -53,7 +53,6 @@ namespace Cake.AddinDiscoverer.Steps
 								{
 									// Fork the addin repo if it hasn't been forked already and make sure it's up to date
 									var fork = await context.GithubClient.CreateOrRefreshFork(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
-									var upstream = fork.Parent;
 
 									// This delay is important to avoid triggering GitHub's abuse protection
 									await Task.Delay(1000).ConfigureAwait(false);
@@ -62,8 +61,11 @@ namespace Cake.AddinDiscoverer.Steps
 									var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 									var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, addin.AuditIssue?.Number, newBranchName, Constants.PULL_REQUEST_TITLE, commits).ConfigureAwait(false);
 
-									addin.AuditPullRequest = pullRequest;
-									context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+									if (pullRequest != null)
+									{
+										addin.AuditPullRequest = pullRequest;
+										context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+									}
 
 									// This delay is important to avoid triggering GitHub's abuse protection
 									await Task.Delay(1000).ConfigureAwait(false);
