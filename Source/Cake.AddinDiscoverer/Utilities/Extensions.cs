@@ -216,23 +216,25 @@ namespace Cake.AddinDiscoverer
 			return Regex.IsMatch(source, "^" + Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$");
 		}
 
-		public static Uri ForceHttps(this Uri originalUri)
+		public static Uri StandardizeGitHubUri(this Uri originalUri)
 		{
 			if (originalUri == null) return null;
 
-			return new UriBuilder(originalUri)
+			if (!originalUri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) &&
+				!originalUri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase))
 			{
-				Scheme = Uri.UriSchemeHttps,
-				Port = originalUri.IsDefaultPort ? -1 : originalUri.Port // -1 => default port for scheme
-			}.Uri;
-		}
+				return originalUri;
+			}
 
-		public static bool MustUseHttps(this Uri uri)
-		{
-			if (uri == null) return false;
-			if (uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase)) return true;
-			if (uri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase)) return true;
-			return false;
+			var standardizedUri = new UriBuilder(
+					Uri.UriSchemeHttps, // Force HTTPS
+					originalUri.Host,
+					originalUri.IsDefaultPort ? -1 : originalUri.Port, // -1 => default port for scheme
+					$"{originalUri.LocalPath.TrimEnd('/')}/", // Force final slash
+					originalUri.Query)
+				.Uri;
+
+			return standardizedUri;
 		}
 
 		public static bool IsUpToDate(this SemVersion currentVersion, SemVersion desiredVersion)
@@ -342,6 +344,16 @@ namespace Cake.AddinDiscoverer
 			{
 				yield return childNode.ToString();
 			}
+		}
+
+		public static string ToStandardizedString(this Uri uri)
+		{
+			if (uri == null) return string.Empty;
+
+			var baselUri = uri.GetComponents(UriComponents.Path | UriComponents.Port | UriComponents.Host | UriComponents.UserInfo | UriComponents.Scheme, UriFormat.UriEscaped);
+			var uriQuery = uri.GetComponents(UriComponents.Fragment | UriComponents.Query, UriFormat.UriEscaped);
+
+			return $"{baselUri.TrimEnd('/')}/{uriQuery}";
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)

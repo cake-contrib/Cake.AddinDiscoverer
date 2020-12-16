@@ -36,9 +36,9 @@ namespace Cake.AddinDiscoverer.Steps
 							addin.RepositoryUrl = new Uri(repo.CloneUrl);
 						}
 
-						// Force HTTPS for Github URLs
-						if (addin.ProjectUrl.MustUseHttps()) addin.ProjectUrl = addin.ProjectUrl.ForceHttps();
-						if (addin.RepositoryUrl.MustUseHttps()) addin.RepositoryUrl = addin.RepositoryUrl.ForceHttps();
+						// Standardize GitHub URLs
+						addin.RepositoryUrl = addin.RepositoryUrl.StandardizeGitHubUri();
+						addin.ProjectUrl = addin.ProjectUrl.StandardizeGitHubUri();
 
 						// Make sure the project URL is valid
 						if (addin.ProjectUrl != null && !context.Options.ExcludeSlowSteps)
