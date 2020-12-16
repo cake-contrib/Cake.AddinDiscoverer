@@ -93,12 +93,12 @@ namespace Cake.AddinDiscoverer.Steps
 			if (yamlFilesToBeDeleted.Any())
 			{
 				commits.Add(
-						(
-							CommitMessage: $"Delete {yamlFilesToBeDeleted.Length} YAML files",
-							FilesToDelete: yamlFilesToBeDeleted.Select(yamlFile => yamlFile.Path).ToArray(),
-							FilesToUpsert: null
-						)
-					);
+					(
+						CommitMessage: $"Delete {yamlFilesToBeDeleted.Length} YAML files",
+						FilesToDelete: yamlFilesToBeDeleted.Select(yamlFile => yamlFile.Path).ToArray(),
+						FilesToUpsert: null
+					)
+				);
 			}
 
 			if (addinsToBeCreated.Any())
@@ -310,7 +310,8 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
 			yamlContent.AppendUnixLine("Assemblies:");
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
-			yamlContent.AppendUnixLine($"Repository: {addin.ProjectUrl.AbsoluteUri.TrimEnd('/') + '/'}");
+			yamlContent.AppendUnixLine($"Repository: {addin.RepositoryUrl?.AbsoluteUri}");
+			yamlContent.AppendUnixLine($"ProjectUrl: {(addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(description)}");
 			yamlContent.AppendUnixLine("Categories:");
@@ -342,7 +343,8 @@ namespace Cake.AddinDiscoverer.Steps
 				yamlContent.AppendUnixLine($"- \"{childNodeValue}\"");
 			}
 
-			yamlContent.AppendUnixLine($"Repository: {(addin.ProjectUrl ?? addin.NuGetPackageUrl).AbsoluteUri.TrimEnd('/') + '/'}");
+			yamlContent.AppendUnixLine($"Repository: {addin.RepositoryUrl?.AbsoluteUri}");
+			yamlContent.AppendUnixLine($"ProjectUrl: {(addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"Author: {mapping.GetChildNodeValue("Author")}");
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(mapping.GetChildNodeValue("Description"))}");
 			yamlContent.AppendUnixLine("Categories:");
