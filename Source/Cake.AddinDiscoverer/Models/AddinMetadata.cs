@@ -67,6 +67,8 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string[] AliasCategories { get; set; }
 
+		public DateTimeOffset PublishedOn { get; set; }
+
 		public string GetMaintainerName()
 		{
 			var maintainer = RepositoryOwner ?? Maintainer;
