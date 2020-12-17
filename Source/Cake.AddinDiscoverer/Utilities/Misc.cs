@@ -35,7 +35,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				return context.IssuesCreatedByCurrentUser
 					.Where(i =>
 					{
-						var (owner, name) = Misc.DeriveRepoInfo(new Uri(i.Url));
+						var success = Misc.DeriveRepoInfo(new Uri(i.Url), out string owner, out string name);
 						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
 					})
 					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
@@ -64,7 +64,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				return context.PullRequestsCreatedByCurrentUser
 					.Where(p =>
 					{
-						var (owner, name) = Misc.DeriveRepoInfo(new Uri(p.Url));
+						var success = Misc.DeriveRepoInfo(new Uri(p.Url), out string owner, out string name);
 						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
 					})
 					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
@@ -170,10 +170,10 @@ namespace Cake.AddinDiscoverer.Utilities
 			return content[0].Content;
 		}
 
-		public static (string Owner, string Name) DeriveRepoInfo(Uri url)
+		public static bool DeriveRepoInfo(Uri url, out string owner, out string name)
 		{
-			var owner = string.Empty;
-			var name = string.Empty;
+			owner = string.Empty;
+			name = string.Empty;
 
 			if (url != null)
 			{
@@ -182,15 +182,17 @@ namespace Cake.AddinDiscoverer.Utilities
 				{
 					owner = parts[1];
 					name = parts[2].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
+					return true;
 				}
 				else if (parts.Length >= 2)
 				{
 					owner = parts[0];
 					name = parts[1].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
+					return true;
 				}
 			}
 
-			return (owner, name);
+			return false;
 		}
 
 		// byte[] is implicitly convertible to ReadOnlySpan<byte>

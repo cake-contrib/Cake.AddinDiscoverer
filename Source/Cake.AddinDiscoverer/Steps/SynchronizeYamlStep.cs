@@ -310,7 +310,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
 			yamlContent.AppendUnixLine("Assemblies:");
 			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
-			yamlContent.AppendUnixLine($"Repository: {addin.RepositoryUrl?.AbsoluteUri}");
+			yamlContent.AppendUnixLine($"Repository: {(addin.InferredRepositoryUrl ?? addin.RepositoryUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"ProjectUrl: {(addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(description)}");
@@ -345,7 +345,7 @@ namespace Cake.AddinDiscoverer.Steps
 				yamlContent.AppendUnixLine($"- \"{childNodeValue}\"");
 			}
 
-			yamlContent.AppendUnixLine($"Repository: {addin.RepositoryUrl?.AbsoluteUri}");
+			yamlContent.AppendUnixLine($"Repository: {(addin.InferredRepositoryUrl ?? addin.RepositoryUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"ProjectUrl: {(addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"Author: {mapping.GetChildNodeValue("Author")}");
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(mapping.GetChildNodeValue("Description"))}");

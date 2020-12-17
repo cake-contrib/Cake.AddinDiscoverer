@@ -103,7 +103,7 @@ namespace Cake.AddinDiscoverer.Steps
 						addin.AuditIssue = context.IssuesCreatedByCurrentUser
 							.Where(i =>
 							{
-								var (repoOwner, repoName) = Misc.DeriveRepoInfo(new Uri(i.Url));
+								var success = Misc.DeriveRepoInfo(new Uri(i.Url), out string repoOwner, out string repoName);
 								return repoOwner.EqualsIgnoreCase(addin.RepositoryOwner) && repoName.EqualsIgnoreCase(addin.RepositoryName);
 							})
 							.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.ISSUE_TITLE) || i.Body.StartsWith("We performed an automated audit of your Cake addin", StringComparison.OrdinalIgnoreCase));
@@ -112,7 +112,7 @@ namespace Cake.AddinDiscoverer.Steps
 						addin.AuditPullRequest = context.PullRequestsCreatedByCurrentUser
 							.Where(i =>
 							{
-								var (repoOwner, repoName) = Misc.DeriveRepoInfo(new Uri(i.Url));
+								var success = Misc.DeriveRepoInfo(new Uri(i.Url), out string repoOwner, out string repoName);
 								return repoOwner.EqualsIgnoreCase(addin.RepositoryOwner) && repoName.EqualsIgnoreCase(addin.RepositoryName);
 							})
 							.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.PULL_REQUEST_TITLE));

@@ -37,7 +37,21 @@ namespace Cake.AddinDiscoverer.Models
 
 		public Uri ProjectUrl { get; set; }
 
+		/// <summary>
+		/// Gets or sets the URL provided by the addin author in the package nuspec.
+		/// </summary>
+		/// <remarks>
+		/// Can be null if author omitted this information.
+		/// </remarks>
 		public Uri RepositoryUrl { get; set; }
+
+		/// <summary>
+		/// Gets or sets the URL inferred by the AddinDiscoverer based on the project URL.
+		/// </summary>
+		/// <remarks>
+		/// Currently, we can only infer the repo URL if the project is hosted on GitHub.
+		/// </remarks>
+		public Uri InferredRepositoryUrl { get; set; }
 
 		public PullRequest AuditPullRequest { get; set; }
 

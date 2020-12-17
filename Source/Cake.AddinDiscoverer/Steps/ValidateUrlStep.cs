@@ -6,10 +6,8 @@ using Octokit.Internal;
 using System;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Connection = Octokit.Connection;
 
 namespace Cake.AddinDiscoverer.Steps
 {
@@ -33,36 +31,43 @@ namespace Cake.AddinDiscoverer.Steps
 						if (repo != null)
 						{
 							addin.ProjectUrl = new Uri(repo.HtmlUrl);
-							addin.RepositoryUrl = new Uri(repo.CloneUrl);
+							addin.InferredRepositoryUrl = new Uri(repo.CloneUrl);
 						}
 
 						// Standardize GitHub URLs
+						addin.InferredRepositoryUrl = Misc.StandardizeGitHubUri(addin.InferredRepositoryUrl);
 						addin.RepositoryUrl = Misc.StandardizeGitHubUri(addin.RepositoryUrl);
 						addin.ProjectUrl = Misc.StandardizeGitHubUri(addin.ProjectUrl);
 
+						// Derive the repository name and owner
+						var ownershipDerived = Misc.DeriveRepoInfo(addin.InferredRepositoryUrl ?? addin.RepositoryUrl ?? addin.ProjectUrl, out string repoOwner, out string repoName);
+						addin.RepositoryOwner = repoOwner;
+						addin.RepositoryName = repoName;
+
 						// Make sure the project URL is valid
-						if (addin.ProjectUrl != null && !context.Options.ExcludeSlowSteps)
+						if (ownershipDerived)
 						{
-							var githubRequest = new Request()
+							try
 							{
-								BaseAddress = new UriBuilder(addin.ProjectUrl.Scheme, addin.ProjectUrl.Host, addin.ProjectUrl.Port).Uri,
-								Endpoint = new Uri(addin.ProjectUrl.PathAndQuery, UriKind.Relative),
-								Method = HttpMethod.Head,
-							};
-							githubRequest.Headers.Add("User-Agent", ((Connection)context.GithubClient.Connection).UserAgent);
+								var repository = await context.GithubClient.Repository.Get(repoOwner, repoName).ConfigureAwait(false);
+								addin.InferredRepositoryUrl = new Uri(repository.CloneUrl);
 
-							var response = await SendRequestWithRetries(githubRequest, context.GithubHttpClient).ConfigureAwait(false);
-
-							if (response.StatusCode == HttpStatusCode.NotFound)
+								// Derive the repository name and owner with the new repo URL
+								if (Misc.DeriveRepoInfo(addin.InferredRepositoryUrl, out repoOwner, out repoName))
+								{
+									addin.RepositoryOwner = repoOwner;
+									addin.RepositoryName = repoName;
+								}
+							}
+							catch (NotFoundException)
 							{
 								addin.ProjectUrl = null;
 							}
+							catch (Exception e)
+							{
+								throw;
+							}
 						}
-
-						// Derive the repository name and owner
-						var (repoOwner, repoName) = Misc.DeriveRepoInfo(addin.RepositoryUrl ?? addin.ProjectUrl);
-						addin.RepositoryOwner = repoOwner;
-						addin.RepositoryName = repoName;
 
 						return addin;
 					}, Constants.MAX_GITHUB_CONCURENCY)
