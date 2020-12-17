@@ -215,11 +215,16 @@ namespace Cake.AddinDiscoverer.Utilities
 				return originalUri;
 			}
 
+			// Force final slash except for repo URLs
+			var path = originalUri.LocalPath.EndsWithIgnoreCase(".git")
+				? originalUri.LocalPath
+				: $"{originalUri.LocalPath.TrimEnd('/')}/";
+
 			var standardizedUri = new UriBuilder(
 					Uri.UriSchemeHttps, // Force HTTPS
 					originalUri.Host,
 					originalUri.IsDefaultPort ? -1 : originalUri.Port, // -1 => default port for scheme
-					$"{originalUri.LocalPath.TrimEnd('/')}/", // Force final slash
+					path,
 					originalUri.Query)
 				.Uri;
 
