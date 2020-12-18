@@ -79,63 +79,31 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 			else
 			{
-				// Each change is committed in a separate branch with their own issue and PR
-				await SynchronizeYamlFilesIndividuallyAsync(context, fork, yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated).ConfigureAwait(false);
+				// Check if an issue already exists
+				var upstream = fork.Parent;
+				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE).ConfigureAwait(false);
+
+				if (issue != null)
+				{
+					return;
+				}
+				else if (yamlFilesToBeDeleted.Length + addinsToBeCreated.Length + addinsToBeUpdated.Length > 25)
+				{
+					// Changes are committed to a single branch, one single issue is raised and a single PRs is opened
+					await SynchronizeYamlFilesCollectivelyAsync(context, fork, yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated).ConfigureAwait(false);
+				}
+				else
+				{
+					// Each change is committed in a separate branch with their own issue and PR
+					await SynchronizeYamlFilesIndividuallyAsync(context, fork, yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated).ConfigureAwait(false);
+				}
 			}
 		}
 
 		private async Task DryRunAsync(DiscoveryContext context, Repository fork, RepositoryContent[] yamlFilesToBeDeleted, (AddinMetadata Addin, string CurrentContent, string NewContent)[] addinsToBeCreated, (AddinMetadata Addin, string CurrentContent, string NewContent)[] addinsToBeUpdated)
 		{
 			var newBranchName = $"dryrun_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-
-			var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
-
-			if (yamlFilesToBeDeleted.Any())
-			{
-				commits.Add(
-					(
-						CommitMessage: $"Delete {yamlFilesToBeDeleted.Length} YAML files",
-						FilesToDelete: yamlFilesToBeDeleted.Select(yamlFile => yamlFile.Path).ToArray(),
-						FilesToUpsert: null
-					)
-				);
-			}
-
-			if (addinsToBeCreated.Any())
-			{
-				commits.Add(
-					(
-						CommitMessage: $"Create {addinsToBeCreated.Length} YAML files",
-						FilesToDelete: null,
-						FilesToUpsert: addinsToBeCreated
-							.Select<(AddinMetadata Addin, string CurrentContent, string NewContent), (EncodingType Encoding, string Path, string Content)>(addinToBeCreated =>
-								(
-									Encoding: EncodingType.Utf8,
-									Path: $"extensions/{addinToBeCreated.Addin.Name}.yml",
-									Content: addinToBeCreated.NewContent
-								)
-							)
-					)
-				);
-			}
-
-			if (addinsToBeUpdated.Any())
-			{
-				commits.Add(
-					(
-						CommitMessage: $"Update {addinsToBeUpdated.Length} YAML files",
-						FilesToDelete: null,
-						FilesToUpsert: addinsToBeUpdated
-							.Select<(AddinMetadata Addin, string CurrentContent, string NewContent), (EncodingType Encoding, string Path, string Content)>(addinToBeUpdated =>
-								(
-									Encoding: EncodingType.Utf8,
-									Path: $"extensions/{addinToBeUpdated.Addin.Name}.yml",
-									Content: addinToBeUpdated.NewContent
-								)
-							)
-					)
-				);
-			}
+			var commits = ConvertToCommits(yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated);
 
 			if (commits.Any())
 			{
@@ -295,6 +263,88 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 					}
 				}
+			}
+		}
+
+		private async Task SynchronizeYamlFilesCollectivelyAsync(DiscoveryContext context, Repository fork, RepositoryContent[] yamlFilesToBeDeleted, (AddinMetadata Addin, string CurrentContent, string NewContent)[] addinsToBeCreated, (AddinMetadata Addin, string CurrentContent, string NewContent)[] addinsToBeUpdated)
+		{
+			var newBranchName = $"yaml_files_sync_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+			var commits = ConvertToCommits(yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated);
+
+			if (commits.Any())
+			{
+				var apiInfo = context.GithubClient.GetLastApiInfo();
+				var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
+
+				var threshold = commits.Count() * 5;
+				if (requestsLeft < threshold)
+				{
+					Console.WriteLine($"  Only {requestsLeft} GitHub API requests left. Therefore skipping YAML files synchronization.");
+				}
+				else
+				{
+					// Create issue
+					var newIssue = new NewIssue(Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE)
+					{
+						Body = $"The Cake.AddinDiscoverer tool has discovered that a large number of YAML file need to be deleted, added or modified.{Environment.NewLine}" +
+							   $"{Environment.NewLine}Since the number of files is larger than usual, we grouped them all together and we are raising a single issue and opening a single PR.{Environment.NewLine}"
+					};
+					var issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+					context.IssuesCreatedByCurrentUser.Add(issue);
+
+					// Commit changes to a new branch and submit PR
+					var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE, commits).ConfigureAwait(false);
+					if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+				}
+			}
+		}
+
+		private IEnumerable<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> ConvertToCommits(RepositoryContent[] yamlFilesToBeDeleted, (AddinMetadata Addin, string CurrentContent, string NewContent)[] addinsToBeCreated, (AddinMetadata Addin, string CurrentContent, string NewContent)[] addinsToBeUpdated)
+		{
+			if (yamlFilesToBeDeleted.Any())
+			{
+				yield return
+				(
+					CommitMessage: $"Delete {yamlFilesToBeDeleted.Length} YAML files",
+					FilesToDelete: yamlFilesToBeDeleted.Select(yamlFile => yamlFile.Path).ToArray(),
+					FilesToUpsert: null
+				);
+			}
+
+			if (addinsToBeCreated.Any())
+			{
+				yield return
+				(
+					CommitMessage: $"Create {addinsToBeCreated.Length} YAML files",
+					FilesToDelete: null,
+					FilesToUpsert: addinsToBeCreated
+						.Select<(AddinMetadata Addin, string CurrentContent, string NewContent), (EncodingType Encoding,
+							string Path, string Content)>(addinToBeCreated =>
+							(
+								Encoding: EncodingType.Utf8,
+								Path: $"extensions/{addinToBeCreated.Addin.Name}.yml",
+								Content: addinToBeCreated.NewContent
+							)
+						)
+				);
+			}
+
+			if (addinsToBeUpdated.Any())
+			{
+				yield return
+				(
+					CommitMessage: $"Update {addinsToBeUpdated.Length} YAML files",
+					FilesToDelete: null,
+					FilesToUpsert: addinsToBeUpdated
+						.Select<(AddinMetadata Addin, string CurrentContent, string NewContent), (EncodingType Encoding,
+							string Path, string Content)>(addinToBeUpdated =>
+							(
+								Encoding: EncodingType.Utf8,
+								Path: $"extensions/{addinToBeUpdated.Addin.Name}.yml",
+								Content: addinToBeUpdated.NewContent
+							)
+						)
+				);
 			}
 		}
 
