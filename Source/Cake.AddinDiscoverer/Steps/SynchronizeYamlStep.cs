@@ -371,7 +371,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 			yamlContent.AppendUnixLine($"AnalyzedPackageIsPrerelease: {(addin.IsPrerelease ? "true" : "false")}");
-			yamlContent.AppendUnixLine($"AnalyzedPackagePublishedOn: {addin.PublishedOn.UtcDateTime:o}"); // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
+			yamlContent.AppendUnixLine($"AnalyzedPackagePublishDate: {addin.PublishedOn.UtcDateTime:o}"); // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
 
 			return yamlContent.ToString();
 		}
@@ -406,7 +406,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 			yamlContent.AppendUnixLine($"AnalyzedPackageIsPrerelease: {(addin.IsPrerelease ? "true" : "false")}");
-			yamlContent.AppendUnixLine($"AnalyzedPackagePublishedOn: {addin.PublishedOn.UtcDateTime:o}"); // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
+			yamlContent.AppendUnixLine($"AnalyzedPackagePublishDate: {addin.PublishedOn.UtcDateTime:o}"); // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
 
 			return yamlContent.ToString();
 		}
