@@ -35,7 +35,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				return context.IssuesCreatedByCurrentUser
 					.Where(i =>
 					{
-						var success = Misc.DeriveRepoInfo(new Uri(i.Url), out string owner, out string name);
+						var success = Misc.DeriveGitHubRepositoryInfo(new Uri(i.Url), out string owner, out string name);
 						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
 					})
 					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
@@ -64,7 +64,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				return context.PullRequestsCreatedByCurrentUser
 					.Where(p =>
 					{
-						var success = Misc.DeriveRepoInfo(new Uri(p.Url), out string owner, out string name);
+						var success = Misc.DeriveGitHubRepositoryInfo(new Uri(p.Url), out string owner, out string name);
 						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
 					})
 					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
@@ -170,29 +170,31 @@ namespace Cake.AddinDiscoverer.Utilities
 			return content[0].Content;
 		}
 
-		public static bool DeriveRepoInfo(Uri url, out string owner, out string name)
+		public static bool DeriveGitHubRepositoryInfo(Uri url, out string owner, out string name)
 		{
 			owner = string.Empty;
 			name = string.Empty;
 
-			if (url != null)
-			{
-				var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-				if (parts.Length >= 3 && parts[0].EqualsIgnoreCase("repos"))
-				{
-					owner = parts[1];
-					name = parts[2].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
-					return true;
-				}
-				else if (parts.Length >= 2)
-				{
-					owner = parts[0];
-					name = parts[1].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
-					return true;
-				}
-			}
+			if (url == null) return false;
+			if (!url.IsGithubUrl()) return false;
 
-			return false;
+			var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+			if (parts.Length >= 3 && parts[0].EqualsIgnoreCase("repos"))
+			{
+				owner = parts[1];
+				name = parts[2].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
+				return true;
+			}
+			else if (parts.Length >= 2)
+			{
+				owner = parts[0];
+				name = parts[1].TrimEnd(".git", StringComparison.OrdinalIgnoreCase);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
 		}
 
 		// byte[] is implicitly convertible to ReadOnlySpan<byte>
@@ -210,12 +212,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public static Uri StandardizeGitHubUri(Uri originalUri)
 		{
 			if (originalUri == null) return null;
-
-			if (!originalUri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) &&
-				!originalUri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase))
-			{
-				return originalUri;
-			}
+			if (!originalUri.IsGithubUrl()) return originalUri;
 
 			// Force final slash except for repo URLs
 			var path = originalUri.LocalPath.EndsWithIgnoreCase(".git")

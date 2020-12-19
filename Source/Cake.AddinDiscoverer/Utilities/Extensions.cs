@@ -325,14 +325,12 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		public static string ToStandardizedString(this Uri uri)
+		public static bool IsGithubUrl(this Uri uri)
 		{
-			if (uri == null) return string.Empty;
+			if (uri == null) return false;
 
-			var baselUri = uri.GetComponents(UriComponents.Path | UriComponents.Port | UriComponents.Host | UriComponents.UserInfo | UriComponents.Scheme, UriFormat.UriEscaped);
-			var uriQuery = uri.GetComponents(UriComponents.Fragment | UriComponents.Query, UriFormat.UriEscaped);
-
-			return $"{baselUri.TrimEnd('/')}/{uriQuery}";
+			return uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) ||
+				   uri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase);
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)

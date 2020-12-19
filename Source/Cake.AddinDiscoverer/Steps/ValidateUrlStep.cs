@@ -6,6 +6,7 @@ using Octokit.Internal;
 using System;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,20 +41,21 @@ namespace Cake.AddinDiscoverer.Steps
 						addin.ProjectUrl = Misc.StandardizeGitHubUri(addin.ProjectUrl);
 
 						// Derive the repository name and owner
-						var ownershipDerived = Misc.DeriveRepoInfo(addin.InferredRepositoryUrl ?? addin.RepositoryUrl ?? addin.ProjectUrl, out string repoOwner, out string repoName);
-						addin.RepositoryOwner = repoOwner;
-						addin.RepositoryName = repoName;
+						var ownershipDerived = Misc.DeriveGitHubRepositoryInfo(addin.InferredRepositoryUrl ?? addin.RepositoryUrl ?? addin.ProjectUrl, out string repoOwner, out string repoName);
 
-						// Make sure the project URL is valid
+						// Validate GitHub URL
 						if (ownershipDerived)
 						{
+							addin.RepositoryOwner = repoOwner;
+							addin.RepositoryName = repoName;
+
 							try
 							{
 								var repository = await context.GithubClient.Repository.Get(repoOwner, repoName).ConfigureAwait(false);
 								addin.InferredRepositoryUrl = new Uri(repository.CloneUrl);
 
 								// Derive the repository name and owner with the new repo URL
-								if (Misc.DeriveRepoInfo(addin.InferredRepositoryUrl, out repoOwner, out repoName))
+								if (Misc.DeriveGitHubRepositoryInfo(addin.InferredRepositoryUrl, out repoOwner, out repoName))
 								{
 									addin.RepositoryOwner = repoOwner;
 									addin.RepositoryName = repoName;
@@ -66,6 +68,25 @@ namespace Cake.AddinDiscoverer.Steps
 							catch (Exception e)
 							{
 								throw;
+							}
+						}
+
+						// Validate non-GitHub URL
+						else if (addin.ProjectUrl != null)
+						{
+							var githubRequest = new Request()
+							{
+								BaseAddress = new UriBuilder(addin.ProjectUrl.Scheme, addin.ProjectUrl.Host, addin.ProjectUrl.Port).Uri,
+								Endpoint = new Uri(addin.ProjectUrl.PathAndQuery, UriKind.Relative),
+								Method = HttpMethod.Head,
+							};
+							githubRequest.Headers.Add("User-Agent", ((Connection)context.GithubClient.Connection).UserAgent);
+
+							var response = await SendRequestWithRetries(githubRequest, context.GithubHttpClient).ConfigureAwait(false);
+
+							if (response.StatusCode == HttpStatusCode.NotFound)
+							{
+								addin.ProjectUrl = null;
 							}
 						}
 
