@@ -146,11 +146,14 @@ namespace Cake.AddinDiscoverer.Steps
 						if (issue != null) return;
 
 						// Create the issue
-						var newIssue = new NewIssue(issueTitle)
+						if (!context.Options.DryRun)
 						{
-							Body = $"Reference to {outdatedReference.Reference.Name} {outdatedReference.Reference.ReferencedVersion} in {outdatedReference.Recipe.Name} should be updated to {outdatedReference.LatestVersion}"
-						};
-						issue = await context.GithubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
+							var newIssue = new NewIssue(issueTitle)
+							{
+								Body = $"Reference to {outdatedReference.Reference.Name} {outdatedReference.Reference.ReferencedVersion} in {outdatedReference.Recipe.Name} should be updated to {outdatedReference.LatestVersion}"
+							};
+							issue = await context.GithubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
+						}
 
 						// Commit changes to a new branch and submit PR
 						var commitMessageShort = $"Update {outdatedReference.Reference.Name} reference to {outdatedReference.LatestVersion}";
@@ -243,7 +246,7 @@ namespace Cake.AddinDiscoverer.Steps
 					};
 
 					pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);
-					context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+					if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 				}
 			}
 		}

@@ -68,9 +68,10 @@ namespace Cake.AddinDiscoverer.Steps
 			var uniqueAddinPackages = addinPackages
 				.GroupBy(p => p.Identity.Id)
 				.Select(g => g
-					.OrderByDescending(p => p.Published)
-					.ThenBy(p => p.Identity.Version.IsPrerelease ? 1 : 0) // Stable versions are sorted first, prerelease versions sorted second
-					.First());
+					.OrderBy(p => p.Identity.Version.IsPrerelease ? 1 : 0) // Stable versions are sorted first, prerelease versions sorted second
+					.ThenByDescending(p => p.Published)
+					.First())
+				.ToArray();
 
 			//--------------------------------------------------
 			// Convert metadata from nuget into our own metadata
@@ -112,7 +113,8 @@ namespace Cake.AddinDiscoverer.Steps
 							IsPrerelease = package.Identity.Version.IsPrerelease,
 							HasPrereleaseDependencies = false,
 							Tags = tags,
-							Type = AddinType.Unknown
+							Type = AddinType.Unknown,
+							PublishedOn = DateTime.MinValue
 						};
 
 						if (package.Title.Contains("[DEPRECATED]", StringComparison.OrdinalIgnoreCase))
@@ -122,16 +124,20 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 						else
 						{
-							var deprecationMetadata = await package.GetDeprecationMetadataAsync().ConfigureAwait(false);
-							if (deprecationMetadata == null)
+							// The metadata returned by nugetSearchClient.SearchAsync is minimal.
+							// That's why we need to invoke nugetPackageMetadataClient.GetMetadataAsync to get more detailed metadata.
+							var packageMetadata = await nugetPackageMetadataClient.GetMetadataAsync(package.Title, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+							var detailedPackageMetadata = packageMetadata.SingleOrDefault(m => m.Identity.Equals(package.Identity));
+
+							if (detailedPackageMetadata != null)
 							{
-								var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(package.Title, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
-								var mostRecentPackageMetadata = searchMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
-								if (mostRecentPackageMetadata != null)
-								{
-									deprecationMetadata = await mostRecentPackageMetadata.GetDeprecationMetadataAsync().ConfigureAwait(false);
-								}
+								addinMetadata.PublishedOn = detailedPackageMetadata.Published.Value;
 							}
+
+							// We need to look at the most recent version (even if that's not the version that would otherwise be analyzed)
+							// to determine if the package has been deprecated
+							var mostRecentPackageMetadata = packageMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
+							var deprecationMetadata = mostRecentPackageMetadata != null ? await mostRecentPackageMetadata.GetDeprecationMetadataAsync().ConfigureAwait(false) : null;
 
 							if (deprecationMetadata != null)
 							{

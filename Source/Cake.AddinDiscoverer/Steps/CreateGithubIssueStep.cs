@@ -23,8 +23,6 @@ namespace Cake.AddinDiscoverer.Steps
 				.OrderByDescending(cakeVersion => cakeVersion.Version)
 				.First();
 
-			var debugging = false;
-
 			context.Addins = await context.Addins
 				.ForEachAsync(
 					async addin =>
@@ -36,11 +34,11 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							if (addin.AuditIssue != null && addin.AuditIssue.UpdatedAt.HasValue && DateTimeOffset.UtcNow.Subtract(addin.AuditIssue.UpdatedAt.Value).TotalDays > 90)
 							{
-								await AddCommentAsync(debugging, context, addin).ConfigureAwait(false);
+								await AddCommentAsync(context.Options.DryRun, context, addin).ConfigureAwait(false);
 							}
 							else if (addin.AuditIssue == null)
 							{
-								var issue = await CreateIssueAsync(debugging, context, addin, recommendedCakeVersion).ConfigureAwait(false);
+								var issue = await CreateIssueAsync(context.Options.DryRun, context, addin, recommendedCakeVersion).ConfigureAwait(false);
 								if (issue != null)
 								{
 									addin.AuditIssue = issue;

@@ -9,7 +9,6 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Connection = Octokit.Connection;
 
 namespace Cake.AddinDiscoverer.Steps
 {
@@ -17,7 +16,7 @@ namespace Cake.AddinDiscoverer.Steps
 	{
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
-		public string GetDescription(DiscoveryContext context) => "Validate Github repo URLs";
+		public string GetDescription(DiscoveryContext context) => "Validate URLs";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
@@ -33,15 +32,49 @@ namespace Cake.AddinDiscoverer.Steps
 						if (repo != null)
 						{
 							addin.ProjectUrl = new Uri(repo.HtmlUrl);
-							addin.RepositoryUrl = new Uri(repo.CloneUrl);
+							addin.InferredRepositoryUrl = new Uri(repo.CloneUrl);
 						}
 
-						// Force HTTPS for Github URLs
-						if (addin.ProjectUrl.MustUseHttps()) addin.ProjectUrl = addin.ProjectUrl.ForceHttps();
-						if (addin.RepositoryUrl.MustUseHttps()) addin.RepositoryUrl = addin.RepositoryUrl.ForceHttps();
+						// Standardize GitHub URLs
+						addin.InferredRepositoryUrl = Misc.StandardizeGitHubUri(addin.InferredRepositoryUrl);
+						addin.RepositoryUrl = Misc.StandardizeGitHubUri(addin.RepositoryUrl);
+						addin.ProjectUrl = Misc.StandardizeGitHubUri(addin.ProjectUrl);
 
-						// Make sure the project URL is valid
-						if (addin.ProjectUrl != null && !context.Options.ExcludeSlowSteps)
+						// Derive the repository name and owner
+						var ownershipDerived = Misc.DeriveGitHubRepositoryInfo(addin.InferredRepositoryUrl ?? addin.RepositoryUrl ?? addin.ProjectUrl, out string repoOwner, out string repoName);
+
+						// Validate GitHub URL
+						if (ownershipDerived)
+						{
+							addin.RepositoryOwner = repoOwner;
+							addin.RepositoryName = repoName;
+
+							try
+							{
+								var repository = await context.GithubClient.Repository.Get(repoOwner, repoName).ConfigureAwait(false);
+								addin.InferredRepositoryUrl = new Uri(repository.CloneUrl);
+
+								// Derive the repository name and owner with the new repo URL
+								if (Misc.DeriveGitHubRepositoryInfo(addin.InferredRepositoryUrl, out repoOwner, out repoName))
+								{
+									addin.RepositoryOwner = repoOwner;
+									addin.RepositoryName = repoName;
+								}
+							}
+							catch (NotFoundException)
+							{
+								addin.ProjectUrl = null;
+							}
+#pragma warning disable CS0168 // Variable is declared but never used
+							catch (Exception e)
+#pragma warning restore CS0168 // Variable is declared but never used
+							{
+								throw;
+							}
+						}
+
+						// Validate non-GitHub URL
+						else if (addin.ProjectUrl != null)
 						{
 							var githubRequest = new Request()
 							{
@@ -58,11 +91,6 @@ namespace Cake.AddinDiscoverer.Steps
 								addin.ProjectUrl = null;
 							}
 						}
-
-						// Derive the repository name and owner
-						var (repoOwner, repoName) = Misc.DeriveRepoInfo(addin.RepositoryUrl ?? addin.ProjectUrl);
-						addin.RepositoryOwner = repoOwner;
-						addin.RepositoryName = repoName;
 
 						return addin;
 					}, Constants.MAX_GITHUB_CONCURENCY)

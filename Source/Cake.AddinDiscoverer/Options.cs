@@ -51,5 +51,8 @@ namespace Cake.AddinDiscoverer
 
 		[Option('w', "excludeslowsteps", Default = false, HelpText = "Exclude step that take much time (such as GetGithubStats and CheckUsingCakeRecipe).")]
 		public bool ExcludeSlowSteps { get; set; }
+
+		[Option('d', "dryrun", Default = false, HelpText = "Dry run. Do not create PRs.")]
+		public bool DryRun { get; set; }
 	}
 }

@@ -17,11 +17,7 @@ namespace Cake.AddinDiscoverer.Steps
 	{
 		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps;
 
-		public string GetDescription(DiscoveryContext context)
-		{
-			if (string.IsNullOrEmpty(context.Options.AddinName)) return "Get NuGet package owners for all packages matching 'Cake.*'";
-			else return $"Get NuGet package owners for {context.Options.AddinName}";
-		}
+		public string GetDescription(DiscoveryContext context) => "Get NuGet package owners";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{

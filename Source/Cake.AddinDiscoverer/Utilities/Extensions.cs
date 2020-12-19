@@ -216,25 +216,6 @@ namespace Cake.AddinDiscoverer
 			return Regex.IsMatch(source, "^" + Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$");
 		}
 
-		public static Uri ForceHttps(this Uri originalUri)
-		{
-			if (originalUri == null) return null;
-
-			return new UriBuilder(originalUri)
-			{
-				Scheme = Uri.UriSchemeHttps,
-				Port = originalUri.IsDefaultPort ? -1 : originalUri.Port // -1 => default port for scheme
-			}.Uri;
-		}
-
-		public static bool MustUseHttps(this Uri uri)
-		{
-			if (uri == null) return false;
-			if (uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase)) return true;
-			if (uri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase)) return true;
-			return false;
-		}
-
 		public static bool IsUpToDate(this SemVersion currentVersion, SemVersion desiredVersion)
 		{
 			if (desiredVersion == null) throw new ArgumentNullException(nameof(desiredVersion));
@@ -342,6 +323,14 @@ namespace Cake.AddinDiscoverer
 			{
 				yield return childNode.ToString();
 			}
+		}
+
+		public static bool IsGithubUrl(this Uri uri)
+		{
+			if (uri == null) return false;
+
+			return uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) ||
+				   uri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase);
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)
