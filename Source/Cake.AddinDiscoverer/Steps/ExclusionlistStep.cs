@@ -8,10 +8,7 @@ namespace Cake.AddinDiscoverer.Steps
 	{
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
-		public string GetDescription(DiscoveryContext context)
-		{
-			return $"Filter out addins that are on the exclusion list";
-		}
+		public string GetDescription(DiscoveryContext context) => $"Filter out addins that are on the exclusion list";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{

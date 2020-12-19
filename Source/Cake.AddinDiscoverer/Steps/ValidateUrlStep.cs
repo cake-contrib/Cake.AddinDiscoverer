@@ -16,7 +16,7 @@ namespace Cake.AddinDiscoverer.Steps
 	{
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
-		public string GetDescription(DiscoveryContext context) => "Validate Github repo URLs";
+		public string GetDescription(DiscoveryContext context) => "Validate URLs";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{

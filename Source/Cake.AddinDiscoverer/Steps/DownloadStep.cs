@@ -17,8 +17,8 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context)
 		{
-			if (string.IsNullOrEmpty(context.Options.AddinName)) return "Download latest packages from NuGet";
-			return $"Download latest package for {context.Options.AddinName}";
+			if (string.IsNullOrEmpty(context.Options.AddinName)) return "Download packages from NuGet";
+			return $"Download package for {context.Options.AddinName}";
 		}
 
 		public async Task ExecuteAsync(DiscoveryContext context)
