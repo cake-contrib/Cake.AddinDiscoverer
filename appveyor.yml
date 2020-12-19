@@ -12,7 +12,6 @@ test: off
 # Branches to build
 branches:
   only:
-    - develop
     - master
     - main
     - /release/.*/
