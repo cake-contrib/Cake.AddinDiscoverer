@@ -16,7 +16,7 @@ namespace Cake.AddinDiscoverer.Steps
 	{
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
-		public string GetDescription(DiscoveryContext context) => "Validate Github repo URLs";
+		public string GetDescription(DiscoveryContext context) => "Validate URLs";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
@@ -65,7 +65,9 @@ namespace Cake.AddinDiscoverer.Steps
 							{
 								addin.ProjectUrl = null;
 							}
+#pragma warning disable CS0168 // Variable is declared but never used
 							catch (Exception e)
+#pragma warning restore CS0168 // Variable is declared but never used
 							{
 								throw;
 							}
