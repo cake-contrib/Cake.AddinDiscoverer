@@ -68,9 +68,10 @@ namespace Cake.AddinDiscoverer.Steps
 			var uniqueAddinPackages = addinPackages
 				.GroupBy(p => p.Identity.Id)
 				.Select(g => g
-					.OrderByDescending(p => p.Published)
-					.ThenBy(p => p.Identity.Version.IsPrerelease ? 1 : 0) // Stable versions are sorted first, prerelease versions sorted second
-					.First());
+					.OrderBy(p => p.Identity.Version.IsPrerelease ? 1 : 0) // Stable versions are sorted first, prerelease versions sorted second
+					.ThenByDescending(p => p.Published)
+					.First())
+				.ToArray();
 
 			//--------------------------------------------------
 			// Convert metadata from nuget into our own metadata
