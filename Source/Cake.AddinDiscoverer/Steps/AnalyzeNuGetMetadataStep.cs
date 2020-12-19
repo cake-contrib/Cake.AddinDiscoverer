@@ -52,7 +52,9 @@ namespace Cake.AddinDiscoverer.Steps
 							var iconUrl = package.NuspecReader.GetIconUrl();
 							var projectUrl = package.NuspecReader.GetProjectUrl();
 							var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
-							var frameworks = package.GetSupportedFrameworks().Select(f => f.GetShortFolderName()).ToArray();
+
+							// Only get TFM for lib folder. If there are other TFM used for other folders (tool, content, build, ...) we're not interested in it.
+							var frameworks = package.GetLibItems().Select(i => i.TargetFramework.GetShortFolderName()).ToArray();
 
 							var normalizedPackageDependencies = package.GetPackageDependencies()
 								.SelectMany(d => d.Packages)
