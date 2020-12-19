@@ -268,34 +268,85 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static async Task SynchronizeYamlFilesCollectivelyAsync(DiscoveryContext context, Repository fork, RepositoryContent[] yamlFilesToBeDeleted, (AddinMetadata Addin, string CurrentContent, string NewContent)[] addinsToBeCreated, (AddinMetadata Addin, string CurrentContent, string NewContent)[] addinsToBeUpdated)
 		{
+			// Filter out YAML files that already have an open issue+PR
+			var apiInfo = context.GithubClient.GetLastApiInfo();
+			var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
+
+			var threshold = (yamlFilesToBeDeleted.Length + addinsToBeCreated.Length + addinsToBeUpdated.Length) * 3;
+			if (requestsLeft < threshold)
+			{
+				Console.WriteLine($"  Only {requestsLeft} GitHub API requests left. Therefore skipping YAML files synchronization.");
+				return;
+			}
+
+			var upstream = fork.Parent;
+
+			// Filter out YAML files to be deleted if they already have an open issue
+			var yamlFilesToBeDeletedWithIssue = await yamlFilesToBeDeleted
+				.ForEachAsync(
+					async yamlFileToBeDeleted =>
+					{
+						var issueTitle = $"Delete {yamlFileToBeDeleted.Name}";
+						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, string.Format(issueTitle, yamlFileToBeDeleted.Name)).ConfigureAwait(false);
+						return (YamlFile: yamlFileToBeDeleted, Issue: issue);
+					}, Constants.MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
+
+			var filteredYamlFilesToBeDeleted = yamlFilesToBeDeletedWithIssue
+				.Where(fileWithIssue => fileWithIssue.Issue == null)
+				.Select(fileWithIssue => fileWithIssue.YamlFile)
+				.ToArray();
+
+			// Filter out addins to be created if they already have an open issue
+			var addinsToBeCreatedWithIssue = await addinsToBeCreated
+				.ForEachAsync(
+					async addinToBeCreated =>
+					{
+						var issueTitle = $"Add {addinToBeCreated.Addin.Name}.yml";
+						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, string.Format(issueTitle, addinToBeCreated.Addin.Name)).ConfigureAwait(false);
+						return (Addin: addinToBeCreated, Issue: issue);
+					}, Constants.MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
+
+			var filteredAddinsToBeCreated = addinsToBeCreatedWithIssue
+				.Where(addinWithIssue => addinWithIssue.Issue == null)
+				.Select(addinWithIssue => addinWithIssue.Addin)
+				.ToArray();
+
+			// Filter out addins to be updated if they already have an open issue
+			var addinsToBeUpdatedWithIssue = await addinsToBeUpdated
+				.ForEachAsync(
+					async addinToBeUpdated =>
+					{
+						var issueTitle = $"Update {addinToBeUpdated.Addin.Name}.yml";
+						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, string.Format(issueTitle, addinToBeUpdated.Addin.Name)).ConfigureAwait(false);
+						return (Addin: addinToBeUpdated, Issue: issue);
+					}, Constants.MAX_GITHUB_CONCURENCY)
+				.ConfigureAwait(false);
+
+			var filteredAddinsToBeUpdated = addinsToBeUpdatedWithIssue
+				.Where(addinWithIssue => addinWithIssue.Issue == null)
+				.Select(addinWithIssue => addinWithIssue.Addin)
+				.ToArray();
+
+			// Convert YAML files into commits
 			var newBranchName = $"yaml_files_sync_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-			var commits = ConvertToCommits(yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated);
+			var commits = ConvertToCommits(filteredYamlFilesToBeDeleted, filteredAddinsToBeCreated, filteredAddinsToBeUpdated);
 
 			if (commits.Any())
 			{
-				var apiInfo = context.GithubClient.GetLastApiInfo();
-				var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
-
-				var threshold = commits.Count() * 5;
-				if (requestsLeft < threshold)
+				// Create issue
+				var newIssue = new NewIssue(Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE)
 				{
-					Console.WriteLine($"  Only {requestsLeft} GitHub API requests left. Therefore skipping YAML files synchronization.");
-				}
-				else
-				{
-					// Create issue
-					var newIssue = new NewIssue(Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE)
-					{
-						Body = $"The Cake.AddinDiscoverer tool has discovered that a large number of YAML file need to be deleted, added or modified.{Environment.NewLine}" +
-							   $"{Environment.NewLine}Since the number of files is larger than usual, we grouped them all together and we are raising a single issue and opening a single PR.{Environment.NewLine}"
-					};
-					var issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
-					context.IssuesCreatedByCurrentUser.Add(issue);
+					Body = $"The Cake.AddinDiscoverer tool has discovered that a large number of YAML file need to be deleted, added or modified.{Environment.NewLine}" +
+						   $"{Environment.NewLine}Since the number of files is larger than usual, we grouped them all together and we are raising a single issue and opening a single PR.{Environment.NewLine}"
+				};
+				var issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+				context.IssuesCreatedByCurrentUser.Add(issue);
 
-					// Commit changes to a new branch and submit PR
-					var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE, commits).ConfigureAwait(false);
-					if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
-				}
+				// Commit changes to a new branch and submit PR
+				var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE, commits).ConfigureAwait(false);
+				if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 			}
 		}
 
