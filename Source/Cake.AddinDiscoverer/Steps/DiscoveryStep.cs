@@ -114,7 +114,7 @@ namespace Cake.AddinDiscoverer.Steps
 							HasPrereleaseDependencies = false,
 							Tags = tags,
 							Type = AddinType.Unknown,
-							PublishedOn = DateTime.MinValue
+							PublishedOn = Constants.UtcMinDateTime
 						};
 
 						if (package.Title.Contains("[DEPRECATED]", StringComparison.OrdinalIgnoreCase))
@@ -126,7 +126,7 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							// The metadata returned by nugetSearchClient.SearchAsync is minimal.
 							// That's why we need to invoke nugetPackageMetadataClient.GetMetadataAsync to get more detailed metadata.
-							var packageMetadata = await nugetPackageMetadataClient.GetMetadataAsync(package.Title, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
+							var packageMetadata = await nugetPackageMetadataClient.GetMetadataAsync(package.Identity.Id, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
 							var detailedPackageMetadata = packageMetadata.SingleOrDefault(m => m.Identity.Equals(package.Identity));
 
 							if (detailedPackageMetadata != null)

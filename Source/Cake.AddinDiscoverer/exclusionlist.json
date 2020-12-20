@@ -5,6 +5,7 @@
     "Cake.Board",
     "Cake.Board.Abstractions",
     "Cake.Bridge",
+    "Cake.Cli",
     "Cake.Common",
     "Cake.CompressionNetStandard",
     "Cake.Core",

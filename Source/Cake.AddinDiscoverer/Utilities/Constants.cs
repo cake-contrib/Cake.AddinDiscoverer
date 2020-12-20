@@ -33,6 +33,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string CAKE_CONTRIB_REPO_NAME = "Home";
 		public const string CAKE_RECIPE_REPO_NAME = "Cake.Recipe";
 
+		public static readonly DateTime UtcMinDateTime = new DateTime(0, DateTimeKind.Utc); // <== Making sure the timezone is UTC. Do not use DateTime.MinValue because the 'Kind' is unspecified.
 		public static readonly SemVersion UNKNOWN_VERSION = new SemVersion(0, 0, 0);
 
 		public static readonly CakeVersion[] CAKE_VERSIONS = new[]

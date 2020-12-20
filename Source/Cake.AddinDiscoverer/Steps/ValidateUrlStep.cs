@@ -31,27 +31,36 @@ namespace Cake.AddinDiscoverer.Steps
 						var repo = cakeContribRepositories.FirstOrDefault(r => r.Name.EqualsIgnoreCase(addin.Name));
 						if (repo != null)
 						{
-							addin.ProjectUrl = new Uri(repo.HtmlUrl);
+							// Only overwrite GitHub and Bitbucket URLs and preserve custom URLs such as 'https://cakeissues.net/' for example.
+							if (addin.ProjectUrl.IsGithubUrl(false) || addin.ProjectUrl.IsBitbucketUrl())
+							{
+								addin.ProjectUrl = new Uri(repo.HtmlUrl);
+							}
+
 							addin.InferredRepositoryUrl = new Uri(repo.CloneUrl);
 						}
 
-						// Standardize GitHub URLs
-						addin.InferredRepositoryUrl = Misc.StandardizeGitHubUri(addin.InferredRepositoryUrl);
-						addin.RepositoryUrl = Misc.StandardizeGitHubUri(addin.RepositoryUrl);
-						addin.ProjectUrl = Misc.StandardizeGitHubUri(addin.ProjectUrl);
-
 						// Derive the repository name and owner
 						var ownershipDerived = Misc.DeriveGitHubRepositoryInfo(addin.InferredRepositoryUrl ?? addin.RepositoryUrl ?? addin.ProjectUrl, out string repoOwner, out string repoName);
-
-						// Validate GitHub URL
 						if (ownershipDerived)
 						{
 							addin.RepositoryOwner = repoOwner;
 							addin.RepositoryName = repoName;
+						}
 
+						// Validate GitHub URL
+						if (repo == null && ownershipDerived)
+						{
 							try
 							{
 								var repository = await context.GithubClient.Repository.Get(repoOwner, repoName).ConfigureAwait(false);
+
+								// Only overwrite GitHub and Bitbucket URLs and preserve custom URLs such as 'https://cakeissues.net/' for example.
+								if (addin.ProjectUrl.IsGithubUrl(false) || addin.ProjectUrl.IsBitbucketUrl())
+								{
+									addin.ProjectUrl = new Uri(repository.HtmlUrl);
+								}
+
 								addin.InferredRepositoryUrl = new Uri(repository.CloneUrl);
 
 								// Derive the repository name and owner with the new repo URL
@@ -74,7 +83,7 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 
 						// Validate non-GitHub URL
-						else if (addin.ProjectUrl != null)
+						if (addin.ProjectUrl != null && !addin.ProjectUrl.IsGithubUrl(false))
 						{
 							var githubRequest = new Request()
 							{
@@ -91,6 +100,11 @@ namespace Cake.AddinDiscoverer.Steps
 								addin.ProjectUrl = null;
 							}
 						}
+
+						// Standardize GitHub URLs
+						addin.InferredRepositoryUrl = Misc.StandardizeGitHubUri(addin.InferredRepositoryUrl);
+						addin.RepositoryUrl = Misc.StandardizeGitHubUri(addin.RepositoryUrl);
+						addin.ProjectUrl = Misc.StandardizeGitHubUri(addin.ProjectUrl);
 
 						return addin;
 					}, Constants.MAX_GITHUB_CONCURENCY)
