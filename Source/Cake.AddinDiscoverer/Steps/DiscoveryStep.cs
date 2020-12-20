@@ -114,7 +114,7 @@ namespace Cake.AddinDiscoverer.Steps
 							HasPrereleaseDependencies = false,
 							Tags = tags,
 							Type = AddinType.Unknown,
-							PublishedOn = DateTime.MinValue
+							PublishedOn = Constants.UtcMinDateTime
 						};
 
 						if (package.Title.Contains("[DEPRECATED]", StringComparison.OrdinalIgnoreCase))
