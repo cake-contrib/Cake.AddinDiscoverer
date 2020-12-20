@@ -325,12 +325,21 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
-		public static bool IsGithubUrl(this Uri uri)
+		public static bool IsGithubUrl(this Uri uri, bool includeDocumentationUrls = true)
 		{
 			if (uri == null) return false;
 
-			return uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) ||
-				   uri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase);
+			if (uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase)) return true;
+			if (uri.Host.Contains("github.io", StringComparison.OrdinalIgnoreCase) && includeDocumentationUrls) return true;
+
+			return false;
+		}
+
+		public static bool IsBitbucketUrl(this Uri uri)
+		{
+			if (uri == null) return false;
+
+			return uri.Host.Contains("bitbucket.org", StringComparison.OrdinalIgnoreCase);
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)
