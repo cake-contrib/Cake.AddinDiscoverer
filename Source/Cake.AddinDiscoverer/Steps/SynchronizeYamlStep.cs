@@ -413,16 +413,13 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"Type: {addin.Type}");
 			yamlContent.AppendUnixLine($"Name: {addin.Name}");
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
-			yamlContent.AppendUnixLine("Assemblies:");
-			yamlContent.AppendUnixLine($"- \"/**/{addin.DllName}\"");
+			yamlContent.AppendUnixLine(GetAssembliesForYaml(context, new[] { $"/**/{addin.DllName}" }));
 			yamlContent.AppendUnixLine($"Repository: {(addin.InferredRepositoryUrl ?? addin.RepositoryUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"ProjectUrl: {(addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(description)}");
-			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, addin.Tags));
 			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion()?.ToString()}");
-			yamlContent.AppendUnixLine("TargetFrameworks:");
 			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 			yamlContent.AppendUnixLine($"AnalyzedPackageIsPrerelease: {(addin.IsPrerelease ? "true" : "false")}");
@@ -443,27 +440,30 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"Type: {addin.Type}");
 			yamlContent.AppendUnixLine($"Name: {mapping.GetChildNodeValue("Name")}");
 			yamlContent.AppendUnixLine($"NuGet: {mapping.GetChildNodeValue("NuGet")}");
-
-			yamlContent.AppendUnixLine("Assemblies:");
-			foreach (var childNodeValue in mapping.GetChildrenNodesValue("Assemblies"))
-			{
-				yamlContent.AppendUnixLine($"- \"{childNodeValue}\"");
-			}
-
+			yamlContent.AppendUnixLine(GetAssembliesForYaml(context, mapping.GetChildrenNodesValue("Assemblies")));
 			yamlContent.AppendUnixLine($"Repository: {(addin.InferredRepositoryUrl ?? addin.RepositoryUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"ProjectUrl: {(addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"Author: {mapping.GetChildNodeValue("Author")}");
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(mapping.GetChildNodeValue("Description"))}");
-			yamlContent.AppendUnixLine("Categories:");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
 			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion().ToString()}");
-			yamlContent.AppendUnixLine("TargetFrameworks:");
 			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 			yamlContent.AppendUnixLine($"AnalyzedPackageIsPrerelease: {(addin.IsPrerelease ? "true" : "false")}");
 			yamlContent.AppendUnixLine($"AnalyzedPackagePublishDate: {(addin.PublishedOn == Constants.UtcMinDateTime ? string.Empty : addin.PublishedOn.UtcDateTime.ToString("o"))}"); // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
 
 			return yamlContent.ToString();
+		}
+
+		private static string GetAssembliesForYaml(DiscoveryContext context, IEnumerable<string> paths)
+		{
+			var filteredPaths = paths
+				.Where(t1 => !string.IsNullOrWhiteSpace(t1))
+				.Select(t2 => t2.Trim())
+				.Select(t3 => $"\"{t3}\"")
+				.Distinct(StringComparer.InvariantCultureIgnoreCase);
+
+			return FormatArrayForYaml("Assemblies", filteredPaths);
 		}
 
 		private static string GetCategoriesForYaml(DiscoveryContext context, YamlMappingNode mapping)
@@ -483,31 +483,25 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static string GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
 		{
-			var filteredAndFormattedTags = tags
+			var filteredTags = tags
 				.Where(t1 => !string.IsNullOrWhiteSpace(t1))
 				.Select(t2 => t2.Trim())
 				.Select(t3 => t3.ToLowerInvariant())
 				.Except(context.ExcludedTags, StringComparer.InvariantCultureIgnoreCase)
-				.Distinct(StringComparer.InvariantCultureIgnoreCase)
-				.Select(tag => $"- {tag}");
+				.Distinct(StringComparer.InvariantCultureIgnoreCase);
 
-			var categories = string.Join("\n", filteredAndFormattedTags);
-
-			return categories;
+			return FormatArrayForYaml("Categories", filteredTags);
 		}
 
 		private static string GetFrameworksForYaml(IEnumerable<string> frameworks)
 		{
-			var filteredAndFormattedFrameworks = frameworks
+			var filteredFrameworks = frameworks
 				.Where(f1 => !string.IsNullOrWhiteSpace(f1))
 				.Select(f2 => f2.Trim())
 				.Select(f3 => f3.ToLowerInvariant())
-				.Distinct(StringComparer.InvariantCultureIgnoreCase)
-				.Select(framework => $"- {framework}");
+				.Distinct(StringComparer.InvariantCultureIgnoreCase);
 
-			var targetFrameworks = string.Join("\n", filteredAndFormattedFrameworks);
-
-			return targetFrameworks;
+			return FormatArrayForYaml("TargetFrameworks", filteredFrameworks);
 		}
 
 		private static string QuotedYamlString(string value)
@@ -527,6 +521,19 @@ namespace Cake.AddinDiscoverer.Steps
 			else
 			{
 				return value;
+			}
+		}
+
+		private static string FormatArrayForYaml(string title, IEnumerable<string> items)
+		{
+			if (items.Any())
+			{
+				var formattedItems = string.Join("\n", items.Select(item => $"- {item}"));
+				return $"{title}:\n{formattedItems}";
+			}
+			else
+			{
+				return $"{title}: []";
 			}
 		}
 	}
