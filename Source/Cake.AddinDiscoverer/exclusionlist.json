@@ -19,6 +19,9 @@
     "Cake.Mix",
     "Cake.NuGet",
     "Cake.OssIndex",
+    "Cake.PackageType.Addin", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.PackageType.Module", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.PackageType.Recipe", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
     "Cake.Scripting.Abstractions",
     "Cake.Scripting.Transport",
     "Cake.SendMail", // This is a clone of Cake.Email
