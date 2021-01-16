@@ -52,13 +52,14 @@ namespace Cake.AddinDiscoverer.Steps
 
 							// Only get TFM for lib folder. If there are other TFM used for other folders (tool, content, build, ...) we're not interested in it.
 							// Also filter out the "any" platform which is used when the platform is unknown
-							var frameworks = package
+							var frameworks = addin.NuGetPackage
 								.GetLibItems()
 								.Select(i => i.TargetFramework.GetShortFolderName())
 								.Except(new[] { "any" })
 								.ToArray();
 
-							var normalizedPackageDependencies = package.GetPackageDependencies()
+							var normalizedPackageDependencies = addin.NuGetPackage
+								.GetPackageDependencies()
 								.SelectMany(d => d.Packages)
 								.Select(d => new
 								{
