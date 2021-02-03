@@ -26,6 +26,18 @@ namespace Cake.AddinDiscoverer.Steps
 			// Ensure the fork is up-to-date
 			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 
+			// Local functions that indicate if the YAML file for a given addin should be created/updated/deleted
+			bool ShouldDeleteYamlFile(AddinMetadata addin)
+			{
+				return addin.IsDeprecated;
+			}
+
+			bool ShouldUpdateOrCreateYamlFile(AddinMetadata addin)
+			{
+				return !addin.IsDeprecated &&
+					   (addin.Type == AddinType.Addin || addin.Type == AddinType.Module);
+			}
+
 			// --------------------------------------------------
 			// Discover if any files need to be added/deleted/modified
 			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "extensions").ConfigureAwait(false);
@@ -38,15 +50,14 @@ namespace Cake.AddinDiscoverer.Steps
 				.Where(f =>
 				{
 					var addin = context.Addins.FirstOrDefault(a => a.Name == Path.GetFileNameWithoutExtension(f.Name));
-					return addin == null || addin.IsDeprecated;
+					return addin == null || ShouldDeleteYamlFile(addin);
 				})
 				.OrderBy(f => f.Name)
 				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
 			var addinsWithContent = await context.Addins
-				.Where(addin => !addin.IsDeprecated)
-				.Where(addin => addin.Type == AddinType.Addin)
+				.Where(ShouldUpdateOrCreateYamlFile)
 				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
 				.ForEachAsync<AddinMetadata, (AddinMetadata Addin, string CurrentContent, string NewContent)>(
 					async addin =>
@@ -63,8 +74,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ToArray();
 
 			var addinsToBeCreated = context.Addins
-				.Where(addin => !addin.IsDeprecated)
-				.Where(addin => addin.Type == AddinType.Addin)
+				.Where(ShouldUpdateOrCreateYamlFile)
 				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
 				.OrderBy(addin => addin.Name)
 				.Select<AddinMetadata, (AddinMetadata Addin, string CurrentContent, string NewContent)>(addin => (addin, string.Empty, GenerateYamlFile(context, addin)))
