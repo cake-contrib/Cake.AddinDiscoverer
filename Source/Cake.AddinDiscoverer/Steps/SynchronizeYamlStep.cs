@@ -423,7 +423,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"Type: {addin.Type}");
 			yamlContent.AppendUnixLine($"Name: {addin.Name}");
 			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
-			yamlContent.AppendUnixLine(GetAssembliesForYaml(context, new[] { $"/**/{addin.DllName}" }));
+			yamlContent.AppendUnixLine(GetAssembliesForYaml(context, new[] { $"/**/{(string.IsNullOrEmpty(addin.DllName) ? "*.dll" : addin.DllName)}" }));
 			yamlContent.AppendUnixLine($"Repository: {(addin.InferredRepositoryUrl ?? addin.RepositoryUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"ProjectUrl: {(addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri}");
 			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
