@@ -123,8 +123,6 @@ namespace Cake.AddinDiscoverer.Steps
 				var markdownReportForCakeVersion = GenerateMarkdown(context, auditedAddins, cakeVersion, AddinType.Addin);
 				await File.WriteAllTextAsync(reportPath, markdownReportForCakeVersion).ConfigureAwait(false);
 			}
-
-			await Task.Delay(1).ConfigureAwait(false);
 		}
 
 		private static DataDestination GetMarkdownDestinationForType(AddinType type)
