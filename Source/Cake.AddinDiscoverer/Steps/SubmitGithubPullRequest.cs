@@ -45,11 +45,7 @@ namespace Cake.AddinDiscoverer.Steps
 								var apiInfo = context.GithubClient.GetLastApiInfo();
 								var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
 
-								// 250 is an arbitrary threshold that I feel is "safe". Keep in mind that we
-								// have 10 concurrent connections making a multitude of calls to GihHub's API
-								// so this number must be large enough to allow us to bail out before we exhaust
-								// the calls we are allowed to make in an hour
-								if (requestsLeft > 250)
+								if (requestsLeft > Constants.MIN_GITHUB_REQUESTS_THRESHOLD)
 								{
 									// Fork the addin repo if it hasn't been forked already and make sure it's up to date
 									var fork = await context.GithubClient.CreateOrRefreshFork(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
