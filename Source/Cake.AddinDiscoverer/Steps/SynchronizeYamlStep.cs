@@ -456,7 +456,7 @@ namespace Cake.AddinDiscoverer.Steps
 			yamlContent.AppendUnixLine($"Author: {mapping.GetChildNodeValue("Author")}");
 			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(mapping.GetChildNodeValue("Description"))}");
 			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
-			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion().ToString()}");
+			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion()?.ToString()}");
 			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
 			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
 			yamlContent.AppendUnixLine($"AnalyzedPackageIsPrerelease: {(addin.IsPrerelease ? "true" : "false")}");
