@@ -10,13 +10,6 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class CheckUsingCakeRecipeStep : IStep
 	{
-		private static readonly string[] _wellKnownCakeFiles = new[]
-		{
-			"setup.cake",
-			"build.cake",
-			"recipe.cake"
-		};
-
 		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && (context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo);
 
 		public string GetDescription(DiscoveryContext context)
