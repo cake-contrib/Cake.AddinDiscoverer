@@ -28,6 +28,9 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							try
 							{
+								// Get all files from the repo
+								addin.RepoContent = await Misc.GetRepoContentAsync(context, addin).ConfigureAwait(false);
+
 								// Total count includes both issues and pull requests.
 								var totalCount = await GetRecordsCount(context, "issues", addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 								var pullRequestsCount = await GetRecordsCount(context, "pulls", addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
@@ -48,7 +51,7 @@ namespace Cake.AddinDiscoverer.Steps
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"GetGithubInfo: {e.GetBaseException().Message}{Environment.NewLine}";
+								addin.AnalysisResult.Notes += $"GetGithubMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
 							}
 							finally
 							{
