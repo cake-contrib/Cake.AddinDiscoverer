@@ -41,42 +41,36 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							try
 							{
-								// Get all files from the repo
-								var filesGroupedByExtention = await Misc.GetFilePathsFromRepoAsync(context, addin).ConfigureAwait(false);
-
 								// Get the cake files
-								filesGroupedByExtention.TryGetValue(".cake", out string[] filePaths);
-								if (filePaths != null && filePaths.Any())
+								var repoItems = addin.RepoContent
+									.Where(item => Path.GetExtension(item.Key) == ".cake")
+									.ToArray();
+
+								foreach (var repoItem in repoItems)
 								{
-									// The purpose of ordering is to favor well known cake files if they are present in the repository
-									// and therefore limit the number of calls to github's API while at the same time account for the
-									// fact that addin authors may not necessarily follow the usual naming convention
-									foreach (var filePath in filePaths.OrderBy(path => _wellKnownCakeFiles.Contains(Path.GetFileName(path)) ? 0 : 1))
+									// Get the content of the cake file
+									var cakeFileContent = await new StreamReader(repoItem.Value).ReadToEndAsync().ConfigureAwait(false);
+
+									if (!string.IsNullOrEmpty(cakeFileContent))
 									{
-										// Get the content of the cake file
-										var cakeFileContent = await Misc.GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
-
-										if (!string.IsNullOrEmpty(cakeFileContent))
+										// Parse the cake file
+										var recipeFile = new RecipeFile()
 										{
-											// Parse the cake file
-											var recipeFile = new RecipeFile()
-											{
-												Content = cakeFileContent
-											};
+											Content = cakeFileContent
+										};
 
-											// Check if this file references Cake.Recipe
-											var cakeRecipeReference = recipeFile.LoadReferences.FirstOrDefault(r => r.Name.EqualsIgnoreCase("Cake.Recipe"));
-											if (cakeRecipeReference != null)
-											{
-												addin.AnalysisResult.CakeRecipeIsUsed = true;
-												addin.AnalysisResult.CakeRecipeVersion = string.IsNullOrEmpty(cakeRecipeReference.ReferencedVersion) ? null : SemVersion.Parse(cakeRecipeReference.ReferencedVersion);
-												addin.AnalysisResult.CakeRecipeIsPrerelease = cakeRecipeReference.Prerelease;
-												addin.AnalysisResult.CakeRecipeIsLatest = string.IsNullOrEmpty(cakeRecipeReference.ReferencedVersion) || cakeRecipeReference.ReferencedVersion == latestCakeRecipeVersion;
-											}
+										// Check if this file references Cake.Recipe
+										var cakeRecipeReference = recipeFile.LoadReferences.FirstOrDefault(r => r.Name.EqualsIgnoreCase("Cake.Recipe"));
+										if (cakeRecipeReference != null)
+										{
+											addin.AnalysisResult.CakeRecipeIsUsed = true;
+											addin.AnalysisResult.CakeRecipeVersion = string.IsNullOrEmpty(cakeRecipeReference.ReferencedVersion) ? null : SemVersion.Parse(cakeRecipeReference.ReferencedVersion);
+											addin.AnalysisResult.CakeRecipeIsPrerelease = cakeRecipeReference.Prerelease;
+											addin.AnalysisResult.CakeRecipeIsLatest = string.IsNullOrEmpty(cakeRecipeReference.ReferencedVersion) || cakeRecipeReference.ReferencedVersion == latestCakeRecipeVersion;
 										}
-
-										if (addin.AnalysisResult.CakeRecipeIsUsed) break;
 									}
+
+									if (addin.AnalysisResult.CakeRecipeIsUsed) break;
 								}
 							}
 							catch (ApiException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound)
