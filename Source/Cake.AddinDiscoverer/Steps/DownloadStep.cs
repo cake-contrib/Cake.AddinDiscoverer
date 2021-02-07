@@ -5,7 +5,6 @@ using NuGet.Packaging.Core;
 using NuGet.Protocol.Core.Types;
 using System;
 using System.IO;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,14 +23,13 @@ namespace Cake.AddinDiscoverer.Steps
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
 			var nugetPackageDownloadClient = context.NugetRepository.GetResource<DownloadResource>();
-			using var httpClient = new HttpClient();
 
 			await context.Addins
 				.ForEachAsync(
 					async package =>
 					{
 						await DownloadNugetPackage(nugetPackageDownloadClient, context, package).ConfigureAwait(false);
-						await DownloadSymbolsPackage(httpClient, context, package).ConfigureAwait(false);
+						await DownloadSymbolsPackage(context, package).ConfigureAwait(false);
 					}, Constants.MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
 		}
@@ -74,7 +72,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private async Task DownloadSymbolsPackage(HttpClient httpClient, DiscoveryContext context, AddinMetadata package)
+		private async Task DownloadSymbolsPackage(DiscoveryContext context, AddinMetadata package)
 		{
 			var packageFileName = Path.Combine(context.PackagesFolder, $"{package.Name}.{package.NuGetPackageVersion}.snupkg");
 			if (!File.Exists(packageFileName))
@@ -93,7 +91,7 @@ namespace Cake.AddinDiscoverer.Steps
 				// Download the latest version of the symbols package
 				try
 				{
-					var response = await httpClient
+					var response = await context.HttpClient
 						.GetAsync($"https://www.nuget.org/api/v2/symbolpackage/{package.Name}/{package.NuGetPackageVersion}")
 						.ConfigureAwait(false);
 

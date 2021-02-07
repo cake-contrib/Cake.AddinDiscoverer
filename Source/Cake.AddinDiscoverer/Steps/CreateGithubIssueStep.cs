@@ -103,7 +103,7 @@ namespace Cake.AddinDiscoverer.Steps
 			finally
 			{
 				// This delay is important to avoid triggering GitHub's abuse protection
-				await Task.Delay(1000).ConfigureAwait(false);
+				await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 			}
 
 			return issueComment;
@@ -194,7 +194,7 @@ namespace Cake.AddinDiscoverer.Steps
 			finally
 			{
 				// This delay is important to avoid triggering GitHub's abuse protection
-				await Task.Delay(1000).ConfigureAwait(false);
+				await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 			}
 
 			return issue;

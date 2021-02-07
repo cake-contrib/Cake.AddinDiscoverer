@@ -3,9 +3,11 @@ using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -147,27 +149,29 @@ namespace Cake.AddinDiscoverer.Utilities
 			return pullRequest;
 		}
 
-		public static async Task<IDictionary<string, string[]>> GetFilePathsFromRepoAsync(DiscoveryContext context, AddinMetadata addin)
+		public static async Task<IDictionary<string, Stream>> GetRepoContentAsync(DiscoveryContext context, AddinMetadata addin)
 		{
-			var filesPathGroupedByExtension = (IDictionary<string, string[]>)null;
+			IDictionary<string, Stream> repoContent;
 
 			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(addin.RepositoryOwner, addin.RepositoryName, ArchiveFormat.Zipball).ConfigureAwait(false);
 			using (var data = new MemoryStream(zipArchive))
 			{
 				using var archive = new ZipArchive(data);
-				filesPathGroupedByExtension = archive.Entries
-					.Select(e => string.Join('/', e.FullName.Split('/', StringSplitOptions.RemoveEmptyEntries).Skip(1)))
-					.GroupBy(path => System.IO.Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)
-					.ToDictionary(grp => grp.Key, grp => grp.ToArray());
+
+				repoContent = archive.Entries
+					.ToDictionary(
+						item => item.FullName,
+						item =>
+						{
+							var ms = new MemoryStream();
+
+							item.Open().CopyTo(ms);
+
+							return (Stream)ms;
+						});
 			}
 
-			return filesPathGroupedByExtension;
-		}
-
-		public static async Task<string> GetFileContentFromRepoAsync(DiscoveryContext context, AddinMetadata addin, string filePath)
-		{
-			var content = await context.GithubClient.Repository.Content.GetAllContents(addin.RepositoryOwner, addin.RepositoryName, filePath).ConfigureAwait(false);
-			return content[0].Content;
+			return repoContent;
 		}
 
 		public static bool DeriveGitHubRepositoryInfo(Uri url, out string owner, out string name)
@@ -228,6 +232,13 @@ namespace Cake.AddinDiscoverer.Utilities
 				.Uri;
 
 			return standardizedUri;
+		}
+
+		// This is to ensure we don't issue requests too quickly and therefore trigger Github's abuse detection
+		// Randomize the delay to further minimize the likelihood of triggering Github's abuse detection
+		public static Task RandomGithubDelayAsync()
+		{
+			return Task.Delay(RandomNumberGenerator.GetInt32(600, 2000));
 		}
 	}
 }

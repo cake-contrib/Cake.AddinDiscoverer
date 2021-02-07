@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -54,8 +55,8 @@ namespace Cake.AddinDiscoverer
 			// Get previously created issue and pull request from the Github repo
 			typeof(GetGithubIssuesStep),
 
-			// Get statistics from the Github repo
-			typeof(GetGithubStatsStep),
+			// Get statistics, content, etc. from the Github repo
+			typeof(GetGithubMetadataStep),
 
 			// Check if addins are using Cake.Recipe
 			typeof(CheckUsingCakeRecipeStep),
@@ -113,6 +114,7 @@ namespace Cake.AddinDiscoverer
 				Addins = Array.Empty<AddinMetadata>(),
 				GithubClient = new GitHubClient(connection),
 				GithubHttpClient = new HttpClientAdapter(() => HttpMessageHandlerFactory.CreateDefault(proxy)),
+				HttpClient = new HttpClient(new HttpClientHandler() { Proxy = proxy, UseProxy = proxy != null }),
 				NugetRepository = new SourceRepository(packageSource, providers),
 				Options = options,
 				TempFolder = Path.Combine(options.TemporaryFolder, Constants.PRODUCT_NAME),

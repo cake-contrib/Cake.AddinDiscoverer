@@ -12,11 +12,12 @@ using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
 {
-	internal class GetGithubStatsStep : IStep
+	internal class GetGithubMetadataStep : IStep
 	{
+		// The pre condition should be the same as the steps that use this information. For instance: CheckUsingCakeRecipeStep.
 		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && (context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo);
 
-		public string GetDescription(DiscoveryContext context) => "Get stats from Github";
+		public string GetDescription(DiscoveryContext context) => "Get metadata (such as stats, content, etc.) from Github";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
@@ -28,6 +29,9 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							try
 							{
+								// Get all files from the repo
+								addin.RepoContent = await Misc.GetRepoContentAsync(context, addin).ConfigureAwait(false);
+
 								// Total count includes both issues and pull requests.
 								var totalCount = await GetRecordsCount(context, "issues", addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 								var pullRequestsCount = await GetRecordsCount(context, "pulls", addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
@@ -48,12 +52,12 @@ namespace Cake.AddinDiscoverer.Steps
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"GetGithubInfo: {e.GetBaseException().Message}{Environment.NewLine}";
+								addin.AnalysisResult.Notes += $"GetGithubMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
 							}
 							finally
 							{
 								// This is to ensure we don't issue requests too quickly and therefore trigger Github's abuse detection
-								await Task.Delay(1000).ConfigureAwait(false);
+								await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 							}
 						}
 
