@@ -50,7 +50,7 @@ namespace Cake.AddinDiscoverer.Steps
 									var fork = await context.GithubClient.CreateOrRefreshFork(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 
 									// This delay is important to avoid triggering GitHub's abuse protection
-									await Task.Delay(1000).ConfigureAwait(false);
+									await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 
 									// Commit changes to a new branch and submit PR
 									var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
@@ -63,7 +63,7 @@ namespace Cake.AddinDiscoverer.Steps
 									}
 
 									// This delay is important to avoid triggering GitHub's abuse protection
-									await Task.Delay(1000).ConfigureAwait(false);
+									await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 								}
 								else
 								{

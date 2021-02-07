@@ -7,6 +7,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -222,6 +223,13 @@ namespace Cake.AddinDiscoverer.Utilities
 				.Uri;
 
 			return standardizedUri;
+		}
+
+		// This is to ensure we don't issue requests too quickly and therefore trigger Github's abuse detection
+		// Randomize the delay to further minimize the likelihood of triggering Github's abuse detection
+		public static Task RandomGithubDelayAsync()
+		{
+			return Task.Delay(RandomNumberGenerator.GetInt32(600, 2000));
 		}
 	}
 }

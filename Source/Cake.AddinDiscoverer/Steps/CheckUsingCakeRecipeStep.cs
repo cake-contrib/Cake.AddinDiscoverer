@@ -81,7 +81,7 @@ namespace Cake.AddinDiscoverer.Steps
 							finally
 							{
 								// This is to ensure we don't issue requests too quickly and therefore trigger Github's abuse detection
-								await Task.Delay(2500).ConfigureAwait(false);
+								await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 							}
 						}
 
