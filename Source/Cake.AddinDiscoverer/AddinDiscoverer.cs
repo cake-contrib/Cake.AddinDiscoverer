@@ -54,8 +54,8 @@ namespace Cake.AddinDiscoverer
 			// Get previously created issue and pull request from the Github repo
 			typeof(GetGithubIssuesStep),
 
-			// Get statistics from the Github repo
-			typeof(GetGithubStatsStep),
+			// Get statistics, content, etc. from the Github repo
+			typeof(GetGithubMetadataStep),
 
 			// Check if addins are using Cake.Recipe
 			typeof(CheckUsingCakeRecipeStep),

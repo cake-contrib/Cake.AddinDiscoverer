@@ -12,11 +12,11 @@ using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
 {
-	internal class GetGithubStatsStep : IStep
+	internal class GetGithubMetadataStep : IStep
 	{
 		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && (context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo);
 
-		public string GetDescription(DiscoveryContext context) => "Get stats from Github";
+		public string GetDescription(DiscoveryContext context) => "Get metadata (such as stats, content, etc.) from Github";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
