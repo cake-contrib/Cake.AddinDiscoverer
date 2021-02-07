@@ -159,7 +159,16 @@ namespace Cake.AddinDiscoverer.Utilities
 				using var archive = new ZipArchive(data);
 
 				repoContent = archive.Entries
-					.ToDictionary(item => item.FullName, item => item.Open());
+					.ToDictionary(
+						item => item.FullName,
+						item =>
+						{
+							var ms = new MemoryStream();
+
+							item.Open().CopyTo(ms);
+
+							return (Stream)ms;
+						});
 			}
 
 			return repoContent;
