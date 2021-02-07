@@ -10,6 +10,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class CheckUsingCakeRecipeStep : IStep
 	{
+		// The pre condition should be the same as GetGithubMetadataStep
 		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && (context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo);
 
 		public string GetDescription(DiscoveryContext context)
