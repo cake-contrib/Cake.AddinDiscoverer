@@ -15,7 +15,7 @@ namespace Cake.AddinDiscoverer.Steps
 	/// </summary>
 	internal class GetPackageOwnershipStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps;
+		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
 		public string GetDescription(DiscoveryContext context) => "Get NuGet package owners";
 

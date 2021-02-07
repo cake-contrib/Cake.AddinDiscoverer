@@ -4,6 +4,8 @@ using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -83,9 +85,9 @@ namespace Cake.AddinDiscoverer.Steps
 						// This code is just in case they add this information to the metadata and don't let us know.
 						// See feature request: https://github.com/NuGet/NuGetGallery/issues/5647
 						var packageOwners = package.Owners?
-						.Split(',', StringSplitOptions.RemoveEmptyEntries)
-						.Select(owner => owner.Trim())
-						.ToArray() ?? Array.Empty<string>();
+							.Split(',', StringSplitOptions.RemoveEmptyEntries)
+							.Select(owner => owner.Trim())
+							.ToArray() ?? Array.Empty<string>();
 
 						var tags = package.Tags?
 							.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
@@ -114,7 +116,8 @@ namespace Cake.AddinDiscoverer.Steps
 							HasPrereleaseDependencies = false,
 							Tags = tags,
 							Type = AddinType.Unknown,
-							PublishedOn = Constants.UtcMinDateTime
+							PublishedOn = Constants.UtcMinDateTime,
+							RepoContent = ImmutableDictionary<string, Stream>.Empty
 						};
 
 						if (package.Title.Contains("[DEPRECATED]", StringComparison.OrdinalIgnoreCase))

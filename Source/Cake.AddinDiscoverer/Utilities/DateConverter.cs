@@ -1,4 +1,4 @@
-﻿using CsvHelper;
+using CsvHelper;
 using CsvHelper.Configuration;
 using CsvHelper.TypeConversion;
 using System;
@@ -19,13 +19,12 @@ namespace Cake.AddinDiscoverer.Utilities
 		{
 			if (!string.IsNullOrEmpty(text))
 			{
-				DateTime dt;
 				DateTime.TryParseExact(
 					text,
 					_dateFormat,
 					CultureInfo.InvariantCulture,
 					DateTimeStyles.AssumeUniversal,
-					out dt);
+					out DateTime dt);
 				return dt;
 			}
 
