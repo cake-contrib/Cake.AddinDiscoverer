@@ -3,6 +3,7 @@ using Octokit;
 using Octokit.Internal;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
 
 namespace Cake.AddinDiscoverer.Models
 {
@@ -15,6 +16,8 @@ namespace Cake.AddinDiscoverer.Models
 		public IGitHubClient GithubClient { get; set; }
 
 		public IHttpClient GithubHttpClient { get; set; }
+
+		public HttpClient HttpClient { get; set; }
 
 		public SourceRepository NugetRepository { get; set; }
 

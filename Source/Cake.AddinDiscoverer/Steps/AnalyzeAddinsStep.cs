@@ -3,7 +3,6 @@ using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using System;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -16,8 +15,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context)
 		{
-			HttpClient client = new HttpClient();
-			byte[] recommendedCakeContribIcon = await client.GetByteArrayAsync(Constants.NEW_CAKE_CONTRIB_ICON_URL).ConfigureAwait(false);
+			byte[] recommendedCakeContribIcon = await context.HttpClient.GetByteArrayAsync(Constants.NEW_CAKE_CONTRIB_ICON_URL).ConfigureAwait(false);
 
 			context.Addins = context.Addins
 				.Select(addin =>
