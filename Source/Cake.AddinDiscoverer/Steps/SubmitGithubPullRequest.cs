@@ -33,11 +33,10 @@ namespace Cake.AddinDiscoverer.Steps
 							!string.IsNullOrEmpty(addin.RepositoryName) &&
 							!string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
-							var filesGroupedByExtention = await Misc.GetFilePathsFromRepoAsync(context, addin).ConfigureAwait(false);
 							var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
 
-							await FixNuspec(context, addin, recommendedCakeVersion, filesGroupedByExtention, commits).ConfigureAwait(false);
-							await FixCsproj(context, addin, recommendedCakeVersion, filesGroupedByExtention, commits).ConfigureAwait(false);
+							await FixNuspec(context, addin, recommendedCakeVersion, commits).ConfigureAwait(false);
+							await FixCsproj(context, addin, recommendedCakeVersion, commits).ConfigureAwait(false);
 
 							if (commits.Any())
 							{
@@ -45,17 +44,13 @@ namespace Cake.AddinDiscoverer.Steps
 								var apiInfo = context.GithubClient.GetLastApiInfo();
 								var requestsLeft = apiInfo?.RateLimit?.Remaining ?? 0;
 
-								// 250 is an arbitrary threshold that I feel is "safe". Keep in mind that we
-								// have 10 concurrent connections making a multitude of calls to GihHub's API
-								// so this number must be large enough to allow us to bail out before we exhaust
-								// the calls we are allowed to make in an hour
-								if (requestsLeft > 250)
+								if (requestsLeft > Constants.MIN_GITHUB_REQUESTS_THRESHOLD)
 								{
 									// Fork the addin repo if it hasn't been forked already and make sure it's up to date
 									var fork = await context.GithubClient.CreateOrRefreshFork(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 
 									// This delay is important to avoid triggering GitHub's abuse protection
-									await Task.Delay(1000).ConfigureAwait(false);
+									await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 
 									// Commit changes to a new branch and submit PR
 									var newBranchName = $"addin_discoverer_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
@@ -68,7 +63,7 @@ namespace Cake.AddinDiscoverer.Steps
 									}
 
 									// This delay is important to avoid triggering GitHub's abuse protection
-									await Task.Delay(1000).ConfigureAwait(false);
+									await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 								}
 								else
 								{
@@ -82,18 +77,18 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private async Task FixNuspec(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IDictionary<string, string[]> filesPathGroupedByExtension, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private async Task FixNuspec(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
-			// Get the nuspec files
-			filesPathGroupedByExtension.TryGetValue(".nuspec", out string[] filePaths);
-			if (filePaths == null || !filePaths.Any()) return;
-
 			// Get the nuspec file
-			var filePath = filePaths.FirstOrDefault(path => Path.GetFileName(path).EqualsIgnoreCase($"{addin.Name}.nuspec"));
-			if (string.IsNullOrEmpty(filePath)) return;
+			var nuspecFiles = addin.RepoContent
+				.Where(item => Path.GetFileName(item.Key).EqualsIgnoreCase($"{addin.Name}.nuspec"));
+			if (!nuspecFiles.Any()) return;
+			var nuspecFile = nuspecFiles.First();
 
-			// Get the content of the csproj file
-			var nuspecFileContent = await Misc.GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
+			// Get the content of the nuspec file
+			var nuspecFileContent = await new StreamReader(nuspecFile.Value)
+				.ReadToEndAsync()
+				.ConfigureAwait(false);
 
 			// Parse the content of the nuspec file
 			var document = new XDocumentFormatPreserved(nuspecFileContent);
@@ -108,21 +103,24 @@ namespace Cake.AddinDiscoverer.Steps
 			if (iconUrlElement != null && iconUrlElement.Value != Constants.NEW_CAKE_CONTRIB_ICON_URL)
 			{
 				iconUrlElement.SetValue(Constants.NEW_CAKE_CONTRIB_ICON_URL);
-				commits.Add(("Fix iconUrl", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+				commits.Add(("Fix iconUrl", null, new[] { (EncodingType.Utf8, nuspecFile.Key, document.ToString()) }));
 			}
 		}
 
-		private async Task FixCsproj(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IDictionary<string, string[]> filesPathGroupedByExtension, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private async Task FixCsproj(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			// Get the csproj files
-			filesPathGroupedByExtension.TryGetValue(".csproj", out string[] filePaths);
-			if (filePaths == null || !filePaths.Any()) return;
+			var projectFiles = addin.RepoContent
+				.Where(item => Path.GetExtension(item.Key).EqualsIgnoreCase(".csproj"));
+			if (!projectFiles.Any()) return;
 
 			// Loop through the project files
-			foreach (var filePath in filePaths)
+			foreach (var projectFile in projectFiles)
 			{
 				// Get the content of the csproj file
-				var projectFileContent = await Misc.GetFileContentFromRepoAsync(context, addin, filePath).ConfigureAwait(false);
+				var projectFileContent = await new StreamReader(projectFile.Value)
+					.ReadToEndAsync()
+					.ConfigureAwait(false);
 
 				// Parse the content of the csproj file
 				var document = new XDocumentFormatPreserved(projectFileContent);
@@ -137,7 +135,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 				// Some rules are different in the "main" project as opposed to unit tests project, integration tests project, etc.
 				// For instance, we only update the icon in the main project.
-				var isMainProjectFile = Path.GetFileName(filePath).EqualsIgnoreCase($"{addin.Name}.csproj");
+				var isMainProjectFile = Path.GetFileName(projectFile.Key).EqualsIgnoreCase($"{addin.Name}.csproj");
 				if (isMainProjectFile)
 				{
 					// Update the package icon
@@ -146,7 +144,7 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						if (document.Document.SetFirstElementValue("PackageIconUrl", Constants.NEW_CAKE_CONTRIB_ICON_URL))
 						{
-							commits.Add(("Fix PackageIconUrl", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+							commits.Add(("Fix PackageIconUrl", null, new[] { (EncodingType.Utf8, projectFile.Key, document.ToString()) }));
 						}
 					}
 
@@ -156,7 +154,7 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						if (document.Document.SetFirstElementValue("TargetFramework", cakeVersion.RequiredFramework))
 						{
-							commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+							commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, projectFile.Key, document.ToString()) }));
 						}
 					}
 
@@ -166,15 +164,15 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework))
 						{
-							commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, filePath, document.ToString()) }));
+							commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, projectFile.Key, document.ToString()) }));
 						}
 					}
 				}
 
 				// Make sure the right version of Cake.Core, Cake.Common and Cake.Testing is referenced
-				FixCakeReferenceInProjectFile(document, "Cake.Core", cakeVersion, filePath, isMainProjectFile, commits);
-				FixCakeReferenceInProjectFile(document, "Cake.Common", cakeVersion, filePath, isMainProjectFile, commits);
-				FixCakeReferenceInProjectFile(document, "Cake.Testing", cakeVersion, filePath, isMainProjectFile, commits);
+				FixCakeReferenceInProjectFile(document, "Cake.Core", cakeVersion, projectFile.Key, isMainProjectFile, commits);
+				FixCakeReferenceInProjectFile(document, "Cake.Common", cakeVersion, projectFile.Key, isMainProjectFile, commits);
+				FixCakeReferenceInProjectFile(document, "Cake.Testing", cakeVersion, projectFile.Key, isMainProjectFile, commits);
 			}
 		}
 

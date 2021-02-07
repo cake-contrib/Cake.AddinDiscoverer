@@ -27,6 +27,14 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string NO_DESCRIPTION_PROVIDED = "No description has been provided";
 		public const string COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize YAML files";
 
+		// Stop commiting changes, raising issues and submitting PRs if the number of remaining API calls is below a safe threshold.
+		// This threshold is arbitrary but I set it to a value that is high enough to hopefully avoid 'AbuseException'.
+		// Keep in mind that in many cases we have multiple concurrent connections making a multitude of calls to GihHub's API
+		// so this number must be large enough to allow us to bail out before we exhaust the calls we are allowed to make in an hour
+		// Having said this, keep in mind that even with a high 'threshold' we can still trigger the abuse detection if we commit
+		// changes, raise issues and submit PRs too quickly.
+		public const int MIN_GITHUB_REQUESTS_THRESHOLD = 250;
+
 		public const string CAKE_REPO_OWNER = "cake-build";
 		public const string CAKE_WEBSITE_REPO_NAME = "website";
 		public const string CAKE_CONTRIB_REPO_OWNER = "cake-contrib";
