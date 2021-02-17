@@ -191,7 +191,7 @@ namespace Cake.AddinDiscoverer.Steps
 				issueBody.AppendLine($"- `{recipeFile.Name}` references the following addins:");
 				foreach (var addinReference in recipeFile.AddinReferences)
 				{
-					issueBody.AppendLine($"    - [{(!string.IsNullOrEmpty(addinReference.LatestVersionForLatestCake) ? "x" : " ")}] {addinReference.Name}");
+					issueBody.AppendLine($"    - [{(addinReference.UpdatedForLatestCake ? "x" : " ")}] {addinReference.Name}");
 				}
 			}
 
@@ -218,7 +218,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// Submit a PR when all addins have been upgraded to latest Cake
 			var totalReferencesCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count());
-			var availableForLatestCakeVersionCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count(r => !string.IsNullOrEmpty(r.LatestVersionForLatestCake)));
+			var availableForLatestCakeVersionCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count(r => r.UpdatedForLatestCake));
 
 			if (availableForLatestCakeVersionCount == totalReferencesCount)
 			{
