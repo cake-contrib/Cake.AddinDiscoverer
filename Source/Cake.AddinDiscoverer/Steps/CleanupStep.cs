@@ -1,5 +1,8 @@
 using Cake.AddinDiscoverer.Models;
+using Cake.AddinDiscoverer.Utilities;
+using Octokit;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -11,6 +14,12 @@ namespace Cake.AddinDiscoverer.Steps
 		public string GetDescription(DiscoveryContext context) => $"Clean up {context.TempFolder}";
 
 		public async Task ExecuteAsync(DiscoveryContext context)
+		{
+			await ClearCacheAndOutputFolders(context).ConfigureAwait(false);
+			await DeleteMergedBranches(context).ConfigureAwait(false);
+		}
+
+		private async Task ClearCacheAndOutputFolders(DiscoveryContext context)
 		{
 			if (context.Options.ClearCache && Directory.Exists(context.TempFolder))
 			{
@@ -38,6 +47,31 @@ namespace Cake.AddinDiscoverer.Steps
 			foreach (var markdownReport in Directory.EnumerateFiles(context.TempFolder, $"{Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}*.md"))
 			{
 				File.Delete(markdownReport);
+			}
+		}
+
+		private async Task DeleteMergedBranches(DiscoveryContext context)
+		{
+			var request = new PullRequestRequest()
+			{
+				State = ItemStateFilter.Closed,
+				SortProperty = PullRequestSort.Updated,
+				SortDirection = SortDirection.Ascending
+			};
+
+			var branches = await context.GithubClient.Repository.Branch.GetAll(context.Options.GithubUsername, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
+			var pullRequests = await context.GithubClient.Repository.PullRequest.GetAllForRepository(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, request).ConfigureAwait(false);
+
+			foreach (var branch in branches)
+			{
+				var pr = pullRequests.SingleOrDefault(pr => pr.Head.Sha == branch.Commit.Sha);
+
+				if (pr != null && pr.Merged)
+				{
+					await context.GithubClient.Git.Reference
+						.Delete("cake-contrib-bot", Constants.CAKE_WEBSITE_REPO_NAME, $"heads/{branch.Name}")
+						.ConfigureAwait(false);
+				}
 			}
 		}
 	}
