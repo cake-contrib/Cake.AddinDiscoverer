@@ -1,6 +1,7 @@
 {
   "packages": [
     "Cake.Addins.Sample", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.Aws.ElasticBeanstalkTools", // This is a clone of Cake.Aws.ElasticBeanstalk
     "Cake.Bakery",
     "Cake.Board",
     "Cake.Board.Abstractions",
