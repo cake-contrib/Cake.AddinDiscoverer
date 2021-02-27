@@ -213,7 +213,7 @@ namespace Cake.AddinDiscoverer
 		/// <returns>true if a match was found, false otherwise.</returns>
 		public static bool IsMatch(this string source, string pattern)
 		{
-			return Regex.IsMatch(source, "^" + Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$");
+			return Regex.IsMatch(source, "^" + Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$", RegexOptions.IgnoreCase);
 		}
 
 		public static bool IsUpToDate(this SemVersion currentVersion, SemVersion desiredVersion)
