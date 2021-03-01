@@ -41,6 +41,9 @@
     "Build",
     "Cake",
     "Cake-Contrib",
-    "Script"
+    "Script",
+    "Cake-Addin",
+    "Cake-Module",
+    "Cake-Recipe"
   ]
 }
