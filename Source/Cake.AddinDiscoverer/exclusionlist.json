@@ -11,6 +11,7 @@
     "Cake.CompressionNetStandard",
     "Cake.Core",
     "Cake.CoreCLR",
+    "Cake.DotNetTool.Module", // Shipped as part of Cake since 1.1
     "Cake.Email.Common",
     "Cake.Frosting",
     "Cake.Frosting.Template",
