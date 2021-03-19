@@ -1,5 +1,6 @@
 {
   "packages": [
+    "Cake.Addin", // Meta-package for development of Cake Addins. Not intended to be analyzed and listed on the Cake web site.
     "Cake.Addins.Sample", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
     "Cake.Aws.ElasticBeanstalkTools", // This is a clone of Cake.Aws.ElasticBeanstalk
     "Cake.Bakery",
@@ -19,6 +20,7 @@
     "Cake.LocalMarkdownToPdf", // This is a clone of Cake.MarkdownToPdf
     "Cake.LycheeOS",
     "Cake.Mix",
+    "Cake.Module", // Meta-package for development of Cake Modules. Not intended to be analyzed and listed on the Cake web site.
     "Cake.NuGet",
     "Cake.OssIndex",
     "Cake.PackageType.Addin", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
