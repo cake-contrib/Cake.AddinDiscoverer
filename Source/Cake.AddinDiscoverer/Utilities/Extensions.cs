@@ -3,6 +3,7 @@ using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -340,6 +341,23 @@ namespace Cake.AddinDiscoverer
 			if (uri == null) return false;
 
 			return uri.Host.Contains("bitbucket.org", StringComparison.OrdinalIgnoreCase);
+		}
+
+		/// <summary>
+		/// Serialize the object into a YAML string.
+		/// </summary>
+		/// <param name="obj">The object.</param>
+		/// <returns>A YAML formated string.</returns>
+		public static string ToYamlString(this object obj)
+		{
+			var sb = new StringBuilder();
+			using (var sw = new StringWriter(sb))
+			{
+				var serializer = new YamlDotNet.Serialization.Serializer();
+				serializer.Serialize(sw, obj);
+			}
+
+			return sb.ToString();
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)
