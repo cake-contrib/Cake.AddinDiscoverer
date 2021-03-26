@@ -419,8 +419,6 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static string GenerateYamlFile(DiscoveryContext context, AddinMetadata addin)
 		{
-			if (addin.ProjectUrl == null) return null;
-
 			var description = string.IsNullOrEmpty(addin.Description) ? Constants.NO_DESCRIPTION_PROVIDED : addin.Description;
 
 			var yamlContent = new StringBuilder();
