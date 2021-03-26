@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
 
@@ -419,27 +418,28 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static string GenerateYamlFile(DiscoveryContext context, AddinMetadata addin)
 		{
-			if (addin.ProjectUrl == null) return null;
-
 			var description = string.IsNullOrEmpty(addin.Description) ? Constants.NO_DESCRIPTION_PROVIDED : addin.Description;
 
-			var yamlContent = new StringBuilder();
-			yamlContent.AppendUnixLine($"Type: {addin.Type}");
-			yamlContent.AppendUnixLine($"Name: {addin.Name}");
-			yamlContent.AppendUnixLine($"NuGet: {addin.Name}");
-			yamlContent.AppendUnixLine(GetAssembliesForYaml(context, new[] { $"/**/{(string.IsNullOrEmpty(addin.DllName) ? "*.dll" : addin.DllName)}" }));
-			yamlContent.AppendUnixLine($"Repository: {(addin.InferredRepositoryUrl ?? addin.RepositoryUrl)?.AbsoluteUri}");
-			yamlContent.AppendUnixLine($"ProjectUrl: {(addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri}");
-			yamlContent.AppendUnixLine($"Author: {addin.GetMaintainerName()}");
-			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(description)}");
-			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, addin.Tags));
-			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion()?.ToString()}");
-			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
-			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
-			yamlContent.AppendUnixLine($"AnalyzedPackageIsPrerelease: {(addin.IsPrerelease ? "true" : "false")}");
-			yamlContent.AppendUnixLine($"AnalyzedPackagePublishDate: {addin.PublishedOn.UtcDateTime:o}"); // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
+			var obj = new
+			{
+				Type = addin.Type,
+				Name = addin.Name,
+				NuGet = addin.Name,
+				Assemblies = GetAssembliesForYaml(context, new[] { $"/**/{(string.IsNullOrEmpty(addin.DllName) ? "*.dll" : addin.DllName)}" }),
+				Repository = (addin.InferredRepositoryUrl ?? addin.RepositoryUrl)?.AbsoluteUri,
+				ProjectUrl = (addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri,
+				Author = addin.GetMaintainerName(),
+				Description = description,
+				Categories = GetCategoriesForYaml(context, addin.Tags),
+				TargetCakeVersion = addin.AnalysisResult.GetTargetedCakeVersion()?.ToString(),
+				TargetFrameworks = GetFrameworksForYaml(addin.Frameworks),
+				AnalyzedPackageVersion = addin.NuGetPackageVersion,
+				AnalyzedPackageIsPrerelease = addin.IsPrerelease ? "true" : "false",
+				AnalyzedPackagePublishDate = addin.PublishedOn == Constants.UtcMinDateTime ? string.Empty : addin.PublishedOn.UtcDateTime.ToString("o") // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
+			};
 
-			return yamlContent.ToString();
+			var updatedYamlContent = obj.ToYamlString().Replace("\r\n", "\n");
+			return updatedYamlContent;
 		}
 
 		private static string UpdateYamlFile(DiscoveryContext context, AddinMetadata addin, string currentYamlContent)
@@ -450,40 +450,57 @@ namespace Cake.AddinDiscoverer.Steps
 
 			var mapping = (YamlMappingNode)yaml.Documents[0].RootNode;
 
-			var yamlContent = new StringBuilder();
-			yamlContent.AppendUnixLine($"Type: {addin.Type}");
-			yamlContent.AppendUnixLine($"Name: {mapping.GetChildNodeValue("Name")}");
-			yamlContent.AppendUnixLine($"NuGet: {mapping.GetChildNodeValue("NuGet")}");
-			yamlContent.AppendUnixLine(GetAssembliesForYaml(context, mapping.GetChildrenNodesValue("Assemblies")));
-			yamlContent.AppendUnixLine($"Repository: {(addin.InferredRepositoryUrl ?? addin.RepositoryUrl)?.AbsoluteUri}");
-			yamlContent.AppendUnixLine($"ProjectUrl: {(addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri}");
-			yamlContent.AppendUnixLine($"Author: {mapping.GetChildNodeValue("Author")}");
-			yamlContent.AppendUnixLine($"Description: {QuotedYamlString(mapping.GetChildNodeValue("Description"))}");
-			yamlContent.AppendUnixLine(GetCategoriesForYaml(context, mapping));
-			yamlContent.AppendUnixLine($"TargetCakeVersion: {addin.AnalysisResult.GetTargetedCakeVersion()?.ToString()}");
-			yamlContent.AppendUnixLine(GetFrameworksForYaml(addin.Frameworks));
-			yamlContent.AppendUnixLine($"AnalyzedPackageVersion: {addin.NuGetPackageVersion}");
-			yamlContent.AppendUnixLine($"AnalyzedPackageIsPrerelease: {(addin.IsPrerelease ? "true" : "false")}");
-			yamlContent.AppendUnixLine($"AnalyzedPackagePublishDate: {(addin.PublishedOn == Constants.UtcMinDateTime ? string.Empty : addin.PublishedOn.UtcDateTime.ToString("o"))}"); // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
+			var obj = new
+			{
+				Type = addin.Type,
+				Name = mapping.GetChildNodeValue("Name"),
+				NuGet = mapping.GetChildNodeValue("NuGet"),
+				Assemblies = GetAssembliesForYaml(context, mapping),
+				Repository = (addin.InferredRepositoryUrl ?? addin.RepositoryUrl)?.AbsoluteUri,
+				ProjectUrl = (addin.ProjectUrl ?? addin.NuGetPackageUrl)?.AbsoluteUri,
+				Author = mapping.GetChildNodeValue("Author"),
+				Description = mapping.GetChildNodeValue("Description"),
+				Categories = GetCategoriesForYaml(context, mapping),
+				TargetCakeVersion = addin.AnalysisResult.GetTargetedCakeVersion()?.ToString(),
+				TargetFrameworks = GetFrameworksForYaml(addin.Frameworks),
+				AnalyzedPackageVersion = addin.NuGetPackageVersion,
+				AnalyzedPackageIsPrerelease = addin.IsPrerelease ? "true" : "false",
+				AnalyzedPackagePublishDate = addin.PublishedOn == Constants.UtcMinDateTime ? string.Empty : addin.PublishedOn.UtcDateTime.ToString("o") // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
+			};
 
-			return yamlContent.ToString();
+			var updatedYamlContent = obj.ToYamlString().Replace("\r\n", "\n");
+			return updatedYamlContent;
 		}
 
-		private static string GetAssembliesForYaml(DiscoveryContext context, IEnumerable<string> paths)
+		private static IEnumerable<string> GetAssembliesForYaml(DiscoveryContext context, YamlMappingNode mapping)
+		{
+			var key = new YamlScalarNode("Assemblies");
+			if (!mapping.Children.ContainsKey(key)) return Enumerable.Empty<string>();
+
+			var paths = mapping.Children[key] switch
+			{
+				YamlScalarNode scalarNode => new[] { scalarNode.ToString() },
+				YamlSequenceNode sequenceNode => sequenceNode.Select(node => node.ToString()),
+				_ => Enumerable.Empty<string>()
+			};
+
+			return GetAssembliesForYaml(context, paths);
+		}
+
+		private static IEnumerable<string> GetAssembliesForYaml(DiscoveryContext context, IEnumerable<string> paths)
 		{
 			var filteredPaths = paths
 				.Where(t1 => !string.IsNullOrWhiteSpace(t1))
 				.Select(t2 => t2.Trim())
-				.Select(t3 => $"\"{t3}\"")
 				.Distinct(StringComparer.InvariantCultureIgnoreCase);
 
-			return FormatArrayForYaml("Assemblies", filteredPaths);
+			return filteredPaths;
 		}
 
-		private static string GetCategoriesForYaml(DiscoveryContext context, YamlMappingNode mapping)
+		private static IEnumerable<string> GetCategoriesForYaml(DiscoveryContext context, YamlMappingNode mapping)
 		{
 			var key = new YamlScalarNode("Categories");
-			if (!mapping.Children.ContainsKey(key)) return string.Empty;
+			if (!mapping.Children.ContainsKey(key)) return Enumerable.Empty<string>();
 
 			var tags = mapping.Children[key] switch
 			{
@@ -495,7 +512,7 @@ namespace Cake.AddinDiscoverer.Steps
 			return GetCategoriesForYaml(context, tags);
 		}
 
-		private static string GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
+		private static IEnumerable<string> GetCategoriesForYaml(DiscoveryContext context, IEnumerable<string> tags)
 		{
 			var filteredTags = tags
 				.Where(t1 => !string.IsNullOrWhiteSpace(t1))
@@ -504,10 +521,10 @@ namespace Cake.AddinDiscoverer.Steps
 				.Except(context.ExcludedTags, StringComparer.InvariantCultureIgnoreCase)
 				.Distinct(StringComparer.InvariantCultureIgnoreCase);
 
-			return FormatArrayForYaml("Categories", filteredTags);
+			return filteredTags;
 		}
 
-		private static string GetFrameworksForYaml(IEnumerable<string> frameworks)
+		private static IEnumerable<string> GetFrameworksForYaml(IEnumerable<string> frameworks)
 		{
 			var filteredFrameworks = frameworks
 				.Where(f1 => !string.IsNullOrWhiteSpace(f1))
@@ -515,7 +532,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.Select(f3 => f3.ToLowerInvariant())
 				.Distinct(StringComparer.InvariantCultureIgnoreCase);
 
-			return FormatArrayForYaml("TargetFrameworks", filteredFrameworks);
+			return filteredFrameworks;
 		}
 
 		private static string QuotedYamlString(string value)
@@ -535,19 +552,6 @@ namespace Cake.AddinDiscoverer.Steps
 			else
 			{
 				return value;
-			}
-		}
-
-		private static string FormatArrayForYaml(string title, IEnumerable<string> items)
-		{
-			if (items.Any())
-			{
-				var formattedItems = string.Join("\n", items.Select(item => $"- {item}"));
-				return $"{title}:\n{formattedItems}";
-			}
-			else
-			{
-				return $"{title}: []";
 			}
 		}
 	}
