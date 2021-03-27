@@ -3,6 +3,7 @@
     "Cake.Addin", // Meta-package for development of Cake Addins. Not intended to be analyzed and listed on the Cake web site.
     "Cake.Addin3",
     "Cake.Addins.Sample", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.ArtifactDrop",
     "Cake.Aws.ElasticBeanstalkTools", // This is a clone of Cake.Aws.ElasticBeanstalk
     "Cake.AzureBlobStorage",
     "Cake.Bakery",
