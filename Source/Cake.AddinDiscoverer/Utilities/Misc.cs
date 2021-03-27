@@ -238,7 +238,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		// Randomize the delay to further minimize the likelihood of triggering Github's abuse detection
 		public static Task RandomGithubDelayAsync()
 		{
-			return Task.Delay(RandomNumberGenerator.GetInt32(600, 2000));
+			return Task.Delay(RandomNumberGenerator.GetInt32(1000, 2000));
 		}
 	}
 }
