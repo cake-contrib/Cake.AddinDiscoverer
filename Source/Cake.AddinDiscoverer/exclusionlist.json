@@ -1,12 +1,16 @@
 {
   "packages": [
     "Cake.Addin", // Meta-package for development of Cake Addins. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.Addin3",
     "Cake.Addins.Sample", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.ArtifactDrop",
     "Cake.Aws.ElasticBeanstalkTools", // This is a clone of Cake.Aws.ElasticBeanstalk
+    "Cake.AzureBlobStorage",
     "Cake.Bakery",
     "Cake.Board",
     "Cake.Board.Abstractions",
     "Cake.Bridge",
+    "Cake.CachedNpm",
     "Cake.Cli",
     "Cake.Common",
     "Cake.CompressionNetStandard",
@@ -17,6 +21,7 @@
     "Cake.Frosting",
     "Cake.Frosting.Template",
     "Cake.Git.NonPortable", // This is a clone of Cake.Git
+    "Cake.LittleHelpers",
     "Cake.LocalMarkdownToPdf", // This is a clone of Cake.MarkdownToPdf
     "Cake.LycheeOS",
     "Cake.Mix",
@@ -26,17 +31,23 @@
     "Cake.PackageType.Addin", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
     "Cake.PackageType.Module", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
     "Cake.PackageType.Recipe", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.ReportPortal",
     "Cake.Scripting.Abstractions",
     "Cake.Scripting.Transport",
     "Cake.SendMail", // This is a clone of Cake.Email
     "Cake.ServiceOrchestration",
+    "Cake.SimpleVersionIncrement",
     "Cake.Storm.*",
     "Cake.Tasks.*",
     "Cake.Testing",
     "Cake.Tin",
     "Cake.Utility",
     "Cake.Xamarin.Build",
-    "Cake.Xamarin.Build.CakeBuilder"
+    "Cake.Xamarin.Build.CakeBuilder",
+    "Cake.Xrm.DataMigration",
+    "Cake.Xrm.Sdk",
+    "Cake.Xrm.SolutionPackager",
+    "Cake.Xrm.Spkl"
   ],
   "labels": [
     "Addin",

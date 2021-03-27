@@ -438,7 +438,7 @@ namespace Cake.AddinDiscoverer.Steps
 				AnalyzedPackagePublishDate = addin.PublishedOn == Constants.UtcMinDateTime ? string.Empty : addin.PublishedOn.UtcDateTime.ToString("o") // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
 			};
 
-			var updatedYamlContent = obj.ToYamlString().Replace("\r\n", "\n");
+			var updatedYamlContent = obj.ToYamlString("\n");
 			return updatedYamlContent;
 		}
 
@@ -468,7 +468,7 @@ namespace Cake.AddinDiscoverer.Steps
 				AnalyzedPackagePublishDate = addin.PublishedOn == Constants.UtcMinDateTime ? string.Empty : addin.PublishedOn.UtcDateTime.ToString("o") // 'o' is the ISO 8601 format (see: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip)
 			};
 
-			var updatedYamlContent = obj.ToYamlString().Replace("\r\n", "\n");
+			var updatedYamlContent = obj.ToYamlString("\n");
 			return updatedYamlContent;
 		}
 
