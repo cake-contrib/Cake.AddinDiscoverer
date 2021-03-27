@@ -350,6 +350,19 @@ namespace Cake.AddinDiscoverer
 		/// <returns>A YAML formated string.</returns>
 		public static string ToYamlString(this object obj)
 		{
+			return obj.ToYamlString(Environment.NewLine);
+		}
+
+		/// <summary>
+		/// Serialize the object into a YAML string.
+		/// </summary>
+		/// <param name="obj">The object.</param>
+		/// <param name="lineTerminator">The desired line terminator.</param>
+		/// <returns>A YAML formated string.</returns>
+		public static string ToYamlString(this object obj, string lineTerminator)
+		{
+			if (string.IsNullOrEmpty(lineTerminator)) throw new ArgumentNullException(nameof(lineTerminator));
+
 			var sb = new StringBuilder();
 			using (var sw = new StringWriter(sb))
 			{
@@ -357,7 +370,13 @@ namespace Cake.AddinDiscoverer
 				serializer.Serialize(sw, obj);
 			}
 
-			return sb.ToString();
+			var yamlContent = sb.ToString();
+			if (lineTerminator != Environment.NewLine)
+			{
+				yamlContent = yamlContent.Replace(Environment.NewLine, lineTerminator);
+			}
+
+			return yamlContent;
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)
