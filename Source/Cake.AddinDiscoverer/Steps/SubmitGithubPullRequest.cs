@@ -66,9 +66,6 @@ namespace Cake.AddinDiscoverer.Steps
 										addin.AuditPullRequest = pullRequest;
 										context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 									}
-
-									// This delay is important to avoid triggering GitHub's abuse protection
-									await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 								}
 								else
 								{
