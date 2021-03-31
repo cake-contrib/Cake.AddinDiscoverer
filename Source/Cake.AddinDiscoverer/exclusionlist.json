@@ -27,6 +27,7 @@
     "Cake.Mix",
     "Cake.Module", // Meta-package for development of Cake Modules. Not intended to be analyzed and listed on the Cake web site.
     "Cake.NuGet",
+    "Cake.OctoVersion",
     "Cake.OssIndex",
     "Cake.PackageType.Addin", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
     "Cake.PackageType.Module", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
