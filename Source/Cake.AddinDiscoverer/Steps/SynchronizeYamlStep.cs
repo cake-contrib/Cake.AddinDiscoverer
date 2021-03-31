@@ -534,25 +534,5 @@ namespace Cake.AddinDiscoverer.Steps
 
 			return filteredFrameworks;
 		}
-
-		private static string QuotedYamlString(string value)
-		{
-			if (value.StartsWith('"') && value.EndsWith('"'))
-			{
-				return value;
-			}
-			else if (value.Contains("\n"))
-			{
-				var lines = value
-					.Replace("\r\n", "\n")
-					.Split('\n')
-					.Select(line => string.IsNullOrWhiteSpace(line) ? string.Empty : $"  {line}");
-				return "|-\n" + string.Join('\n', lines);
-			}
-			else
-			{
-				return value;
-			}
-		}
 	}
 }
