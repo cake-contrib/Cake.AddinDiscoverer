@@ -17,7 +17,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Create Github issues";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			var recommendedCakeVersion = Constants.CAKE_VERSIONS
 				.OrderByDescending(cakeVersion => cakeVersion.Version)

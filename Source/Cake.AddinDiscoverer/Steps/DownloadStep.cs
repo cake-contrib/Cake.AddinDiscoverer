@@ -20,7 +20,7 @@ namespace Cake.AddinDiscoverer.Steps
 			return $"Download package for {context.Options.AddinName}";
 		}
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			var nugetPackageDownloadClient = context.NugetRepository.GetResource<DownloadResource>();
 

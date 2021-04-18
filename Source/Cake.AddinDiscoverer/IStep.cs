@@ -1,4 +1,5 @@
 using Cake.AddinDiscoverer.Models;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer
@@ -26,7 +27,8 @@ namespace Cake.AddinDiscoverer
 		/// Executes the step.
 		/// </summary>
 		/// <param name="context">The context.</param>
+		/// <param name="log">The log.</param>
 		/// <returns>The asynchronous task.</returns>
-		Task ExecuteAsync(DiscoveryContext context);
+		Task ExecuteAsync(DiscoveryContext context, TextWriter log);
 	}
 }

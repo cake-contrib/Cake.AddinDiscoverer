@@ -7,6 +7,7 @@ using NuGet.Protocol.Core.Types;
 using Octokit;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -21,7 +22,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Update Cake.Recipe";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			var cakeVersionUsedByRecipe = await FindCakeVersionUsedByRecipe(context).ConfigureAwait(false);
 			await UpdateCakeRecipeAsync(context, cakeVersionUsedByRecipe).ConfigureAwait(false);

@@ -13,7 +13,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => $"Committing changes to {Constants.CAKE_CONTRIB_REPO_OWNER}/{Constants.CAKE_CONTRIB_REPO_NAME} repo";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			// Get the SHA of the latest commit of the master branch.
 			var headMasterRef = "heads/master";

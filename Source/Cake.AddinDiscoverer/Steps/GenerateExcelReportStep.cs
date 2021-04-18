@@ -17,7 +17,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Generate the excel report";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 

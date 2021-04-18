@@ -13,13 +13,13 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => $"Clean up {context.TempFolder}";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
-			await ClearCacheAndOutputFolders(context).ConfigureAwait(false);
-			await DeleteMergedBranches(context).ConfigureAwait(false);
+			await ClearCacheAndOutputFolders(context, log).ConfigureAwait(false);
+			await DeleteMergedBranches(context, log).ConfigureAwait(false);
 		}
 
-		private async Task ClearCacheAndOutputFolders(DiscoveryContext context)
+		private async Task ClearCacheAndOutputFolders(DiscoveryContext context, TextWriter log)
 		{
 			if (context.Options.ClearCache && Directory.Exists(context.TempFolder))
 			{
@@ -50,7 +50,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private async Task DeleteMergedBranches(DiscoveryContext context)
+		private async Task DeleteMergedBranches(DiscoveryContext context, TextWriter log)
 		{
 			var request = new PullRequestRequest()
 			{

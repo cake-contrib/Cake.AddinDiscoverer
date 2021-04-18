@@ -17,7 +17,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Generate the markdown report";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			var categorizedAddins = context.Addins.Where(addin => addin.Type != AddinType.Unknown);
 			var uncategorizedAddins = context.Addins.Where(addin => addin.Type == AddinType.Unknown);
