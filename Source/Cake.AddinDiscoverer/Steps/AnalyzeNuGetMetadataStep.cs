@@ -370,6 +370,10 @@ namespace Cake.AddinDiscoverer.Steps
 				var assemblyStream = LoadFileFromPackage(package, assemblyPath);
 				var assembly = loadContext.LoadFromStream(assemblyStream);
 
+				var isModule = assembly
+					.CustomAttributes
+					.Any(a => a.AttributeType.Namespace == "Cake.Core.Annotations" && a.AttributeType.Name == "CakeModuleAttribute");
+
 				// Search for decorated methods.
 				// Please note that it's important to use the '.ExportedTypes' and the '.CustomAttributes' properties rather than
 				// the '.GetExportedTypes' and the '.GetCustomAttributes' methods because the latter will instantiate the custom
@@ -394,7 +398,7 @@ namespace Cake.AddinDiscoverer.Steps
 					.Distinct(StringComparer.OrdinalIgnoreCase)
 					.ToArray();
 
-				if (decoratedMethods.Any())
+				if (isModule || decoratedMethods.Any())
 				{
 					return (assemblyStream, assembly, decoratedMethods, assemblyPath, aliasCategories);
 				}
