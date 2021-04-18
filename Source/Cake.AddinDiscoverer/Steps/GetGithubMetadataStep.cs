@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using Octokit;
 using Octokit.Internal;
 using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -19,7 +20,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Get metadata (such as stats, content, etc.) from Github";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			context.Addins = await context.Addins
 				.ForEachAsync(

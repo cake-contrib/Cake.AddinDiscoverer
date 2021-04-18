@@ -23,7 +23,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Generate the graph showing addin compatibility over time";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			var graphPath = Path.Combine(context.TempFolder, "Audit_progress.png");
 

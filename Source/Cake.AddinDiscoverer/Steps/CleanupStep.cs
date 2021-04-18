@@ -1,5 +1,10 @@
 using Cake.AddinDiscoverer.Models;
+using Cake.AddinDiscoverer.Utilities;
+using Octokit;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -10,7 +15,13 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => $"Clean up {context.TempFolder}";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		{
+			await ClearCacheAndOutputFolders(context, log).ConfigureAwait(false);
+			await DeleteBranches(context, log).ConfigureAwait(false);
+		}
+
+		private async Task ClearCacheAndOutputFolders(DiscoveryContext context, TextWriter log)
 		{
 			if (context.Options.ClearCache && Directory.Exists(context.TempFolder))
 			{
@@ -38,6 +49,87 @@ namespace Cake.AddinDiscoverer.Steps
 			foreach (var markdownReport in Directory.EnumerateFiles(context.TempFolder, $"{Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}*.md"))
 			{
 				File.Delete(markdownReport);
+			}
+		}
+
+		private async Task DeleteBranches(DiscoveryContext context, TextWriter log)
+		{
+			var sensitiveBranches = new[]
+			{
+				"develop",
+				"master",
+				"main",
+				"publish/develop",
+				"publish/master",
+				"publish/main"
+			};
+
+			var branches = await context.GithubClient.Repository.Branch
+				.GetAll(context.Options.GithubUsername, Constants.CAKE_WEBSITE_REPO_NAME)
+				.ConfigureAwait(false);
+
+			var safeBranches = branches
+				.Where(branch => !sensitiveBranches.Contains(branch.Name))
+				.ToArray();
+
+			var dryRunBranches = safeBranches
+				.Where(branch => branch.Name.StartsWith("dryrun", StringComparison.OrdinalIgnoreCase))
+				.ToArray();
+
+			var otherBranches = safeBranches
+				.Except(dryRunBranches)
+				.ToArray();
+
+			await DeleteDryRunBranches(context, dryRunBranches, log).ConfigureAwait(false);
+			await DeleteMergedBranches(context, otherBranches, log).ConfigureAwait(false);
+		}
+
+		private async Task DeleteDryRunBranches(DiscoveryContext context, IEnumerable<Branch> branches, TextWriter log)
+		{
+			// Delete dry runs after a "reasonable" amount of time (60 days seems reasonable to me).
+			foreach (var branch in branches)
+			{
+				var dateParts = branch.Name
+					.Split('_')
+					.Select(part => int.Parse(part))
+					.Skip(1)
+					.ToArray();
+				var createdOn = new DateTime(dateParts[0], dateParts[1], dateParts[2], dateParts[3], dateParts[4], dateParts[5], DateTimeKind.Utc);
+
+				if (DateTime.UtcNow - createdOn > TimeSpan.FromDays(60))
+				{
+					await log.WriteLineAsync($"Deleting branch {context.Options.GithubUsername}/{Constants.CAKE_WEBSITE_REPO_NAME}/{branch.Name}").ConfigureAwait(false);
+					await context.GithubClient.Git.Reference
+						.Delete(context.Options.GithubUsername, Constants.CAKE_WEBSITE_REPO_NAME, $"heads/{branch.Name}")
+						.ConfigureAwait(false);
+				}
+			}
+		}
+
+		private async Task DeleteMergedBranches(DiscoveryContext context, IEnumerable<Branch> branches, TextWriter log)
+		{
+			// Delete branches when their corresponding PR has been merged
+			foreach (var branch in branches)
+			{
+				var pullRequestsRequest = new PullRequestRequest()
+				{
+					State = ItemStateFilter.Closed,
+					SortProperty = PullRequestSort.Updated,
+					SortDirection = SortDirection.Descending,
+					Head = $"{context.Options.GithubUsername}:{branch.Name}"
+				};
+				var pullRequests = await context.GithubClient.Repository.PullRequest
+					.GetAllForRepository(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, pullRequestsRequest)
+					.ConfigureAwait(false);
+				var pr = pullRequests.SingleOrDefault(pr => pr.Head.Sha == branch.Commit.Sha);
+
+				if (pr != null && pr.Merged)
+				{
+					await log.WriteLineAsync($"Deleting branch {context.Options.GithubUsername}/{Constants.CAKE_WEBSITE_REPO_NAME}/{branch.Name}").ConfigureAwait(false);
+					await context.GithubClient.Git.Reference
+						.Delete(context.Options.GithubUsername, Constants.CAKE_WEBSITE_REPO_NAME, $"heads/{branch.Name}")
+						.ConfigureAwait(false);
+				}
 			}
 		}
 	}

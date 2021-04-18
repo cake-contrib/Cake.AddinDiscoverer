@@ -19,7 +19,7 @@ namespace Cake.AddinDiscoverer.Steps
 			else return $"Check if {context.Options.AddinName} is using Cake.Recipe";
 		}
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			var cakeRecipeAddin = context.Addins
 				.Where(a => a.Type == AddinType.Recipe)

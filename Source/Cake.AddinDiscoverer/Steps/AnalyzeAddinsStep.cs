@@ -2,6 +2,7 @@ using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -13,7 +14,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Analyze addins";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			byte[] recommendedCakeContribIcon = await context.HttpClient.GetByteArrayAsync(Constants.NEW_CAKE_CONTRIB_ICON_URL).ConfigureAwait(false);
 
