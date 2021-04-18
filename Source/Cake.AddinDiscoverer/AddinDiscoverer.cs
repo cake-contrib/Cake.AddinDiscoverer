@@ -174,12 +174,14 @@ namespace Cake.AddinDiscoverer
 
 					if (step.PreConditionIsMet(_context))
 					{
+						var log = new StringWriter();
 						var stepDuration = Stopwatch.StartNew();
-						await step.ExecuteAsync(_context).ConfigureAwait(false);
+						await step.ExecuteAsync(_context, log).ConfigureAwait(false);
 						stepDuration.Stop();
 
 						Console.ForegroundColor = ConsoleColor.Green;
 						Console.WriteLine(lineFormat, stepDescription, stepDuration.Elapsed.ToString("c", CultureInfo.InvariantCulture));
+						WriteLog(log.ToString());
 					}
 					else
 					{
@@ -207,6 +209,20 @@ namespace Cake.AddinDiscoverer
 			}
 
 			return result;
+		}
+
+		private static void WriteLog(string log)
+		{
+			if (string.IsNullOrEmpty(log)) return;
+
+			var lines = log.EndsWith(Environment.NewLine)
+				? log.Substring(0, log.Length - Environment.NewLine.Length).Split(Environment.NewLine)
+				: log.Split(Environment.NewLine);
+
+			foreach (var line in lines)
+			{
+				Console.WriteLine("\t" + line);
+			}
 		}
 	}
 }

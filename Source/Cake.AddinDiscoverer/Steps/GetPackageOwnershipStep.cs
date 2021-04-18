@@ -2,6 +2,7 @@ using Cake.AddinDiscoverer.Models;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -19,7 +20,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Get NuGet package owners";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			const string uri = "https://nugetprod0.blob.core.windows.net/ng-search-data/owners.json";
 
