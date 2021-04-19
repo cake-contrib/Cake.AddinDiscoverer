@@ -7,6 +7,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		JsDelivrUrl = 2,
 		CustomUrl = 3,
 		EmbeddedCustom = 4,
-		EmbeddedCakeContrib = 5
+		EmbeddedCakeContrib = 5,
+		EmbeddedFancyCakeContrib = 6
 	}
 }
