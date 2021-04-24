@@ -63,7 +63,7 @@ namespace Cake.AddinDiscoverer.Steps
 				comment.AppendLine($"In particular would would like to highlight the fact that you use the rawgit CDN to serve your addin's icon. On October 8 2018 the maintainer of rawgit made the [announcement](https://rawgit.com/) that rawgit would shutdown in October 2019. Therefore it's **urgent** that you change your addin's icon URL to the new recommended URL: `{Constants.NEW_CAKE_CONTRIB_ICON_URL}`.{Environment.NewLine}");
 			}
 
-			if (addin.AnalysisResult.Icon != IconAnalysisResult.EmbeddedCakeContrib)
+			if (addin.AnalysisResult.Icon != IconAnalysisResult.EmbeddedCakeContrib && addin.AnalysisResult.Icon != IconAnalysisResult.EmbeddedFancyCakeContrib)
 			{
 				comment.AppendLine($"Please also note that the recommendation changed following .netcore3.0's release: you should now embedded the icon in your Nuget package. Read more about embedded icons in the [.nuspec reference](https://docs.microsoft.com/en-us/nuget/reference/nuspec#icon).{Environment.NewLine}");
 			}

@@ -27,6 +27,12 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string NO_DESCRIPTION_PROVIDED = "No description has been provided";
 		public const string COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize YAML files";
 
+		public const string CAKE_CONTRIB_ADDIN_FANCY_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/addin/cake-contrib-addin-medium.png";
+		public const string CAKE_CONTRIB_MODULE_FANCY_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/module/cake-contrib-module-medium.png";
+		public const string CAKE_CONTRIB_RECIPE_FANCY_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/recipe/cake-contrib-recipe-medium.png";
+		public const string CAKE_CONTRIB_FROSTINGRECIPE_FANCY_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/frosting-recipe/cake-contrib-frosting-recipe-medium.png";
+		public const string CAKE_CONTRIB_COMMUNITY_FANCY_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/community/cake-contrib-community-medium.png";
+
 		// Stop commiting changes, raising issues and submitting PRs if the number of remaining API calls is below a safe threshold.
 		// This threshold is arbitrary but I set it to a value that is high enough to hopefully avoid 'AbuseException'.
 		// Keep in mind that in many cases we have multiple concurrent connections making a multitude of calls to GihHub's API
@@ -204,6 +210,7 @@ namespace Cake.AddinDiscoverer.Utilities
 						case IconAnalysisResult.JsDelivrUrl: return "jsDelivr";
 						case IconAnalysisResult.CustomUrl: return "custom url";
 						case IconAnalysisResult.EmbeddedCakeContrib: return "embedded cake-contrib";
+						case IconAnalysisResult.EmbeddedFancyCakeContrib: return "embedded 'fancy' cake-contrib";
 						case IconAnalysisResult.EmbeddedCustom: return "embedded custom";
 						default: return "unknown";
 					}
@@ -217,6 +224,7 @@ namespace Cake.AddinDiscoverer.Utilities
 						case IconAnalysisResult.JsDelivrUrl: return Color.Gold;
 						case IconAnalysisResult.CustomUrl: return Color.Gold;
 						case IconAnalysisResult.EmbeddedCakeContrib: return Color.LightGreen;
+						case IconAnalysisResult.EmbeddedFancyCakeContrib: return Color.LightGreen;
 						case IconAnalysisResult.EmbeddedCustom: return Color.Gold;
 						default: return Color.Red;
 					}
