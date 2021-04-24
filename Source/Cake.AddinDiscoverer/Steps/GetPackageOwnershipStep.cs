@@ -1,10 +1,8 @@
 using Cake.AddinDiscoverer.Models;
 using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -24,14 +22,12 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			const string uri = "https://nugetprod0.blob.core.windows.net/ng-search-data/owners.json";
 
-			IDictionary<string, string[]> packageOwners;
-
-			using (var webClient = new WebClient())
-			{
-				var ownersFileJsonContent = webClient.DownloadString(new Uri(uri));
-				packageOwners = JArray.Parse(ownersFileJsonContent)
-					.ToDictionary(e => e[0].Value<string>(), e => e[1].Values<string>().ToArray());
-			}
+			var ownersFileJsonContent = await context.HttpClient.GetStringAsync(uri).ConfigureAwait(false);
+			var packageOwners = JArray.Parse(ownersFileJsonContent)
+				.ToDictionary(
+					e => e[0].Value<string>(),
+					e => e[1].Values<string>().ToArray()
+				);
 
 			context.Addins = context.Addins
 				.Select(addin =>
@@ -47,8 +43,6 @@ namespace Cake.AddinDiscoverer.Steps
 					return addin;
 				})
 				.ToArray();
-
-			await Task.Delay(1).ConfigureAwait(false);
 		}
 	}
 }
