@@ -20,6 +20,7 @@
     "Cake.Email.Common",
     "Cake.Frosting",
     "Cake.Frosting.Template",
+    "Cake.Frosting.*", // Exclude any Frosting related addin
     "Cake.Git.NonPortable", // This is a clone of Cake.Git
     "Cake.LittleHelpers",
     "Cake.LocalMarkdownToPdf", // This is a clone of Cake.MarkdownToPdf
