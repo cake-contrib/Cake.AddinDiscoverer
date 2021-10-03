@@ -26,8 +26,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var packageOwners = JArray.Parse(ownersFileJsonContent)
 				.ToDictionary(
 					e => e[0].Value<string>(),
-					e => e[1].Values<string>().ToArray()
-				);
+					e => e[1].Values<string>().ToArray());
 
 			context.Addins = context.Addins
 				.Select(addin =>
