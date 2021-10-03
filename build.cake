@@ -161,6 +161,7 @@ Task("Publish")
 
 Task("Run")
 	.IsDependentOn("Publish")
+	.WithCriteria(() => isLocalBuild || !isPullRequest)
 	.Does(() =>
 {
 	var args = new ProcessArgumentBuilder()
