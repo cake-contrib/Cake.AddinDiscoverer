@@ -50,7 +50,7 @@
     "Cake.Xrm.Sdk",
     "Cake.Xrm.SolutionPackager",
     "Cake.Xrm.Spkl",
-    "Cake.Watch_Advance"
+    "Cake.Watch_Advance" // This is a clone of Cake.Watch
   ],
   "labels": [
     "Addin",
