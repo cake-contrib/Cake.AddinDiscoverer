@@ -23,7 +23,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Generate the graph showing addin compatibility over time";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			var graphPath = Path.Combine(context.TempFolder, "Audit_progress.png");
 
@@ -84,7 +84,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var pngExporter = new PngExporter { Width = 600, Height = 400, Background = OxyColors.White };
 			pngExporter.ExportToFile(plotModel, graphPath);
 
-			await Task.Delay(1).ConfigureAwait(false);
+			return Task.CompletedTask;
 		}
 	}
 }

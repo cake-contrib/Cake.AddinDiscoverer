@@ -17,7 +17,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Generate the excel report";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
@@ -50,7 +50,7 @@ namespace Cake.AddinDiscoverer.Steps
 				excel.Save();
 			}
 
-			await Task.Delay(1).ConfigureAwait(false);
+			return Task.CompletedTask;
 		}
 
 		private void GenerateExcelWorksheet(IEnumerable<AddinMetadata> addins, CakeVersion cakeVersion, AddinType type, string caption, ExcelPackage excel)

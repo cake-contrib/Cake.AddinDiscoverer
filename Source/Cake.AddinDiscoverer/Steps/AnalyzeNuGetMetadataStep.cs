@@ -24,7 +24,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Analyze nuget packages metadata";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			context.Addins = context.Addins
 				.Select(addin =>
@@ -292,7 +292,7 @@ namespace Cake.AddinDiscoverer.Steps
 				})
 				.ToArray();
 
-			await Task.Delay(1).ConfigureAwait(false);
+			return Task.CompletedTask;
 		}
 
 		private static MemoryStream LoadFileFromPackage(IPackageCoreReader package, string filePath)
