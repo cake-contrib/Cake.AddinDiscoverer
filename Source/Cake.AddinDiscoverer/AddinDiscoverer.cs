@@ -103,6 +103,9 @@ namespace Cake.AddinDiscoverer
 				Credentials = credentials,
 			};
 
+			// This environment variable is used by NuGet.Configuration.ProxyCache to configure a proxy
+			Environment.SetEnvironmentVariable("http_proxy", options.ProxyUrl);
+
 			// Setup nuget
 			var providers = new List<Lazy<INuGetResourceProvider>>();
 			providers.AddRange(NuGet.Protocol.Core.Types.Repository.Provider.GetCoreV3());  // Add v3 API support
