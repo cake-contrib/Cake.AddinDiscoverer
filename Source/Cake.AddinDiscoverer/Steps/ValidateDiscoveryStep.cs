@@ -16,7 +16,7 @@ namespace Cake.AddinDiscoverer.Steps
 			else return $"Making sure we found {context.Options.AddinName}";
 		}
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			if (!context.Addins.Any())
 			{
@@ -30,7 +30,7 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 			}
 
-			await Task.Delay(1).ConfigureAwait(false);
+			return Task.CompletedTask;
 		}
 	}
 }
