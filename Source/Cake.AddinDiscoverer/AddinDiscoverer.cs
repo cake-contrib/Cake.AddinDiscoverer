@@ -1,7 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Steps;
 using Cake.AddinDiscoverer.Utilities;
-using Newtonsoft.Json.Linq;
 using NuGet.Configuration;
 using NuGet.Protocol.Core.Types;
 using Octokit;
@@ -25,6 +24,9 @@ namespace Cake.AddinDiscoverer
 		{
 			// Delete artifacts from previous audits
 			typeof(CleanupStep),
+
+			// Download resource files (such as exclusion list and inclusion list)
+			typeof(GetResourceFiles),
 
 			// Discover all existing Cake addins on NuGet
 			typeof(DiscoveryStep),
@@ -123,30 +125,6 @@ namespace Cake.AddinDiscoverer
 				TempFolder = Path.Combine(options.TemporaryFolder, Constants.PRODUCT_NAME),
 				Version = typeof(AddinDiscoverer).GetTypeInfo().Assembly.GetName().Version.ToString(3)
 			};
-
-			// Using '.CodeBase' because it returns where the assembly is located when not executing (in other words, the 'permanent' path of the assembly).
-			// '.Location' would seem more intuitive but in the case of shadow copied assemblies, it would return a path in a temp directory.
-			var currentPath = new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
-			var currentFolder = Path.GetDirectoryName(currentPath);
-			var exclusionFilePath = Path.Combine(currentFolder, "exclusionlist.json");
-			var inclusionFilePath = Path.Combine(currentFolder, "inclusionlist.json");
-
-			using (var sr = new StreamReader(exclusionFilePath))
-			{
-				var json = sr.ReadToEnd();
-				var jObject = JObject.Parse(json);
-
-				_context.ExcludedAddins = jObject.Property("packages")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
-				_context.ExcludedTags = jObject.Property("labels")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
-			}
-
-			using (var sr = new StreamReader(inclusionFilePath))
-			{
-				var json = sr.ReadToEnd();
-				var jObject = JObject.Parse(json);
-
-				_context.IncludedAddins = jObject.Property("packages")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
-			}
 		}
 
 		public async Task<ResultCode> LaunchDiscoveryAsync()

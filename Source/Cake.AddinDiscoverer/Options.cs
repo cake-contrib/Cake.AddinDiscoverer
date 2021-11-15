@@ -54,5 +54,8 @@ namespace Cake.AddinDiscoverer
 
 		[Option('d', "dryrun", Default = false, HelpText = "Dry run. Do not create PRs.")]
 		public bool DryRun { get; set; }
+
+		[Option('l', "uselocalresources", Default = false, HelpText = "Use local resource files instead of downloading them from GitHub.")]
+		public bool UseLocalResources { get; set; }
 	}
 }
