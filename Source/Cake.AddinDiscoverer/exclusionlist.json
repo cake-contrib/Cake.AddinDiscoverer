@@ -42,6 +42,12 @@
     "Cake.Storm.*",
     "Cake.Tasks.*",
     "Cake.Testing",
+    "Cake.TestNet461.Module", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.TestNet50.Module", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.TestNet60.Module", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.TestNetCoreApp31.Module", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.TestNetStandard20.Module", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
+    "Cake.TestNetStandard21.Module", // This is a proof-of-concept. Not intended to be analyzed and listed on the Cake web site.
     "Cake.Tin",
     "Cake.Utility",
     "Cake.Xamarin.Build",
