@@ -150,9 +150,9 @@ namespace Cake.AddinDiscoverer.Steps
 
 					// If only one framework is targetted, make sure it's the required one
 					var targetFramework = document.Document.GetFirstElementValue("TargetFramework");
-					if (!string.IsNullOrEmpty(targetFramework) && targetFramework != cakeVersion.RequiredFramework)
+					if (!string.IsNullOrEmpty(targetFramework) && cakeVersion.RequiredFramework.Contains(targetFramework, StringComparer.OrdinalIgnoreCase))
 					{
-						if (document.Document.SetFirstElementValue("TargetFramework", cakeVersion.RequiredFramework))
+						if (document.Document.SetFirstElementValue("TargetFramework", cakeVersion.RequiredFramework[0]))
 						{
 							commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, projectFile.Key, document.ToString()) }));
 						}
@@ -160,9 +160,9 @@ namespace Cake.AddinDiscoverer.Steps
 
 					// If multiple frameworks are targetted, make sure the required one is among them
 					var targetFrameworks = document.Document.GetFirstElementValue("TargetFrameworks")?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
-					if (targetFrameworks.Any() && !targetFrameworks.Contains(cakeVersion.RequiredFramework))
+					if (targetFrameworks.Any() && !targetFrameworks.Contains(cakeVersion.RequiredFramework[0]))
 					{
-						if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework))
+						if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework[0]))
 						{
 							commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, projectFile.Key, document.ToString()) }));
 						}

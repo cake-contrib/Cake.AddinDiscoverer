@@ -55,27 +55,15 @@ namespace Cake.AddinDiscoverer.Utilities
 		{
 			new CakeVersion
 			{
-				Version = new SemVersion(0, 26, 0),
-				RequiredFramework = "netstandard2.0",
-				OptionalFrameworks = new[] { "net46", "net461" }
-			},
-			new CakeVersion
-			{
-				Version = new SemVersion(0, 28, 0),
-				RequiredFramework = "netstandard2.0",
-				OptionalFrameworks = new[] { "net46", "net461" }
-			},
-			new CakeVersion
-			{
-				Version = new SemVersion(0, 33, 0),
-				RequiredFramework = "netstandard2.0",
-				OptionalFrameworks = new[] { "net46", "net461" }
-			},
-			new CakeVersion
-			{
 				Version = new SemVersion(1, 0, 0),
-				RequiredFramework = "netstandard2.0",
+				RequiredFramework = new[] { "netstandard2.0" },
 				OptionalFrameworks = new[] { "net46", "net461", "net5.0" }
+			},
+			new CakeVersion
+			{
+				Version = new SemVersion(2, 0, 0),
+				RequiredFramework = new[] { "net6.0", "net5.0", "netcore3.1" },
+				OptionalFrameworks = Array.Empty<string>()
 			}
 		};
 

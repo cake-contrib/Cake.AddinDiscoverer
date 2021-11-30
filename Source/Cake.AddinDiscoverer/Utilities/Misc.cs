@@ -18,10 +18,10 @@ namespace Cake.AddinDiscoverer.Utilities
 		public static bool IsFrameworkUpToDate(string[] currentFrameworks, CakeVersion desiredCakeVersion)
 		{
 			if (currentFrameworks == null || !currentFrameworks.Any()) return false;
-			else if (!currentFrameworks.Contains(desiredCakeVersion.RequiredFramework, StringComparer.InvariantCultureIgnoreCase)) return false;
+			else if (!currentFrameworks.Contains(desiredCakeVersion.RequiredFramework[0], StringComparer.InvariantCultureIgnoreCase)) return false;
 
 			var unnecessaryFrameworks = currentFrameworks
-				.Except(new[] { desiredCakeVersion.RequiredFramework })
+				.Except(desiredCakeVersion.RequiredFramework)
 				.Except(desiredCakeVersion.OptionalFrameworks)
 				.ToArray();
 			if (unnecessaryFrameworks.Any()) return false;
