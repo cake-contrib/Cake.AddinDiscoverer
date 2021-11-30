@@ -44,7 +44,7 @@ namespace Cake.AddinDiscoverer.Steps
 				Title = "Addins compatibility over time",
 				Subtitle = "Percentage of all known addins compatible with a given version of Cake"
 			};
-			var startTime = new DateTime(2018, 3, 21, 0, 0, 0, DateTimeKind.Utc); // We started auditing addins on March 22 2018
+			var startTime = csvRecords.Min(r => r.Date);
 			var minDate = DateTimeAxis.ToDouble(startTime);
 			var maxDate = minDate + (DateTime.UtcNow - startTime).TotalDays + 2;
 
