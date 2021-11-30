@@ -25,6 +25,18 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
+			// ===========================================================================
+			// STEP 1: Load data from the previously generated CSV file
+			using TextReader reader = new StreamReader(context.StatsSaveLocation);
+			var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+			csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter("yyyy-MM-dd HH:mm:ss"));
+
+			var auditedCakeVersions = Constants.CAKE_VERSIONS.Select(c => c.Version.ToString(3));
+			var csvRecords = csv.GetRecords<AddinProgressSummary>().Where(r => auditedCakeVersions.Contains(r.CakeVersion)).ToList();
+			var recordsGroupedByCakeVersion = csvRecords.GroupBy(r => r.CakeVersion).ToList();
+
+			// ===========================================================================
+			// STEP 2: Prepare the graph
 			var graphPath = Path.Combine(context.TempFolder, "Audit_progress.png");
 
 			var plotModel = new PlotModel
@@ -57,30 +69,24 @@ namespace Cake.AddinDiscoverer.Steps
 				Title = "Percent"
 			});
 
-			using (TextReader reader = new StreamReader(context.StatsSaveLocation))
+			// ===========================================================================
+			// STEP 3: add data to the graph
+			foreach (var grp in recordsGroupedByCakeVersion)
 			{
-				var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
-				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter("yyyy-MM-dd HH:mm:ss"));
-
-				var recordsGroupedByCakeVersion = csv
-					.GetRecords<AddinProgressSummary>()
-					.GroupBy(r => r.CakeVersion);
-
-				foreach (var grp in recordsGroupedByCakeVersion)
+				var series = new LineSeries()
 				{
-					var series = new LineSeries()
-					{
-						Title = $"Cake {grp.Key}"
-					};
-					foreach (var statsSummary in grp)
-					{
-						series.Points.Add(new DataPoint(DateTimeAxis.ToDouble(statsSummary.Date), (Convert.ToDouble(statsSummary.CompatibleCount) / Convert.ToDouble(statsSummary.TotalCount)) * 100));
-					}
-
-					plotModel.Series.Add(series);
+					Title = $"Cake {grp.Key}"
+				};
+				foreach (var statsSummary in grp)
+				{
+					series.Points.Add(new DataPoint(DateTimeAxis.ToDouble(statsSummary.Date), (Convert.ToDouble(statsSummary.CompatibleCount) / Convert.ToDouble(statsSummary.TotalCount)) * 100));
 				}
+
+				plotModel.Series.Add(series);
 			}
 
+			// ===========================================================================
+			// STEP 4: save grapg to PNG file
 			var pngExporter = new PngExporter { Width = 600, Height = 400, Background = OxyColors.White };
 			pngExporter.ExportToFile(plotModel, graphPath);
 
