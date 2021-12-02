@@ -86,9 +86,8 @@ namespace Cake.AddinDiscoverer.Steps
 			var nuspecFile = nuspecFiles.First();
 
 			// Get the content of the nuspec file
-			var nuspecFileContent = await new StreamReader(nuspecFile.Value)
-				.ReadToEndAsync()
-				.ConfigureAwait(false);
+			nuspecFile.Value.Position = 0;
+			var nuspecFileContent = await new StreamReader(nuspecFile.Value).ReadToEndAsync().ConfigureAwait(false);
 
 			// Parse the content of the nuspec file
 			var document = new XDocumentFormatPreserved(nuspecFileContent);
@@ -118,9 +117,8 @@ namespace Cake.AddinDiscoverer.Steps
 			foreach (var projectFile in projectFiles)
 			{
 				// Get the content of the csproj file
-				var projectFileContent = await new StreamReader(projectFile.Value)
-					.ReadToEndAsync()
-					.ConfigureAwait(false);
+				projectFile.Value.Position = 0;
+				var projectFileContent = await new StreamReader(projectFile.Value).ReadToEndAsync().ConfigureAwait(false);
 
 				// Parse the content of the csproj file
 				var document = new XDocumentFormatPreserved(projectFileContent);
