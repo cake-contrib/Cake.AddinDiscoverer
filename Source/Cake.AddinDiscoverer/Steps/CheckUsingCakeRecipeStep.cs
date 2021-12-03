@@ -43,6 +43,7 @@ namespace Cake.AddinDiscoverer.Steps
 								foreach (var repoItem in repoItems)
 								{
 									// Get the content of the cake file
+									repoItem.Value.Position = 0;
 									var cakeFileContent = await new StreamReader(repoItem.Value).ReadToEndAsync().ConfigureAwait(false);
 
 									if (!string.IsNullOrEmpty(cakeFileContent))

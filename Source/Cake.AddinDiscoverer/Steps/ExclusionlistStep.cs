@@ -1,4 +1,5 @@
 using Cake.AddinDiscoverer.Models;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,7 +15,7 @@ namespace Cake.AddinDiscoverer.Steps
 		public Task ExecuteAsync(DiscoveryContext context, TextWriter log)
 		{
 			context.Addins = context.Addins
-				.Where(addin => !context.ExcludedAddins.Any(excludedAddinName => addin.Name.IsMatch(excludedAddinName)))
+				.Where(addin => addin.Name.Equals(context.Options.AddinName, StringComparison.OrdinalIgnoreCase) || !context.ExcludedAddins.Any(excludedAddinName => addin.Name.IsMatch(excludedAddinName)))
 				.OrderBy(addin => addin.Name)
 				.ToArray();
 

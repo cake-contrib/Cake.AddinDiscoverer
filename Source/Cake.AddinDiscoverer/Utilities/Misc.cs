@@ -167,6 +167,7 @@ namespace Cake.AddinDiscoverer.Utilities
 
 							item.Open().CopyTo(ms);
 
+							ms.Position = 0;
 							return (Stream)ms;
 						});
 			}
