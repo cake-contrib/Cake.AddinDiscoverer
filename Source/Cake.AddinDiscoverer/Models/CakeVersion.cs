@@ -7,7 +7,7 @@ namespace Cake.AddinDiscoverer.Models
 	{
 		public SemVersion Version { get; set; }
 
-		public string[] RequiredFramework { get; set; }
+		public string[] RequiredFrameworks { get; set; }
 
 		public string[] OptionalFrameworks { get; set; }
 

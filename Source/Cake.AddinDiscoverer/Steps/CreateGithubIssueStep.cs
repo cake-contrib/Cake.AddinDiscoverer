@@ -132,7 +132,25 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (!addin.AnalysisResult.CakeCoreIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Core reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Core\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
 			if (!addin.AnalysisResult.CakeCommonIsPrivate) issuesDescription.AppendLine($"- [ ] The Cake.Common reference should be private. Specifically, your addin's `.csproj` should have a line similar to this: `<PackageReference Include=\"Cake.Common\" Version=\"{recommendedCakeVersion.Version}\" PrivateAssets=\"All\" />`");
-			if (!Misc.IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion)) issuesDescription.AppendLine($"- [ ] Your addin should target {recommendedCakeVersion.RequiredFramework} at a minimum. Optionally, your addin can also multi-target {string.Join(" or ", recommendedCakeVersion.OptionalFrameworks)}.");
+
+			if (!Misc.IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion))
+			{
+				var requiredMessage = recommendedCakeVersion.RequiredFrameworks.Count() switch
+				{
+					1 => $"- [ ] Your addin should target {recommendedCakeVersion.RequiredFrameworks.Single()}.",
+					> 1 => $"- [ ] Your addin should target all of the following: {string.Join(", ", recommendedCakeVersion.RequiredFrameworks)}.",
+					_ => string.Empty
+				};
+
+				var optionalMessage = recommendedCakeVersion.OptionalFrameworks.Count() switch
+				{
+					1 => $"Optionally, your addin can also multi-target {recommendedCakeVersion.OptionalFrameworks.Single()}.",
+					> 1 => $"Optionally, your addin can also multi-target any of the following: {string.Join(", ", recommendedCakeVersion.OptionalFrameworks)}.",
+					_ => string.Empty
+				};
+
+				issuesDescription.AppendLine($"{requiredMessage} {optionalMessage}");
+			}
 
 			switch (addin.AnalysisResult.Icon)
 			{
