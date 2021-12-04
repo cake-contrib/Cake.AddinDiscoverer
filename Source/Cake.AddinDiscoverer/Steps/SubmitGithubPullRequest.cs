@@ -146,24 +146,42 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 					}
 
-					// If only one framework is targetted, make sure it's the required one
-					var targetFramework = document.Document.GetFirstElementValue("TargetFramework");
-					if (!string.IsNullOrEmpty(targetFramework) && cakeVersion.RequiredFramework.Contains(targetFramework, StringComparer.OrdinalIgnoreCase))
+					// Make sure all required frameworks are targeted
+					var targetFrameworksElement = document.Document.GetFirstElement("TargetFrameworks");
+					var targetFrameworkElement = document.Document.GetFirstElement("TargetFramework");
+
+					if (targetFrameworkElement == null && targetFrameworksElement == null)
 					{
-						if (document.Document.SetFirstElementValue("TargetFramework", cakeVersion.RequiredFramework[0]))
-						{
-							commits.Add(("Fix TargetFramework", null, new[] { (EncodingType.Utf8, projectFile.Key, document.ToString()) }));
-						}
+						throw new Exception("We found neither 'TargetFrameworks' nor 'TargetFramework' in {addin.Name}.csproj. Therfore we were unable to update the framework targets");
 					}
 
-					// If multiple frameworks are targetted, make sure the required one is among them
-					var targetFrameworks = document.Document.GetFirstElementValue("TargetFrameworks")?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
-					if (targetFrameworks.Any() && !targetFrameworks.Contains(cakeVersion.RequiredFramework[0]))
+					var targetFrameworks = (targetFrameworksElement?.Value.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>()).ToList();
+					if (!string.IsNullOrEmpty(targetFrameworkElement?.Value)) targetFrameworks.Add(targetFrameworkElement.Value);
+
+					if (cakeVersion.RequiredFrameworks.Except(targetFrameworks, StringComparer.OrdinalIgnoreCase).Any())
 					{
-						if (document.Document.SetFirstElementValue("TargetFrameworks", cakeVersion.RequiredFramework[0]))
+						targetFrameworkElement?.SetValue(string.Concat(",", cakeVersion.RequiredFrameworks));
+						targetFrameworksElement?.SetValue(string.Concat(",", cakeVersion.RequiredFrameworks));
+
+						// We might need to rename the node if the csproj current only targets a single framework and we are switching to multiple targets
+						// or vice-versa: the csproj targets multiple frameworks and we are switching to a single target
+						if (cakeVersion.RequiredFrameworks.Count() > 1)
 						{
-							commits.Add(("Fix TargetFrameworks", null, new[] { (EncodingType.Utf8, projectFile.Key, document.ToString()) }));
+							if (targetFrameworkElement != null) targetFrameworkElement.Name = "TargetFrameworks";
 						}
+						else
+						{
+							if (targetFrameworksElement != null) targetFrameworksElement.Name = "TargetFramework";
+						}
+
+						// Make sure we only have one node in the XDocument related to target framework (I doubt this scenario is possible but better safe than sorry)
+						if (targetFrameworkElement != null && targetFrameworksElement != null)
+						{
+							if (cakeVersion.RequiredFrameworks.Count() > 1) targetFrameworkElement.Remove();
+							else targetFrameworksElement.Remove();
+						}
+
+						commits.Add(("Target the required framework(s)", null, new[] { (EncodingType.Utf8, projectFile.Key, document.ToString()) }));
 					}
 				}
 

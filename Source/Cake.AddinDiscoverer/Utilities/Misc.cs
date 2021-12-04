@@ -3,7 +3,6 @@ using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -17,12 +16,16 @@ namespace Cake.AddinDiscoverer.Utilities
 	{
 		public static bool IsFrameworkUpToDate(string[] currentFrameworks, CakeVersion desiredCakeVersion)
 		{
+			// Make sure the addin currently targets at least one framework
 			if (currentFrameworks == null || !currentFrameworks.Any()) return false;
-			else if (!currentFrameworks.Contains(desiredCakeVersion.RequiredFramework[0], StringComparer.InvariantCultureIgnoreCase)) return false;
 
+			// Check that all required frameworks are targeted
+			if (desiredCakeVersion.RequiredFrameworks.Except(currentFrameworks, StringComparer.OrdinalIgnoreCase).Any()) return false;
+
+			// Check that no extra framework is targeted
 			var unnecessaryFrameworks = currentFrameworks
-				.Except(desiredCakeVersion.RequiredFramework)
-				.Except(desiredCakeVersion.OptionalFrameworks)
+				.Except(desiredCakeVersion.RequiredFrameworks, StringComparer.OrdinalIgnoreCase)
+				.Except(desiredCakeVersion.OptionalFrameworks, StringComparer.OrdinalIgnoreCase)
 				.ToArray();
 			if (unnecessaryFrameworks.Any()) return false;
 

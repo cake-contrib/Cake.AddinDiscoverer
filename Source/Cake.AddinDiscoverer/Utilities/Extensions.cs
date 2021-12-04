@@ -224,21 +224,28 @@ namespace Cake.AddinDiscoverer
 			return currentVersion == null || currentVersion >= desiredVersion;
 		}
 
+		public static XElement GetFirstElement(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
+		{
+			var elements = document.Descendants(elementName);
+			if (!elements.Any()) return null;
+
+			XElement element = null;
+			if (string.IsNullOrEmpty(config))
+			{
+				element = elements.FirstOrDefault((XElement x) => !x.WithConfigCondition());
+			}
+			else
+			{
+				element = elements.FirstOrDefault((XElement x) => x.WithConfigCondition(config, platform)) ?? elements.FirstOrDefault((XElement x) => !x.WithConfigCondition());
+			}
+
+			return element;
+		}
+
 		// From The Cake Incubator project
 		public static string GetFirstElementValue(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
 		{
-			var elements = document.Descendants(elementName);
-			if (!elements.Any())
-			{
-				return null;
-			}
-
-			if (string.IsNullOrEmpty(config))
-			{
-				return elements.FirstOrDefault((XElement x) => !x.WithConfigCondition())?.Value;
-			}
-
-			return elements.FirstOrDefault((XElement x) => x.WithConfigCondition(config, platform))?.Value ?? elements.FirstOrDefault((XElement x) => !x.WithConfigCondition())?.Value;
+			return document.GetFirstElement(elementName, config, platform)?.Value;
 		}
 
 		// From The Cake Incubator project
@@ -261,22 +268,19 @@ namespace Cake.AddinDiscoverer
 
 		public static bool SetFirstElementValue(this XDocument document, XName elementName, string newValue, string config = null, string platform = "AnyCPU")
 		{
-			var elements = document.Descendants(elementName);
-			if (!elements.Any()) return false;
-
-			XElement element = null;
-			if (string.IsNullOrEmpty(config))
-			{
-				element = elements.FirstOrDefault((XElement x) => !x.WithConfigCondition());
-			}
-			else
-			{
-				element = elements.FirstOrDefault((XElement x) => x.WithConfigCondition(config, platform)) ?? elements.FirstOrDefault((XElement x) => !x.WithConfigCondition());
-			}
-
+			var element = document.GetFirstElement(elementName, config, platform);
 			if (element == null) return false;
 
 			element.SetValue(newValue);
+			return true;
+		}
+
+		public static bool RemoveElement(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
+		{
+			var element = document.GetFirstElement(elementName, config, platform);
+			if (element == null) return false;
+
+			element.Remove();
 			return true;
 		}
 
