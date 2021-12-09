@@ -160,8 +160,8 @@ namespace Cake.AddinDiscoverer.Steps
 
 					if (cakeVersion.RequiredFrameworks.Except(targetFrameworks, StringComparer.OrdinalIgnoreCase).Any())
 					{
-						targetFrameworkElement?.SetValue(string.Concat(",", cakeVersion.RequiredFrameworks));
-						targetFrameworksElement?.SetValue(string.Concat(",", cakeVersion.RequiredFrameworks));
+						targetFrameworkElement?.SetValue(string.Join(",", cakeVersion.RequiredFrameworks));
+						targetFrameworksElement?.SetValue(string.Join(",", cakeVersion.RequiredFrameworks));
 
 						// We might need to rename the node if the csproj current only targets a single framework and we are switching to multiple targets
 						// or vice-versa: the csproj targets multiple frameworks and we are switching to a single target
