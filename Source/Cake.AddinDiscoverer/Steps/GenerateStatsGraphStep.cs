@@ -29,7 +29,7 @@ namespace Cake.AddinDiscoverer.Steps
 			// STEP 1: Load data from the previously generated CSV file
 			using TextReader reader = new StreamReader(context.StatsSaveLocation);
 			var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
-			csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter("yyyy-MM-dd HH:mm:ss"));
+			csv.Context.TypeConverterOptionsCache.GetOptions<DateTime>().Formats = new[] { Constants.CSV_DATE_FORMAT };
 
 			var auditedCakeVersions = Constants.CAKE_VERSIONS.Select(c => c.Version.ToString(3));
 			var csvRecords = csv.GetRecords<AddinProgressSummary>().Where(r => auditedCakeVersions.Contains(r.CakeVersion)).ToList();
@@ -42,7 +42,8 @@ namespace Cake.AddinDiscoverer.Steps
 			var plotModel = new PlotModel
 			{
 				Title = "Addins compatibility over time",
-				Subtitle = "Percentage of all known addins compatible with a given version of Cake"
+				Subtitle = "Percentage of all known addins compatible with a given version of Cake",
+				Background = OxyColors.White
 			};
 			var startTime = csvRecords.Min(r => r.Date);
 			var minDate = DateTimeAxis.ToDouble(startTime);
@@ -86,8 +87,8 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 
 			// ===========================================================================
-			// STEP 4: save grapg to PNG file
-			var pngExporter = new PngExporter { Width = 600, Height = 400, Background = OxyColors.White };
+			// STEP 4: save graph to PNG file
+			var pngExporter = new PngExporter { Width = 600, Height = 400 };
 			pngExporter.ExportToFile(plotModel, graphPath);
 
 			return Task.CompletedTask;

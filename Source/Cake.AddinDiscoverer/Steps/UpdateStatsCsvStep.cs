@@ -28,7 +28,7 @@ namespace Cake.AddinDiscoverer.Steps
 			using (TextWriter writer = new StreamWriter(fs))
 			{
 				var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
-				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter(Constants.CSV_DATE_FORMAT));
+				csv.Context.TypeConverterOptionsCache.GetOptions<DateTime>().Formats = new[] { Constants.CSV_DATE_FORMAT };
 
 				var addins = context.Addins.Where(addin => addin.Type == AddinType.Addin || addin.Type == AddinType.Module).ToArray();
 				var validAddins = addins.Where(addin => !addin.IsDeprecated).ToArray();
