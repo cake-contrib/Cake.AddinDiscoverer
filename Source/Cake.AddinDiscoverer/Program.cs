@@ -15,7 +15,6 @@ namespace Cake.AddinDiscoverer
 		/// </summary>
 		/// <param name="args">Command line arguments.</param>
 		/// <returns>Result code (0 indicates success; non-zero indicates error).</returns>
-		///
 		public static int Main(string[] args)
 		{
 			// Parse command line arguments and proceed with analysis if parsing was successful

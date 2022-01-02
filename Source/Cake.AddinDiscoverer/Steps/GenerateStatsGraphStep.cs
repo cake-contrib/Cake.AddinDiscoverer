@@ -9,6 +9,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -23,7 +24,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Generate the graph showing addin compatibility over time";
 
-		public Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			// ===========================================================================
 			// STEP 1: Load data from the previously generated CSV file
@@ -37,7 +38,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// ===========================================================================
 			// STEP 2: Prepare the graph
-			var graphPath = Path.Combine(context.TempFolder, "Audit_progress.png");
+			var graphPath = System.IO.Path.Combine(context.TempFolder, "Audit_progress.png");
 
 			var plotModel = new PlotModel
 			{

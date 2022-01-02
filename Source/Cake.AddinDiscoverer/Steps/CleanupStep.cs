@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -15,7 +16,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => $"Clean up {context.TempFolder}";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			await ClearCacheAndOutputFolders(context, log).ConfigureAwait(false);
 			await DeleteBranches(context, log).ConfigureAwait(false);

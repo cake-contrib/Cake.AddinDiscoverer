@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -20,7 +21,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Get metadata (such as stats, content, etc.) from Github";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			context.Addins = await context.Addins
 				.ForEachAsync(

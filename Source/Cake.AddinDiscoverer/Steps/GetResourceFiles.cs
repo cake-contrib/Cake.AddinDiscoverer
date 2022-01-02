@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -14,7 +15,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Download resource files";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var exclusionListAsJObject = await GetResourceFile(context, "exclusionlist.json").ConfigureAwait(false);
 			var inclusionListAsJObject = await GetResourceFile(context, "inclusionlist.json").ConfigureAwait(false);

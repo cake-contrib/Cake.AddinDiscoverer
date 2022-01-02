@@ -7,6 +7,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -17,7 +18,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Generate the markdown report";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var categorizedAddins = context.Addins.Where(addin => addin.Type != AddinType.Unknown);
 			var uncategorizedAddins = context.Addins.Where(addin => addin.Type == AddinType.Unknown);

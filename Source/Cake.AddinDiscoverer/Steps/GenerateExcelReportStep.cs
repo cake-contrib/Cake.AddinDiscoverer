@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -17,7 +18,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Generate the excel report";
 
-		public Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
@@ -47,10 +48,8 @@ namespace Cake.AddinDiscoverer.Steps
 				GenerateExcelWorksheetWithNotes(deprecatedAddins, "Deprecated", excel);
 
 				// Save the Excel file
-				excel.Save();
+				await excel.SaveAsync(cancellationToken).ConfigureAwait(false);
 			}
-
-			return Task.CompletedTask;
 		}
 
 		private void GenerateExcelWorksheet(IEnumerable<AddinMetadata> addins, CakeVersion cakeVersion, AddinType type, string caption, ExcelPackage excel)

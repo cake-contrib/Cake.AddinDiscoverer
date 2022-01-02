@@ -2,6 +2,7 @@ using Cake.AddinDiscoverer.Models;
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -16,7 +17,7 @@ namespace Cake.AddinDiscoverer.Steps
 			else return $"Making sure we found {context.Options.AddinName}";
 		}
 
-		public Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			if (!context.Addins.Any())
 			{
