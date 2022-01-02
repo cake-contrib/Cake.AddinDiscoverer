@@ -208,10 +208,8 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 			else
 			{
-				var issueUpdate = new IssueUpdate()
-				{
-					Body = issueBody.ToString()
-				};
+				var issueUpdate = issue.ToUpdate();
+				issueUpdate.Body = issueBody.ToString();
 				issue = await context.GithubClient.Issue.Update(upstream.Owner.Login, upstream.Name, issue.Number, issueUpdate).ConfigureAwait(false);
 			}
 
