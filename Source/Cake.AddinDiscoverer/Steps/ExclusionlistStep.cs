@@ -15,8 +15,6 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
-			throw new NotImplementedException("THIS IS A TEST");
-
 			context.Addins = context.Addins
 				.Where(addin => addin.Name.Equals(context.Options.AddinName, StringComparison.OrdinalIgnoreCase) || !context.ExcludedAddins.Any(excludedAddinName => addin.Name.IsMatch(excludedAddinName)))
 				.OrderBy(addin => addin.Name)
