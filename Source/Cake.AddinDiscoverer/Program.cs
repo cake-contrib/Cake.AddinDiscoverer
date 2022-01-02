@@ -30,6 +30,11 @@ namespace Cake.AddinDiscoverer
 						// Make sure this is an absolute path
 						opts.TemporaryFolder = Path.GetFullPath(opts.TemporaryFolder);
 
+#if DEBUG
+						// Use local files (such exclusionlist.json for example) when debugging
+						opts.UseLocalResources = true;
+#endif
+
 						return OnSuccessfulParse(opts);
 					},
 					_ => ResultCode.Error);

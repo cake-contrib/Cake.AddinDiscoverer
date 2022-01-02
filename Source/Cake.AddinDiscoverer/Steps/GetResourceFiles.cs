@@ -49,9 +49,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private JObject GetLocalResource(string resourceName)
 		{
-			// Using '.CodeBase' because it returns where the assembly is located when not executing (in other words, the 'permanent' path of the assembly).
-			// '.Location' would seem more intuitive but in the case of shadow copied assemblies, it would return a path in a temp directory.
-			var currentPath = new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
+			var currentPath = new Uri(Assembly.GetExecutingAssembly().Location).LocalPath;
 			var currentFolder = Path.GetDirectoryName(currentPath);
 			var filePath = Path.Combine(currentFolder, resourceName);
 

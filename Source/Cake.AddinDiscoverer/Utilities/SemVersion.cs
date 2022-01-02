@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using System.Runtime.Serialization;
-using System.Security.Permissions;
 using System.Text.RegularExpressions;
 
 namespace Cake.AddinDiscoverer.Utilities
@@ -367,7 +366,6 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </summary>
 		/// <param name="info">The serialization info.</param>
 		/// <param name="context">The context.</param>
-		[SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
 		public void GetObjectData(SerializationInfo info, StreamingContext context)
 		{
 			if (info == null) throw new ArgumentNullException("info");

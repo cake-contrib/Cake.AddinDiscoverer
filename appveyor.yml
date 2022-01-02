@@ -37,7 +37,7 @@ cache:
   - tools -> build.cake
 
 # Environment configuration
-image: Visual Studio 2019
+image: Visual Studio 2022
 
 #  Skip builds for doc changes
 skip_commits:
