@@ -22,7 +22,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Update Cake.Recipe";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var cakeVersionUsedByRecipe = await FindCakeVersionUsedByRecipe(context).ConfigureAwait(false);
 			await UpdateCakeRecipeAsync(context, cakeVersionUsedByRecipe).ConfigureAwait(false);
@@ -208,10 +208,8 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 			else
 			{
-				var issueUpdate = new IssueUpdate()
-				{
-					Body = issueBody.ToString()
-				};
+				var issueUpdate = issue.ToUpdate();
+				issueUpdate.Body = issueBody.ToString();
 				issue = await context.GithubClient.Issue.Update(upstream.Owner.Login, upstream.Name, issue.Number, issueUpdate).ConfigureAwait(false);
 			}
 

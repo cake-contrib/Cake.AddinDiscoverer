@@ -126,7 +126,7 @@ Task("Restore-NuGet-Packages")
 	.IsDependentOn("Clean")
 	.Does(() =>
 {
-	DotNetCoreRestore(sourceFolder, new DotNetCoreRestoreSettings
+	DotNetRestore(sourceFolder, new DotNetRestoreSettings
 	{
 		Sources = new [] {
 			"https://api.nuget.org/v3/index.json"
@@ -138,7 +138,7 @@ Task("Build")
 	.IsDependentOn("Restore-NuGet-Packages")
 	.Does(() =>
 {
-	DotNetCoreBuild($"{sourceFolder}{appName}.sln", new DotNetCoreBuildSettings
+	DotNetBuild($"{sourceFolder}{appName}.sln", new DotNetBuildSettings
 	{
 		Configuration = configuration,
 		NoRestore = true,
@@ -150,7 +150,7 @@ Task("Publish")
 	.IsDependentOn("Build")
 	.Does(() =>
 {
-	DotNetCorePublish($"{sourceFolder}{appName}.sln", new DotNetCorePublishSettings
+	DotNetPublish($"{sourceFolder}{appName}.sln", new DotNetPublishSettings
 	{
 		Configuration = configuration,
 		NoBuild = true,

@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -14,7 +15,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Download resource files";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var exclusionListAsJObject = await GetResourceFile(context, "exclusionlist.json").ConfigureAwait(false);
 			var inclusionListAsJObject = await GetResourceFile(context, "inclusionlist.json").ConfigureAwait(false);
@@ -48,9 +49,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private JObject GetLocalResource(string resourceName)
 		{
-			// Using '.CodeBase' because it returns where the assembly is located when not executing (in other words, the 'permanent' path of the assembly).
-			// '.Location' would seem more intuitive but in the case of shadow copied assemblies, it would return a path in a temp directory.
-			var currentPath = new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
+			var currentPath = new Uri(Assembly.GetExecutingAssembly().Location).LocalPath;
 			var currentFolder = Path.GetDirectoryName(currentPath);
 			var filePath = Path.Combine(currentFolder, resourceName);
 

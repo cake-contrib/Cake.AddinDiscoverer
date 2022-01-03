@@ -5,6 +5,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -19,7 +20,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Update statistics";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var content = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, System.IO.Path.GetFileName(context.StatsSaveLocation)).ConfigureAwait(false);
 			File.WriteAllText(context.StatsSaveLocation, content[0].Content);
@@ -28,7 +29,7 @@ namespace Cake.AddinDiscoverer.Steps
 			using (TextWriter writer = new StreamWriter(fs))
 			{
 				var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
-				csv.Configuration.TypeConverterCache.AddConverter<DateTime>(new DateConverter(Constants.CSV_DATE_FORMAT));
+				csv.Context.TypeConverterOptionsCache.GetOptions<DateTime>().Formats = new[] { Constants.CSV_DATE_FORMAT };
 
 				var addins = context.Addins.Where(addin => addin.Type == AddinType.Addin || addin.Type == AddinType.Module).ToArray();
 				var validAddins = addins.Where(addin => !addin.IsDeprecated).ToArray();

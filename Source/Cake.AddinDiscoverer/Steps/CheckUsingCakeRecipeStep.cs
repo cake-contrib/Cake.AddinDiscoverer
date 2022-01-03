@@ -4,6 +4,7 @@ using Cake.Incubator.StringExtensions;
 using Octokit;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -19,7 +20,7 @@ namespace Cake.AddinDiscoverer.Steps
 			else return $"Check if {context.Options.AddinName} is using Cake.Recipe";
 		}
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var cakeRecipeAddin = context.Addins
 				.Where(a => a.Type == AddinType.Recipe)

@@ -15,7 +15,6 @@ namespace Cake.AddinDiscoverer
 		/// </summary>
 		/// <param name="args">Command line arguments.</param>
 		/// <returns>Result code (0 indicates success; non-zero indicates error).</returns>
-		///
 		public static int Main(string[] args)
 		{
 			// Parse command line arguments and proceed with analysis if parsing was successful
@@ -30,6 +29,11 @@ namespace Cake.AddinDiscoverer
 
 						// Make sure this is an absolute path
 						opts.TemporaryFolder = Path.GetFullPath(opts.TemporaryFolder);
+
+#if DEBUG
+						// Use local files (such exclusionlist.json for example) when debugging
+						opts.UseLocalResources = true;
+#endif
 
 						return OnSuccessfulParse(opts);
 					},

@@ -12,6 +12,7 @@ using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer
@@ -129,65 +130,75 @@ namespace Cake.AddinDiscoverer
 
 		public async Task<ResultCode> LaunchDiscoveryAsync()
 		{
+			var cts = new CancellationTokenSource();
+			var cancellationToken = cts.Token;
+
 			var originalConsoleColor = Console.ForegroundColor;
 			var result = ResultCode.Success;
 
-			try
+			var maxStepNameLength = 60;
+			var lineFormat = "{0,-" + maxStepNameLength + "}{1,-20}";
+			Console.ForegroundColor = ConsoleColor.Green;
+
+			Console.WriteLine();
+			Console.WriteLine(lineFormat, "Step", "Duration");
+			Console.WriteLine(new string('-', 20 + maxStepNameLength));
+
+			var totalTime = Stopwatch.StartNew();
+
+			foreach (var type in _steps)
 			{
-				var maxStepNameLength = 60;
-				var lineFormat = "{0,-" + maxStepNameLength + "}{1,-20}";
-				Console.ForegroundColor = ConsoleColor.Green;
-
-				Console.WriteLine();
-				Console.WriteLine(lineFormat, "Step", "Duration");
-				Console.WriteLine(new string('-', 20 + maxStepNameLength));
-
-				var totalTime = Stopwatch.StartNew();
-
-				foreach (var type in _steps)
+				var step = (IStep)Activator.CreateInstance(type);
+				var stepDescription = step.GetDescription(_context);
+				if (stepDescription.Length > maxStepNameLength - 1)
 				{
-					var step = (IStep)Activator.CreateInstance(type);
-					var stepDescription = step.GetDescription(_context);
-					if (stepDescription.Length > maxStepNameLength - 1)
-					{
-						stepDescription = stepDescription.Substring(0, maxStepNameLength - 1);
-					}
+					stepDescription = stepDescription.Substring(0, maxStepNameLength - 1);
+				}
 
-					if (step.PreConditionIsMet(_context))
+				if (cancellationToken.IsCancellationRequested)
+				{
+					Console.ForegroundColor = ConsoleColor.Red;
+					Console.WriteLine(lineFormat, stepDescription, "Skipped due to cancellation");
+				}
+				else if (step.PreConditionIsMet(_context))
+				{
+					try
 					{
 						var log = new StringWriter();
 						var stepDuration = Stopwatch.StartNew();
-						await step.ExecuteAsync(_context, log).ConfigureAwait(false);
+						await step.ExecuteAsync(_context, log, cancellationToken).ConfigureAwait(false);
 						stepDuration.Stop();
 
 						Console.ForegroundColor = ConsoleColor.Green;
 						Console.WriteLine(lineFormat, stepDescription, stepDuration.Elapsed.ToString("c", CultureInfo.InvariantCulture));
 						WriteLog(log.ToString());
 					}
-					else
+					catch (Exception e)
 					{
-						Console.ForegroundColor = ConsoleColor.Gray;
-						Console.WriteLine(lineFormat, stepDescription, "Skipped");
+						Console.ForegroundColor = originalConsoleColor;
+						Console.WriteLine($"{Environment.NewLine}***** AN EXCEPTION HAS OCCURED *****");
+						Console.WriteLine($"***** {stepDescription} *****");
+						Console.WriteLine(e.Demystify().ToString());
+						Console.WriteLine();
+						result = ResultCode.Error;
+						cts.Cancel();
 					}
 				}
+				else
+				{
+					Console.ForegroundColor = ConsoleColor.Gray;
+					Console.WriteLine(lineFormat, stepDescription, "Skipped");
+				}
+			}
 
-				totalTime.Stop();
+			totalTime.Stop();
 
-				Console.ForegroundColor = ConsoleColor.Green;
-				Console.WriteLine(new string('-', 20 + maxStepNameLength));
-				Console.WriteLine(lineFormat, "Total:", totalTime.Elapsed.ToString("c", CultureInfo.InvariantCulture));
-			}
-			catch (Exception e)
-			{
-				Console.ForegroundColor = originalConsoleColor;
-				Console.WriteLine($"{Environment.NewLine}***** AN EXCEPTION HAS OCCURED *****");
-				Console.WriteLine(e.Demystify().ToString());
-				result = ResultCode.Error;
-			}
-			finally
-			{
-				Console.ForegroundColor = originalConsoleColor;
-			}
+			Console.ForegroundColor = ConsoleColor.Green;
+			Console.WriteLine(new string('-', 20 + maxStepNameLength));
+			Console.WriteLine(lineFormat, "Total:", totalTime.Elapsed.ToString("c", CultureInfo.InvariantCulture));
+
+			// Reset the foreground color
+			Console.ForegroundColor = originalConsoleColor;
 
 			return result;
 		}

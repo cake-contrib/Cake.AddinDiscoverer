@@ -23,7 +23,7 @@ namespace Cake.AddinDiscoverer.Steps
 			else return $"Search NuGet for {context.Options.AddinName}";
 		}
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var nugetPackageMetadataClient = await context.NugetRepository.GetResourceAsync<PackageMetadataResource>().ConfigureAwait(false);
 			var addinPackages = new List<IPackageSearchMetadata>();

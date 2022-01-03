@@ -1,5 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer
@@ -28,7 +29,8 @@ namespace Cake.AddinDiscoverer
 		/// </summary>
 		/// <param name="context">The context.</param>
 		/// <param name="log">The log.</param>
+		/// <param name="cancellationToken">The cancellation token.</param>
 		/// <returns>The asynchronous task.</returns>
-		Task ExecuteAsync(DiscoveryContext context, TextWriter log);
+		Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken);
 	}
 }

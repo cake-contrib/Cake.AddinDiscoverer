@@ -7,6 +7,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -17,7 +18,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Generate the markdown report";
 
-		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var categorizedAddins = context.Addins.Where(addin => addin.Type != AddinType.Unknown);
 			var uncategorizedAddins = context.Addins.Where(addin => addin.Type == AddinType.Unknown);
@@ -162,7 +163,11 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				markdown.AppendLine("- The `Cake Core Version` and `Cake Common Version` columns  show the version referenced by a given addin");
 				markdown.AppendLine($"- The `Cake Core IsPrivate` and `Cake Common IsPrivate` columns indicate whether the references are marked as private. In other words, we are looking for references with the `PrivateAssets=All` attribute like in this example: `<PackageReference Include=\"Cake.Common\" Version=\"{cakeVersion.Version}\" PrivateAssets=\"All\" />`");
-				markdown.AppendLine($"- The `Framework` column shows the .NET framework(s) targeted by a given addin. Addins should target {string.Join(" and ", cakeVersion.RequiredFrameworks)} at a minimum, and they can also optionally multi-target {string.Join(" or ", cakeVersion.OptionalFrameworks)}");
+
+				var targets = $"- The `Framework` column shows the .NET framework(s) targeted by a given addin. Addins should target {string.Join(" and ", cakeVersion.RequiredFrameworks)} at a minimum";
+				if (cakeVersion.OptionalFrameworks.Any()) targets += $", and they can also optionally multi-target {string.Join(" or ", cakeVersion.OptionalFrameworks)}";
+
+				markdown.AppendLine(targets);
 			}
 
 			markdown.AppendLine();
