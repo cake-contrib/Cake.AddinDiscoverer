@@ -179,15 +179,13 @@ namespace Cake.AddinDiscoverer
 
 		public static string TrimEnd(this string source, string value, StringComparison comparisonType)
 		{
-			if (source == null)
-			{
-				throw new ArgumentNullException(nameof(source));
-			}
+			if (source == null) throw new ArgumentNullException(nameof(source));
+			if (value == null) throw new ArgumentNullException(nameof(value));
 
 			int sourceLength = source.Length;
 			int valueLength = value.Length;
 			int count = sourceLength;
-			while (source.LastIndexOf(value, count, comparisonType) == count - valueLength)
+			while (source.LastIndexOf(value, count, comparisonType) == count - valueLength && count - valueLength > 0)
 			{
 				count -= valueLength;
 			}
