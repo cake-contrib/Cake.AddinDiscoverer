@@ -4,13 +4,13 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <Version>4.3.1</Version>
+    <Version>4.4.0</Version>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup>
     <AssemblyTitle>AddinDiscoverer</AssemblyTitle>
-    <Authors>jericho</Authors>
+    <Authors>Jericho</Authors>
     <Description>Cake.AddinDiscoverer is a tool that discovers all known Cake plugins and analyses them to ensure they follow best practices.</Description>
     <Copyright>Copyright Jericho and contributors 2018 - Present</Copyright>
   </PropertyGroup>
