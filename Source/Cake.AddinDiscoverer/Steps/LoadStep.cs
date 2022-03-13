@@ -3,6 +3,7 @@ using NuGet.Packaging;
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Steps
@@ -13,7 +14,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Load packages into memory";
 
-		public async Task ExecuteAsync(DiscoveryContext context)
+		public Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			context.Addins = context.Addins
 				.Select(addin =>
@@ -41,7 +42,7 @@ namespace Cake.AddinDiscoverer.Steps
 				})
 				.ToArray();
 
-			await Task.Delay(1).ConfigureAwait(false);
+			return Task.CompletedTask;
 		}
 	}
 }
