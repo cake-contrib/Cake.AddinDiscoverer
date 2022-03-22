@@ -91,7 +91,10 @@ namespace Cake.AddinDiscoverer
 
 			// Update the addin references in the Cake.Recipe. Also, upgrade the version of Cake used to build
 			// Cake.Recipe IF AND ONLY IF all references have been updated to be compatible with the latest version
-			typeof(UpdateCakeRecipeStep)
+			typeof(UpdateCakeRecipeStep),
+
+			// Get the list of people who contributed to Cake
+			typeof(GetContributorsStep)
 		};
 
 		private readonly DiscoveryContext _context;
