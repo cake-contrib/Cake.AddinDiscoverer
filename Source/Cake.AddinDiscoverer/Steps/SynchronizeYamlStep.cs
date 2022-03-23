@@ -64,7 +64,7 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"extensions/{addin.Name}.yml").ConfigureAwait(false);
 						return (addin, contents[0].Content, UpdateYamlFile(context, addin, contents[0].Content));
-					}, Constants.MAX_NUGET_CONCURENCY)
+					}, Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			var addinsToBeUpdated = addinsWithContent

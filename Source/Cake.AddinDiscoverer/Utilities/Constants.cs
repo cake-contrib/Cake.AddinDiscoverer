@@ -26,6 +26,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string DOT_NET_TOOLS_CONFIG_PATH = ".config/dotnet-tools.json";
 		public const string NO_DESCRIPTION_PROVIDED = "No description has been provided";
 		public const string COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize YAML files";
+		public const string CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize Contributors";
 
 		public const string CAKE_CONTRIB_ADDIN_FANCY_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/addin/cake-contrib-addin-medium.png";
 		public const string CAKE_CONTRIB_MODULE_FANCY_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/module/cake-contrib-module-medium.png";
