@@ -17,21 +17,21 @@
 
   <ItemGroup>
     <PackageReference Include="Ben.Demystifier" Version="0.4.1" />
-    <PackageReference Include="Cake.Common" Version="2.0.0" />
-    <PackageReference Include="Cake.Core" Version="2.0.0" />
-    <PackageReference Include="Cake.Incubator" Version="6.0.0" />
-    <PackageReference Include="CommandLineParser" Version="2.8.0" />
+    <PackageReference Include="Cake.Common" Version="2.2.0" />
+    <PackageReference Include="Cake.Core" Version="2.2.0" />
+    <PackageReference Include="Cake.Incubator" Version="7.0.0" />
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="CsvHelper" Version="27.2.1" />
     <PackageReference Include="EPPlus" Version="5.8.4" />
-    <PackageReference Include="FSharp.Core" Version="6.0.1" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
+    <PackageReference Include="FSharp.Core" Version="6.0.5" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="NuGet.Protocol" Version="6.0.0" />
-    <PackageReference Include="Octokit" Version="0.50.0" />
+    <PackageReference Include="NuGet.Protocol" Version="6.2.1" />
+    <PackageReference Include="Octokit" Version="0.51.0" />
     <PackageReference Include="OxyPlot.WindowsForms" Version="2.1.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="System.Memory" Version="4.5.4" />
+    <PackageReference Include="System.Memory" Version="4.5.5" />
     <PackageReference Include="System.Reflection.MetadataLoadContext" Version="6.0.0" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
     <PackageReference Include="YamlDotNet" Version="11.2.1" />
