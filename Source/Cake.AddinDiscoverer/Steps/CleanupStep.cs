@@ -92,8 +92,8 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				var dateParts = branch.Name
 					.Split('_')
+					.Where(part => part.All(char.IsDigit))
 					.Select(part => int.Parse(part))
-					.Skip(1)
 					.ToArray();
 				var createdOn = new DateTime(dateParts[0], dateParts[1], dateParts[2], dateParts[3], dateParts[4], dateParts[5], DateTimeKind.Utc);
 
