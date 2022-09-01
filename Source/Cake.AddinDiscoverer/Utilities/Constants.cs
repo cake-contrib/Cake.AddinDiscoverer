@@ -192,31 +192,31 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Center,
 				(addin) =>
 				{
-					switch (addin.AnalysisResult.Icon)
+					return addin.AnalysisResult.Icon switch
 					{
-						case IconAnalysisResult.Unspecified: return "not specified";
-						case IconAnalysisResult.RawgitUrl: return "rawgit";
-						case IconAnalysisResult.JsDelivrUrl: return "jsDelivr";
-						case IconAnalysisResult.CustomUrl: return "custom url";
-						case IconAnalysisResult.EmbeddedCakeContrib: return "embedded cake-contrib";
-						case IconAnalysisResult.EmbeddedFancyCakeContrib: return "embedded 'fancy' cake-contrib";
-						case IconAnalysisResult.EmbeddedCustom: return "embedded custom";
-						default: return "unknown";
-					}
+						IconAnalysisResult.Unspecified => "not specified",
+						IconAnalysisResult.RawgitUrl => "rawgit",
+						IconAnalysisResult.JsDelivrUrl => "jsDelivr",
+						IconAnalysisResult.CustomUrl => "custom url",
+						IconAnalysisResult.EmbeddedCakeContrib => "embedded cake-contrib",
+						IconAnalysisResult.EmbeddedFancyCakeContrib => "embedded 'fancy' cake-contrib",
+						IconAnalysisResult.EmbeddedCustom => "embedded custom",
+						_ => "unknown"
+					};
 				},
 				(addin, cakeVersion) =>
 								{
-					switch (addin.AnalysisResult.Icon)
+					return addin.AnalysisResult.Icon switch
 					{
-						case IconAnalysisResult.Unspecified: return Color.Red;
-						case IconAnalysisResult.RawgitUrl: return Color.Red;
-						case IconAnalysisResult.JsDelivrUrl: return Color.Gold;
-						case IconAnalysisResult.CustomUrl: return Color.Gold;
-						case IconAnalysisResult.EmbeddedCakeContrib: return Color.LightGreen;
-						case IconAnalysisResult.EmbeddedFancyCakeContrib: return Color.LightGreen;
-						case IconAnalysisResult.EmbeddedCustom: return Color.Gold;
-						default: return Color.Red;
-					}
+						IconAnalysisResult.Unspecified => Color.Red,
+						IconAnalysisResult.RawgitUrl => Color.Red,
+						IconAnalysisResult.JsDelivrUrl => Color.Gold,
+						IconAnalysisResult.CustomUrl => Color.Gold,
+						IconAnalysisResult.EmbeddedCakeContrib => Color.LightGreen,
+						IconAnalysisResult.EmbeddedFancyCakeContrib => Color.LightGreen,
+						IconAnalysisResult.EmbeddedCustom => Color.Gold,
+						_ => Color.Red
+					};
 				},
 				(addin) => null,
 				AddinType.All,
@@ -327,24 +327,24 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Center,
 				(addin) =>
 				{
-					switch (addin.PdbStatus)
+					return addin.PdbStatus switch
 					{
-						case PdbStatus.Embedded: return "embedded";
-						case PdbStatus.IncludedInPackage: return "included in nupkg";
-						case PdbStatus.IncludedInSymbolsPackage: return "included in snupkg";
-						case PdbStatus.NotAvailable: return "unavailable";
-						default: return "unknown";
-					}
+						PdbStatus.Embedded => "embedded",
+						PdbStatus.IncludedInPackage => "included in nupkg",
+						PdbStatus.IncludedInSymbolsPackage => "included in snupkg",
+						PdbStatus.NotAvailable => "unavailable",
+						_ => "unknown"
+					};
 				},
 				(addin, cakeVersion) =>
 				{
-					switch (addin.PdbStatus)
+					return addin.PdbStatus switch
 					{
-						case PdbStatus.Embedded: return Color.LightGreen;
-						case PdbStatus.IncludedInPackage: return Color.LightGreen;
-						case PdbStatus.IncludedInSymbolsPackage: return Color.Gold;
-						default: return Color.Red;
-					}
+						PdbStatus.Embedded => Color.LightGreen,
+						PdbStatus.IncludedInPackage => Color.LightGreen,
+						PdbStatus.IncludedInSymbolsPackage => Color.Gold,
+						_ => Color.Red
+					};
 				},
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
