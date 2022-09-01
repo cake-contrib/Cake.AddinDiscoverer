@@ -23,7 +23,7 @@ namespace Cake.AddinDiscoverer
 
 		public static async Task<Commit> ModifyFilesAsync(this IGitHubClient githubClient, Repository repo, Commit parentCommit, IEnumerable<string> filesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> filesToUpsert, string commitMessage)
 		{
-			if (filesToDelete == null && filesToUpsert == null) throw new ArgumentNullException("You must specify at least one file to delete or one file to add/modify");
+			if (filesToDelete == null && filesToUpsert == null) throw new ArgumentNullException($"{nameof(filesToDelete)} or {nameof(filesToUpsert)}", "You must specify at least one file to delete or one file to add/modify");
 
 			// Build the tree with the existing items
 			var nt = new NewTree();
