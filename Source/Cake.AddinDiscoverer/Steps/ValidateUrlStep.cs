@@ -112,7 +112,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private async Task<IResponse> SendRequestWithRetries(IRequest request, IHttpClient httpClient)
+		private static async Task<IResponse> SendRequestWithRetries(IRequest request, IHttpClient httpClient)
 		{
 			IResponse response = null;
 			const int maxRetry = 3;

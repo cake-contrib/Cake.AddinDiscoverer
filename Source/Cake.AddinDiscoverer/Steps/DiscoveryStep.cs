@@ -169,13 +169,12 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private async Task<IEnumerable<IPackageSearchMetadata>> FetchPackageMetadata(PackageMetadataResource nugetPackageMetadataClient, string name)
+		private static Task<IEnumerable<IPackageSearchMetadata>> FetchPackageMetadata(PackageMetadataResource nugetPackageMetadataClient, string name)
 		{
-			var searchMetadata = await nugetPackageMetadataClient.GetMetadataAsync(name, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
-			return searchMetadata;
+			return nugetPackageMetadataClient.GetMetadataAsync(name, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None);
 		}
 
-		private async IAsyncEnumerable<IPackageSearchMetadata> SearchForPackages(SourceRepository nugetRepository, string searchTerm, bool includePrerelease, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		private static async IAsyncEnumerable<IPackageSearchMetadata> SearchForPackages(SourceRepository nugetRepository, string searchTerm, bool includePrerelease, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 		{
 			// The max value allowed by the NuGet search API is 1000.
 			// This large value is important to ensure results fit in a single page therefore avoiding the problem with duplicates.
@@ -189,7 +188,7 @@ namespace Cake.AddinDiscoverer.Steps
 				OrderBy = SearchOrderBy.Id
 			};
 
-			var nugetSearchClient = nugetRepository.GetResource<PackageSearchResource>();
+			var nugetSearchClient = await nugetRepository.GetResourceAsync<PackageSearchResource>().ConfigureAwait(false);
 
 			while (true)
 			{
