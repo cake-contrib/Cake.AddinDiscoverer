@@ -107,6 +107,23 @@ namespace Cake.AddinDiscoverer.Utilities
 				DataDestination.Excel | DataDestination.MarkdownForRecipes
 			),
 			(
+				"Target Cake Version",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.CakeVersionYaml?.TargetCakeVersion == null ? string.Empty : addin.CakeVersionYaml.TargetCakeVersion.ToString(3),
+				(addin, cakeVersion) =>
+				{
+					if (addin.CakeVersionYaml?.TargetCakeVersion == null) return Color.Red;
+
+					var comparisonResult = addin.CakeVersionYaml.TargetCakeVersion.CompareTo(cakeVersion.Version);
+					if (comparisonResult > 0) return Color.Gold;
+					else if (comparisonResult == 0) return Color.LightGreen;
+					else return Color.Red;
+				},
+				(addin) => null,
+				AddinType.Recipe,
+				DataDestination.Excel | DataDestination.MarkdownForRecipes
+			),
+			(
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreVersion == Constants.UNKNOWN_VERSION ? "Unknown" : addin.AnalysisResult.CakeCoreVersion.ToString(3),
