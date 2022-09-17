@@ -109,7 +109,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Target Cake Version",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.CakeVersionYaml?.TargetCakeVersion == null ? string.Empty : addin.CakeVersionYaml.TargetCakeVersion.ToString(3),
+				(addin) => addin.CakeVersionYaml?.TargetCakeVersion?.ToString(3) ?? string.Empty,
 				(addin, cakeVersion) =>
 				{
 					if (addin.CakeVersionYaml?.TargetCakeVersion == null) return Color.Red;
