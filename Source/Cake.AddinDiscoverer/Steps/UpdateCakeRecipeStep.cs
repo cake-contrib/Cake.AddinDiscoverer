@@ -166,35 +166,50 @@ namespace Cake.AddinDiscoverer.Steps
 			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
-			// Create an issue and PR for each outdated reference
-			foreach (var outdatedReference in outdatedReferences)
+			if (context.Options.DryRun)
 			{
-				// Check if an issue already exists
-				var issueTitle = $"Reference to {outdatedReference.Type} {outdatedReference.Reference.Name} in {outdatedReference.Recipe.Name} needs to be updated";
-				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
-				if (issue != null) continue;
+				var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
 
-				// Create the issue
-				if (!context.Options.DryRun)
+				// Create a single PR for all outdated references
+				foreach (var outdatedReference in outdatedReferences)
 				{
+					var commitMessageLong = $"Update {outdatedReference.Reference.Name} reference from {outdatedReference.Reference.ReferencedVersion} to {outdatedReference.LatestVersion}";
+					commits.Add((commitMessageLong, null, new[] { (EncodingType: EncodingType.Utf8, outdatedReference.Recipe.Path, Content: outdatedReference.Recipe.GetContentForCurrentCake(outdatedReference.Reference)) }));
+				}
+
+				var commitMessageShort = "Update outdated reference";
+				var newBranchName = $"dryrun_update_cake_recipe_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+				await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, null, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
+			}
+			else
+			{
+				// Create an issue and PR for each outdated reference
+				foreach (var outdatedReference in outdatedReferences)
+				{
+					// Check if an issue already exists
+					var issueTitle = $"Reference to {outdatedReference.Type} {outdatedReference.Reference.Name} in {outdatedReference.Recipe.Name} needs to be updated";
+					var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
+					if (issue != null) continue;
+
+					// Create the issue
 					var newIssue = new NewIssue(issueTitle)
 					{
 						Body = $"Reference to {outdatedReference.Reference.Name} {outdatedReference.Reference.ReferencedVersion} in {outdatedReference.Recipe.Name} should be updated to {outdatedReference.LatestVersion}"
 					};
 					issue = await context.GithubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
-				}
 
-				// Commit changes to a new branch and submit PR
-				var commitMessageShort = $"Update {outdatedReference.Reference.Name} reference to {outdatedReference.LatestVersion}";
-				var commitMessageLong = $"Update {outdatedReference.Reference.Name} reference from {outdatedReference.Reference.ReferencedVersion} to {outdatedReference.LatestVersion}";
-				var newBranchName = $"update_{outdatedReference.Reference.Name.Replace('/', '_').Replace('.', '_').Replace('\\', '_')}_reference_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
-				var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
+					// Commit changes to a new branch and submit PR
+					var commitMessageShort = $"Update {outdatedReference.Reference.Name} reference to {outdatedReference.LatestVersion}";
+					var commitMessageLong = $"Update {outdatedReference.Reference.Name} reference from {outdatedReference.Reference.ReferencedVersion} to {outdatedReference.LatestVersion}";
+					var newBranchName = $"update_{outdatedReference.Reference.Name.Replace('/', '_').Replace('.', '_').Replace('\\', '_')}_reference_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
 						{
 							(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, outdatedReference.Recipe.Path, Content: outdatedReference.Recipe.GetContentForCurrentCake(outdatedReference.Reference)) })
 						};
 
-				await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
-				await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
+					await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
+					await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
+				}
 			}
 		}
 
