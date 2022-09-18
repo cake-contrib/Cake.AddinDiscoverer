@@ -76,17 +76,17 @@ namespace Cake.AddinDiscoverer.Models
 		{
 			var updatedContent = string.Empty;
 
-			if (reference is AddinReference addinReference)
+			if (reference is LoadReference loadReference)
+			{
+				updatedContent = GetContent(Content, LoadReferenceRegex, new[] { loadReference }, r => loadReference.LatestVersionForCurrentCake);
+			}
+			else if (reference is AddinReference addinReference)
 			{
 				updatedContent = GetContent(Content, AddinReferenceRegex, new[] { addinReference }, r => addinReference.LatestVersionForCurrentCake);
 			}
 			else if (reference is ToolReference toolReference)
 			{
 				updatedContent = GetContent(Content, ToolReferenceRegex, new[] { toolReference }, r => toolReference.LatestVersion);
-			}
-			else if (reference is LoadReference loadReference)
-			{
-				updatedContent = GetContent(Content, LoadReferenceRegex, new[] { loadReference }, r => loadReference.LatestVersionForCurrentCake);
 			}
 			else
 			{
@@ -103,7 +103,7 @@ namespace Cake.AddinDiscoverer.Models
 		/// I think this is an acceptable risk because, as of this writing, there is only one addin that I know of that is not
 		/// following the naming guideline: Magic-Chunks.
 		/// </summary>
-		private static IEnumerable<T> FindReferences<T>(string content, Regex regex, bool enforceNamingConvention)
+		private static T[] FindReferences<T>(string content, Regex regex, bool enforceNamingConvention)
 			where T : CakeReference, new()
 		{
 			// Replacing Windows CR+LF with Unix LF is important because '$' in our regex only works with Unix line endings

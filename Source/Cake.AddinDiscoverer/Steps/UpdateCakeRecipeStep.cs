@@ -95,6 +95,35 @@ namespace Cake.AddinDiscoverer.Steps
 							})?.NuGetPackageVersion;
 						}
 
+						foreach (var loadReference in recipeFile.LoadReferences)
+						{
+							var referencedPackage = context.Addins.SingleOrDefault(addin =>
+							{
+								return addin.Name.Equals(loadReference.Name, StringComparison.OrdinalIgnoreCase) &&
+									!addin.IsPrerelease &&
+									addin.CakeVersionYaml != null &&
+									(currentCakeVersion == null || addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(currentCakeVersion.Version)) &&
+									(nextCakeVersion == null || !addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(nextCakeVersion.Version));
+							});
+
+							if (referencedPackage == null)
+							{
+								referencedPackage = context.Addins.SingleOrDefault(addin =>
+								{
+									return addin.Name.Equals(loadReference.Name, StringComparison.OrdinalIgnoreCase) &&
+										!addin.IsPrerelease &&
+										addin.CakeVersionYaml != null &&
+										(latestCakeVersion != null && (addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(latestCakeVersion.Version)));
+								});
+							}
+
+							if (referencedPackage != null)
+							{
+								loadReference.LatestVersionForCurrentCake = referencedPackage.NuGetPackageVersion;
+								loadReference.LatestVersionForLatestCake = referencedPackage.NuGetPackageVersion;
+							}
+						}
+
 						var nugetPackageMetadataClient = context.NugetRepository.GetResource<PackageMetadataResource>();
 						await recipeFile.ToolReferences.ForEachAsync(
 							async toolReference =>
@@ -126,6 +155,10 @@ namespace Cake.AddinDiscoverer.Steps
 					.SelectMany(recipeFile => recipeFile.ToolReferences
 						.Where(r => !string.IsNullOrEmpty(r.LatestVersion) && r.ReferencedVersion != r.LatestVersion)
 						.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "tool", r.LatestVersion })))
+				.Concat(recipeFiles
+					.SelectMany(recipeFile => recipeFile.LoadReferences
+						.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake)
+					.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "load", LatestVersion = r.LatestVersionForCurrentCake })))
 				.ToArray();
 			if (!outdatedReferences.Any()) return;
 
@@ -139,7 +172,7 @@ namespace Cake.AddinDiscoverer.Steps
 				// Check if an issue already exists
 				var issueTitle = $"Reference to {outdatedReference.Type} {outdatedReference.Reference.Name} in {outdatedReference.Recipe.Name} needs to be updated";
 				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
-				if (issue != null) return;
+				if (issue != null) continue;
 
 				// Create the issue
 				if (!context.Options.DryRun)
@@ -156,9 +189,9 @@ namespace Cake.AddinDiscoverer.Steps
 				var commitMessageLong = $"Update {outdatedReference.Reference.Name} reference from {outdatedReference.Reference.ReferencedVersion} to {outdatedReference.LatestVersion}";
 				var newBranchName = $"update_{outdatedReference.Reference.Name.Replace('/', '_').Replace('.', '_').Replace('\\', '_')}_reference_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 				var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
-				{
-					(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, outdatedReference.Recipe.Path, Content: outdatedReference.Recipe.GetContentForCurrentCake(outdatedReference.Reference)) })
-				};
+						{
+							(CommitMessage: commitMessageLong, FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, outdatedReference.Recipe.Path, Content: outdatedReference.Recipe.GetContentForCurrentCake(outdatedReference.Reference)) })
+						};
 
 				await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
 				await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
@@ -168,7 +201,7 @@ namespace Cake.AddinDiscoverer.Steps
 		private async Task UpgradeCakeVersionUsedByRecipeAsync(DiscoveryContext context, RecipeFile[] recipeFiles, CakeVersion latestCakeVersion)
 		{
 			var recipeFilesWithAtLeastOneReference = recipeFiles
-				.Where(recipeFile => recipeFile.AddinReferences.Any())
+				.Where(recipeFile => recipeFile.AddinReferences.Any() || recipeFile.LoadReferences.Any())
 				.ToArray();
 			if (!recipeFilesWithAtLeastOneReference.Any()) return;
 
@@ -186,11 +219,24 @@ namespace Cake.AddinDiscoverer.Steps
 			issueBody.AppendLine("Referenced Addins:");
 			foreach (var recipeFile in recipeFilesWithAtLeastOneReference)
 			{
-				issueBody.AppendLine();
-				issueBody.AppendLine($"- `{recipeFile.Name}` references the following addins:");
-				foreach (var addinReference in recipeFile.AddinReferences)
+				if (recipeFile.AddinReferences.Any())
 				{
-					issueBody.AppendLine($"    - [{(addinReference.UpdatedForLatestCake ? "x" : " ")}] {addinReference.Name}");
+					issueBody.AppendLine();
+					issueBody.AppendLine($"- `{recipeFile.Name}` references the following addins:");
+					foreach (var addinReference in recipeFile.AddinReferences)
+					{
+						issueBody.AppendLine($"    - [{(addinReference.UpdatedForLatestCake ? "x" : " ")}] {addinReference.Name}");
+					}
+				}
+
+				if (recipeFile.LoadReferences.Any())
+				{
+					issueBody.AppendLine();
+					issueBody.AppendLine($"- `{recipeFile.Name}` references the following recipes:");
+					foreach (var loadReference in recipeFile.LoadReferences)
+					{
+						issueBody.AppendLine($"    - [{(loadReference.UpdatedForLatestCake ? "x" : " ")}] {loadReference.Name}");
+					}
 				}
 			}
 
