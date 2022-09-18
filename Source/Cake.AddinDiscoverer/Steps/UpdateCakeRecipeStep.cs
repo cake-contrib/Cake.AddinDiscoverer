@@ -113,7 +113,7 @@ namespace Cake.AddinDiscoverer.Steps
 									return addin.Name.Equals(loadReference.Name, StringComparison.OrdinalIgnoreCase) &&
 										!addin.IsPrerelease &&
 										addin.CakeVersionYaml != null &&
-										(latestCakeVersion != null && (addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(latestCakeVersion.Version)));
+										(latestCakeVersion != null && addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(latestCakeVersion.Version));
 								});
 							}
 
