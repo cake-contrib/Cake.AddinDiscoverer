@@ -28,6 +28,9 @@ namespace Cake.AddinDiscoverer
 		[Option('m', "markdowntofile", Default = false, HelpText = "Generate the Markdown report and write to a file.")]
 		public bool MarkdownReportToFile { get; set; }
 
+		[Option('n', "contributors", Default = false, HelpText = "Synchronize the list of contributors.")]
+		public bool SynchronizeContributors { get; set; }
+
 		[Option('o', "token", Required = false, HelpText = "Github token (takes precedence over username+password).")]
 		public string GithubToken { get; set; }
 

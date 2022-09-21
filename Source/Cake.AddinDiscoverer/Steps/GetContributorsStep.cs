@@ -13,7 +13,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class GetContributorsStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => true;
+		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.SynchronizeContributors;
 
 		public string GetDescription(DiscoveryContext context) => "Get the list of people who contributed to Cake";
 
