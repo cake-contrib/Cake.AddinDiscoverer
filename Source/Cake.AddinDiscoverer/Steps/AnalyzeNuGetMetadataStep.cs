@@ -38,7 +38,7 @@ namespace Cake.AddinDiscoverer.Steps
 							using var packageStream = File.Open(packageFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
 							using var package = new PackageArchiveReader(packageStream);
 							/*
-							Workaround to get all available metadata from a NuGet package, even the metadata not
+							Workaround to get all available metadata from a NuGet package, even the metadata is not
 							exposed by NuGet.Packaging.NuspecReader. For example, NuspecReader version 4.3.0 does
 							not expose the "repository" metadata.
 							*/
@@ -247,6 +247,21 @@ namespace Cake.AddinDiscoverer.Steps
 										Version = grp.Min(r => r.Version)
 									})
 									.ToArray();
+							}
+
+							// Get the cake-version.yml (if present)
+							var yamlExtensions = new[] { ".yml", ".yaml" };
+							var cakeVersionYamlFilePath = package.GetFiles()
+								.FirstOrDefault(f =>
+									Array.Exists(yamlExtensions, e => e.EqualsIgnoreCase(Path.GetExtension(f))) &&
+									Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("cake-version"));
+							if (!string.IsNullOrEmpty(cakeVersionYamlFilePath))
+							{
+								using var cakeVersionYamlFileStream = LoadFileFromPackage(package, cakeVersionYamlFilePath);
+								using TextReader ymlReader = new StreamReader(cakeVersionYamlFileStream);
+
+								var deserializer = new YamlDotNet.Serialization.Deserializer();
+								addin.CakeVersionYaml = deserializer.Deserialize<CakeVersionYamlConfig>(ymlReader);
 							}
 
 							addin.License = license;

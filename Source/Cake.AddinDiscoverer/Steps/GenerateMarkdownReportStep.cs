@@ -114,9 +114,10 @@ namespace Cake.AddinDiscoverer.Steps
 			await File.WriteAllTextAsync(context.MarkdownReportPath, markdown.ToString()).ConfigureAwait(false);
 
 			// Generate the markdown report for nuget packages containing recipes
+			var latestCakeVersion = Constants.CAKE_VERSIONS.Max();
 			var recipesReportName = $"{Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}_for_recipes.md";
 			var recipesReportPath = Path.Combine(context.TempFolder, recipesReportName);
-			var markdownReportForRecipes = GenerateMarkdown(context, auditedAddins, null, AddinType.Recipe);
+			var markdownReportForRecipes = GenerateMarkdown(context, auditedAddins, latestCakeVersion, AddinType.Recipe);
 			await File.WriteAllTextAsync(recipesReportPath, markdownReportForRecipes).ConfigureAwait(false);
 
 			// Generate the markdown report for each version of Cake

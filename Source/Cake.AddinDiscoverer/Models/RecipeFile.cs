@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -7,6 +8,7 @@ using System.Web;
 
 namespace Cake.AddinDiscoverer.Models
 {
+	[DebuggerDisplay("{Name}")]
 	internal class RecipeFile
 	{
 		public static readonly Regex AddinReferenceRegex = new Regex(string.Format(ADDIN_REFERENCE_REGEX, "addin"), RegexOptions.Compiled | RegexOptions.Multiline);
@@ -19,7 +21,7 @@ namespace Cake.AddinDiscoverer.Models
 
 		private IEnumerable<ToolReference> _toolReferences;
 
-		private IEnumerable<CakeReference> _loadReferences;
+		private IEnumerable<LoadReference> _loadReferences;
 
 		public string Name { get; set; }
 
@@ -31,16 +33,7 @@ namespace Cake.AddinDiscoverer.Models
 		{
 			get
 			{
-				if (_addinReferences == null)
-				{
-					// For the purpose of this automation we are only considering addins that follow the recommended naming convention which
-					// is necessary in order to ignore references such as: #addin nuget:?package=RazorEngine&version=3.10.0&loaddependencies=true
-					// This has the potential of overlooking references to legitimate Cake addin if they don't follow the naming convention.
-					// I think this is an acceptable risk because, as of this writing, there is only one addin that I know of that is not
-					// following the naming guideline: Magic-Chunks.
-					_addinReferences = FindReferences<AddinReference>(Content, RecipeFile.AddinReferenceRegex, true);
-				}
-
+				_addinReferences ??= FindReferences<AddinReference>(Content, RecipeFile.AddinReferenceRegex, true);
 				return _addinReferences;
 			}
 		}
@@ -49,24 +42,16 @@ namespace Cake.AddinDiscoverer.Models
 		{
 			get
 			{
-				if (_toolReferences == null)
-				{
-					_toolReferences = FindReferences<ToolReference>(Content, RecipeFile.ToolReferenceRegex, false);
-				}
-
+				_toolReferences ??= FindReferences<ToolReference>(Content, RecipeFile.ToolReferenceRegex, false);
 				return _toolReferences;
 			}
 		}
 
-		public IEnumerable<CakeReference> LoadReferences
+		public IEnumerable<LoadReference> LoadReferences
 		{
 			get
 			{
-				if (_loadReferences == null)
-				{
-					_loadReferences = FindReferences<ToolReference>(Content, RecipeFile.LoadReferenceRegex, false);
-				}
-
+				_loadReferences ??= FindReferences<LoadReference>(Content, RecipeFile.LoadReferenceRegex, false);
 				return _loadReferences;
 			}
 		}
@@ -75,6 +60,7 @@ namespace Cake.AddinDiscoverer.Models
 		{
 			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, r => (r as AddinReference).LatestVersionForCurrentCake);
 			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, r => (r as ToolReference).LatestVersion);
+			updatedContent = GetContent(updatedContent, LoadReferenceRegex, LoadReferences, r => (r as LoadReference).LatestVersionForCurrentCake);
 			return updatedContent;
 		}
 
@@ -82,6 +68,7 @@ namespace Cake.AddinDiscoverer.Models
 		{
 			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, r => (r as AddinReference).LatestVersionForLatestCake);
 			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, r => (r as ToolReference).LatestVersion);
+			updatedContent = GetContent(updatedContent, LoadReferenceRegex, LoadReferences, r => (r as LoadReference).LatestVersionForLatestCake);
 			return updatedContent;
 		}
 
@@ -89,7 +76,11 @@ namespace Cake.AddinDiscoverer.Models
 		{
 			var updatedContent = string.Empty;
 
-			if (reference is AddinReference addinReference)
+			if (reference is LoadReference loadReference)
+			{
+				updatedContent = GetContent(Content, LoadReferenceRegex, new[] { loadReference }, r => loadReference.LatestVersionForCurrentCake);
+			}
+			else if (reference is AddinReference addinReference)
 			{
 				updatedContent = GetContent(Content, AddinReferenceRegex, new[] { addinReference }, r => addinReference.LatestVersionForCurrentCake);
 			}
@@ -105,7 +96,14 @@ namespace Cake.AddinDiscoverer.Models
 			return updatedContent;
 		}
 
-		private static IEnumerable<T> FindReferences<T>(string content, Regex regex, bool enforceNamingConvention)
+		/// <summary>
+		/// For the purpose of this automation we are only considering addins that follow the recommended naming convention which
+		/// is necessary in order to ignore references such as: #addin nuget:?package=RazorEngine&version=3.10.0&loaddependencies=true.
+		/// This has the potential of overlooking references to legitimate Cake addin if they don't follow the naming convention.
+		/// I think this is an acceptable risk because, as of this writing, there is only one addin that I know of that is not
+		/// following the naming guideline: Magic-Chunks.
+		/// </summary>
+		private static T[] FindReferences<T>(string content, Regex regex, bool enforceNamingConvention)
 			where T : CakeReference, new()
 		{
 			// Replacing Windows CR+LF with Unix LF is important because '$' in our regex only works with Unix line endings

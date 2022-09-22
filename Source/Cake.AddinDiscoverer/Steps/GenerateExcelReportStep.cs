@@ -22,6 +22,8 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
+			var latestCakeVersion = Constants.CAKE_VERSIONS.Max();
+
 			using (var excel = new ExcelPackage(new FileInfo(context.ExcelReportPath)))
 			{
 				var deprecatedAddins = context.Addins.Where(addin => addin.IsDeprecated).ToArray();
@@ -39,7 +41,7 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 
 				// One worksheet for recipes
-				GenerateExcelWorksheet(auditedAddins, null, AddinType.Recipe, "Recipes", excel);
+				GenerateExcelWorksheet(auditedAddins, latestCakeVersion, AddinType.Recipe, "Recipes", excel);
 
 				// Exceptions report
 				GenerateExcelWorksheetWithNotes(exceptionAddins, "Exceptions", excel);

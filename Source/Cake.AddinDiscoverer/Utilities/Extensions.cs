@@ -23,7 +23,7 @@ namespace Cake.AddinDiscoverer
 
 		public static async Task<Commit> ModifyFilesAsync(this IGitHubClient githubClient, Repository repo, Commit parentCommit, IEnumerable<string> filesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> filesToUpsert, string commitMessage)
 		{
-			if (filesToDelete == null && filesToUpsert == null) throw new ArgumentNullException("You must specify at least one file to delete or one file to add/modify");
+			if (filesToDelete == null && filesToUpsert == null) throw new ArgumentNullException($"{nameof(filesToDelete)} or {nameof(filesToUpsert)}", "You must specify at least one file to delete or one file to add/modify");
 
 			// Build the tree with the existing items
 			var nt = new NewTree();
@@ -174,7 +174,7 @@ namespace Cake.AddinDiscoverer
 				startIndex += valueLength;
 			}
 
-			return source.Substring(startIndex);
+			return source[startIndex..];
 		}
 
 		public static string TrimEnd(this string source, string value, StringComparison comparisonType)
@@ -190,7 +190,7 @@ namespace Cake.AddinDiscoverer
 				count -= valueLength;
 			}
 
-			return source.Substring(0, count);
+			return source[..count];
 		}
 
 		public static bool IsFlagSet<T>(this T value, T flag)
@@ -383,8 +383,8 @@ namespace Cake.AddinDiscoverer
 
 		public static bool UnsortedSequencesEqual<T>(this IEnumerable<T> first, IEnumerable<T> second, IEqualityComparer<T> comparer)
 		{
-			if (first == null) throw new ArgumentNullException("first");
-			if (second == null) throw new ArgumentNullException("second");
+			if (first == null) throw new ArgumentNullException(nameof(first));
+			if (second == null) throw new ArgumentNullException(nameof(second));
 
 			var counts = new Dictionary<T, int>(comparer);
 

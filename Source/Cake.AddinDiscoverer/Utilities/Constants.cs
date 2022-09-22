@@ -26,6 +26,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string DOT_NET_TOOLS_CONFIG_PATH = ".config/dotnet-tools.json";
 		public const string NO_DESCRIPTION_PROVIDED = "No description has been provided";
 		public const string COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize YAML files";
+		public const string CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize Contributors";
 
 		public const string CAKE_CONTRIB_ADDIN_FANCY_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/addin/cake-contrib-addin-medium.png";
 		public const string CAKE_CONTRIB_MODULE_FANCY_ICON_URL = "https://cdn.jsdelivr.net/gh/cake-contrib/graphics/png/module/cake-contrib-module-medium.png";
@@ -67,8 +68,6 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 		};
 
-#pragma warning disable SA1000 // Keywords should be spaced correctly
-#pragma warning disable SA1008 // Opening parenthesis should be spaced correctly
 #pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
 		public static readonly (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, object> GetContent, Func<AddinMetadata, CakeVersion, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, AddinType ApplicableTo, DataDestination Destination)[] REPORT_COLUMNS = new (string Header, ExcelHorizontalAlignment Align, Func<AddinMetadata, object> GetContent, Func<AddinMetadata, CakeVersion, Color> GetCellColor, Func<AddinMetadata, Uri> GetHyperLink, AddinType ApplicableTo, DataDestination Destination)[]
 		{
@@ -106,6 +105,23 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin, cakeVersion) => Color.Empty,
 				(addin) => null,
 				AddinType.All,
+				DataDestination.Excel | DataDestination.MarkdownForRecipes
+			),
+			(
+				"Target Cake Version",
+				ExcelHorizontalAlignment.Center,
+				(addin) => addin.CakeVersionYaml?.TargetCakeVersion?.ToString(3) ?? string.Empty,
+				(addin, cakeVersion) =>
+				{
+					if (addin.CakeVersionYaml?.TargetCakeVersion == null) return Color.Red;
+
+					var comparisonResult = addin.CakeVersionYaml.TargetCakeVersion.CompareTo(cakeVersion.Version);
+					if (comparisonResult > 0) return Color.Gold;
+					else if (comparisonResult == 0) return Color.LightGreen;
+					else return Color.Red;
+				},
+				(addin) => null,
+				AddinType.Recipe,
 				DataDestination.Excel | DataDestination.MarkdownForRecipes
 			),
 			(
@@ -192,31 +208,31 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Center,
 				(addin) =>
 				{
-					switch (addin.AnalysisResult.Icon)
+					return addin.AnalysisResult.Icon switch
 					{
-						case IconAnalysisResult.Unspecified: return "not specified";
-						case IconAnalysisResult.RawgitUrl: return "rawgit";
-						case IconAnalysisResult.JsDelivrUrl: return "jsDelivr";
-						case IconAnalysisResult.CustomUrl: return "custom url";
-						case IconAnalysisResult.EmbeddedCakeContrib: return "embedded cake-contrib";
-						case IconAnalysisResult.EmbeddedFancyCakeContrib: return "embedded 'fancy' cake-contrib";
-						case IconAnalysisResult.EmbeddedCustom: return "embedded custom";
-						default: return "unknown";
-					}
+						IconAnalysisResult.Unspecified => "not specified",
+						IconAnalysisResult.RawgitUrl => "rawgit",
+						IconAnalysisResult.JsDelivrUrl => "jsDelivr",
+						IconAnalysisResult.CustomUrl => "custom url",
+						IconAnalysisResult.EmbeddedCakeContrib => "embedded cake-contrib",
+						IconAnalysisResult.EmbeddedFancyCakeContrib => "embedded 'fancy' cake-contrib",
+						IconAnalysisResult.EmbeddedCustom => "embedded custom",
+						_ => "unknown"
+					};
 				},
 				(addin, cakeVersion) =>
 								{
-					switch (addin.AnalysisResult.Icon)
+					return addin.AnalysisResult.Icon switch
 					{
-						case IconAnalysisResult.Unspecified: return Color.Red;
-						case IconAnalysisResult.RawgitUrl: return Color.Red;
-						case IconAnalysisResult.JsDelivrUrl: return Color.Gold;
-						case IconAnalysisResult.CustomUrl: return Color.Gold;
-						case IconAnalysisResult.EmbeddedCakeContrib: return Color.LightGreen;
-						case IconAnalysisResult.EmbeddedFancyCakeContrib: return Color.LightGreen;
-						case IconAnalysisResult.EmbeddedCustom: return Color.Gold;
-						default: return Color.Red;
-					}
+						IconAnalysisResult.Unspecified => Color.Red,
+						IconAnalysisResult.RawgitUrl => Color.Red,
+						IconAnalysisResult.JsDelivrUrl => Color.Gold,
+						IconAnalysisResult.CustomUrl => Color.Gold,
+						IconAnalysisResult.EmbeddedCakeContrib => Color.LightGreen,
+						IconAnalysisResult.EmbeddedFancyCakeContrib => Color.LightGreen,
+						IconAnalysisResult.EmbeddedCustom => Color.Gold,
+						_ => Color.Red
+					};
 				},
 				(addin) => null,
 				AddinType.All,
@@ -327,24 +343,24 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Center,
 				(addin) =>
 				{
-					switch (addin.PdbStatus)
+					return addin.PdbStatus switch
 					{
-						case PdbStatus.Embedded: return "embedded";
-						case PdbStatus.IncludedInPackage: return "included in nupkg";
-						case PdbStatus.IncludedInSymbolsPackage: return "included in snupkg";
-						case PdbStatus.NotAvailable: return "unavailable";
-						default: return "unknown";
-					}
+						PdbStatus.Embedded => "embedded",
+						PdbStatus.IncludedInPackage => "included in nupkg",
+						PdbStatus.IncludedInSymbolsPackage => "included in snupkg",
+						PdbStatus.NotAvailable => "unavailable",
+						_ => "unknown"
+					};
 				},
 				(addin, cakeVersion) =>
 				{
-					switch (addin.PdbStatus)
+					return addin.PdbStatus switch
 					{
-						case PdbStatus.Embedded: return Color.LightGreen;
-						case PdbStatus.IncludedInPackage: return Color.LightGreen;
-						case PdbStatus.IncludedInSymbolsPackage: return Color.Gold;
-						default: return Color.Red;
-					}
+						PdbStatus.Embedded => Color.LightGreen,
+						PdbStatus.IncludedInPackage => Color.LightGreen,
+						PdbStatus.IncludedInSymbolsPackage => Color.Gold,
+						_ => Color.Red
+					};
 				},
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
@@ -379,7 +395,5 @@ namespace Cake.AddinDiscoverer.Utilities
 			)
 		};
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
-#pragma warning restore SA1008 // Opening parenthesis should be spaced correctly
-#pragma warning restore SA1000 // Keywords should be spaced correctly
 	}
 }

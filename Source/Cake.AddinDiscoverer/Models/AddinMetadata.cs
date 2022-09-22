@@ -87,6 +87,8 @@ namespace Cake.AddinDiscoverer.Models
 
 		public IDictionary<string, Stream> RepoContent { get; set; }
 
+		public CakeVersionYamlConfig CakeVersionYaml { get; set; }
+
 		public string GetMaintainerName()
 		{
 			var maintainer = RepositoryOwner ?? Maintainer;
