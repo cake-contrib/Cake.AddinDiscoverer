@@ -25,7 +25,7 @@
     <PackageReference Include="EPPlus" Version="6.0.7" />
     <PackageReference Include="FSharp.Core" Version="6.0.5" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="NuGet.Protocol" Version="6.3.0" />
+    <PackageReference Include="NuGet.Protocol" Version="6.3.1" />
     <PackageReference Include="Octokit" Version="2.0.1" />
     <PackageReference Include="OxyPlot.WindowsForms" Version="2.1.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
