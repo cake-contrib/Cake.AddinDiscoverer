@@ -17,24 +17,24 @@
 
   <ItemGroup>
     <PackageReference Include="Ben.Demystifier" Version="0.4.1" />
-    <PackageReference Include="Cake.Common" Version="2.2.0" />
-    <PackageReference Include="Cake.Core" Version="2.2.0" />
+    <PackageReference Include="Cake.Common" Version="3.0.0" />
+    <PackageReference Include="Cake.Core" Version="3.0.0" />
     <PackageReference Include="Cake.Incubator" Version="7.0.0" />
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
-    <PackageReference Include="CsvHelper" Version="28.0.1" />
-    <PackageReference Include="EPPlus" Version="6.0.7" />
-    <PackageReference Include="FSharp.Core" Version="6.0.5" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="NuGet.Protocol" Version="6.3.1" />
-    <PackageReference Include="Octokit" Version="2.0.1" />
-    <PackageReference Include="OxyPlot.WindowsForms" Version="2.1.0" />
+    <PackageReference Include="CsvHelper" Version="30.0.1" />
+    <PackageReference Include="EPPlus" Version="6.1.1" />
+    <PackageReference Include="FSharp.Core" Version="7.0.0" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+    <PackageReference Include="NuGet.Protocol" Version="6.4.0" />
+    <PackageReference Include="Octokit" Version="4.0.3" />
+    <PackageReference Include="OxyPlot.WindowsForms" Version="2.1.2" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="System.Memory" Version="4.5.5" />
-    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="6.0.0" />
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="7.0.0" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
-    <PackageReference Include="YamlDotNet" Version="12.0.0" />
+    <PackageReference Include="YamlDotNet" Version="12.0.2" />
   </ItemGroup>
 
   <ItemGroup>
