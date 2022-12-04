@@ -211,12 +211,6 @@ namespace Cake.AddinDiscoverer.Utilities
 			return a1.SequenceEqual(a2);
 		}
 
-		public static async Task<string> GetCakeRecipeDotNetToolsConfig(DiscoveryContext context)
-		{
-			var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.DOT_NET_TOOLS_CONFIG_PATH).ConfigureAwait(false);
-			return contents[0].Content;
-		}
-
 		public static Uri StandardizeGitHubUri(Uri originalUri)
 		{
 			if (originalUri == null) return null;
