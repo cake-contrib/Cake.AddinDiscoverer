@@ -163,7 +163,7 @@ namespace Cake.AddinDiscoverer.Steps
 				context.IssuesCreatedByCurrentUser.Add(issue);
 
 				// Commit changes to a new branch and submit PR
-				var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE, commits).ConfigureAwait(false);
+				var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE, commits).ConfigureAwait(false);
 				if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
 			}
 		}
