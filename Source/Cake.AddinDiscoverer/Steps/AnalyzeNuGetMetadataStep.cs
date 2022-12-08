@@ -94,6 +94,10 @@ namespace Cake.AddinDiscoverer.Steps
 										f.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)
 									))
 								.OrderByDescending(f =>
+									f.Contains("net8", StringComparison.OrdinalIgnoreCase) ? 7 :
+									f.Contains("net7", StringComparison.OrdinalIgnoreCase) ? 6 :
+									f.Contains("net6", StringComparison.OrdinalIgnoreCase) ? 5 :
+									f.Contains("net5", StringComparison.OrdinalIgnoreCase) ? 4 :
 									f.Contains("netstandard2", StringComparison.OrdinalIgnoreCase) ? 3 :
 									f.Contains("netstandard1", StringComparison.OrdinalIgnoreCase) ? 2 :
 									f.Contains("net4", StringComparison.OrdinalIgnoreCase) ? 1 :
