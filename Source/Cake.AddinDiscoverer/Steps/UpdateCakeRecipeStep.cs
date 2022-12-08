@@ -1,6 +1,5 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
@@ -28,19 +27,48 @@ namespace Cake.AddinDiscoverer.Steps
 			await UpdateCakeRecipeAsync(context, cakeVersionUsedByRecipe).ConfigureAwait(false);
 		}
 
-		private async Task<SemVersion> FindCakeVersionUsedByRecipe(DiscoveryContext context)
+		private static async Task<SemVersion> FindCakeVersionUsedByRecipe(DiscoveryContext context)
 		{
-			var dotNetToolsConfig = await Misc.GetCakeRecipeDotNetToolsConfig(context).ConfigureAwait(false);
-			var jObject = JObject.Parse(dotNetToolsConfig);
-			var versionNode = jObject["tools"]?["cake.tool"]?["version"];
+			// Try to get "CakeVersion" from Cake.Recipe.csproj
+			var cakeVersion = await FindCakeVersionUsedByRecipeFromCakeVersionYaml(context).ConfigureAwait(false);
 
-			if (versionNode == null) throw new Exception($"{Constants.DOT_NET_TOOLS_CONFIG_PATH} does not contain tools/cake.tool/version.");
+			// Fallback on dotnet-tools.json
+			cakeVersion ??= await FindCakeVersionUsedByRecipeFromDotNetConfig(context).ConfigureAwait(false);
 
-			var cakeVersion = versionNode.Value<string>();
-			return SemVersion.Parse(cakeVersion);
+			return cakeVersion ?? throw new Exception("Unable to detect the version of Cake used by Cake.Recipe.");
 		}
 
-		private async Task UpdateCakeRecipeAsync(DiscoveryContext context, SemVersion cakeVersionUsedInRecipe)
+		private static async Task<SemVersion> FindCakeVersionUsedByRecipeFromCakeVersionYaml(DiscoveryContext context)
+		{
+			try
+			{
+				var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.CAKE_VERSION_YML_PATH).ConfigureAwait(false);
+				var deserializer = new YamlDotNet.Serialization.Deserializer();
+				var yamlConfig = deserializer.Deserialize<CakeVersionYamlConfig>(contents[0].Content);
+				return yamlConfig.TargetCakeVersion;
+			}
+			catch (NotFoundException)
+			{
+				return null;
+			}
+		}
+
+		private static async Task<SemVersion> FindCakeVersionUsedByRecipeFromDotNetConfig(DiscoveryContext context)
+		{
+			try
+			{
+				var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.DOT_NET_TOOLS_CONFIG_PATH).ConfigureAwait(false);
+				var jObject = JObject.Parse(contents[0].Content);
+				var versionNode = jObject["tools"]?["cake.tool"]?["version"];
+				return versionNode == null ? null : SemVersion.Parse(versionNode.Value<string>());
+			}
+			catch (NotFoundException)
+			{
+				return null;
+			}
+		}
+
+		private static async Task UpdateCakeRecipeAsync(DiscoveryContext context, SemVersion cakeVersionUsedInRecipe)
 		{
 			var currentCakeVersion = Constants.CAKE_VERSIONS.Where(v => v.Version <= cakeVersionUsedInRecipe).Max();
 			var nextCakeVersion = Constants.CAKE_VERSIONS.Where(v => v.Version > cakeVersionUsedInRecipe).Min();
@@ -59,7 +87,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private async Task<RecipeFile[]> GetRecipeFilesAsync(DiscoveryContext context, CakeVersion currentCakeVersion, CakeVersion nextCakeVersion, CakeVersion latestCakeVersion)
+		private static async Task<RecipeFile[]> GetRecipeFilesAsync(DiscoveryContext context, CakeVersion currentCakeVersion, CakeVersion nextCakeVersion, CakeVersion latestCakeVersion)
 		{
 			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, "Source/Cake.Recipe/Content").ConfigureAwait(false);
 			var cakeFiles = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.File) && c.Name.EndsWith(".cake", StringComparison.OrdinalIgnoreCase));
@@ -87,11 +115,11 @@ namespace Cake.AddinDiscoverer.Steps
 									(nextCakeVersion == null || !(addin.AnalysisResult.CakeCoreVersion.IsUpToDate(nextCakeVersion.Version) && addin.AnalysisResult.CakeCommonVersion.IsUpToDate(nextCakeVersion.Version)));
 							})?.NuGetPackageVersion;
 
-							addinReference.LatestVersionForLatestCake = context.Addins.SingleOrDefault(addin =>
+							addinReference.LatestVersionForNextCake = context.Addins.SingleOrDefault(addin =>
 							{
 								return addin.Name.Equals(addinReference.Name, StringComparison.OrdinalIgnoreCase) &&
 									!addin.IsPrerelease &&
-									(latestCakeVersion != null && (addin.AnalysisResult.CakeCoreVersion.IsUpToDate(latestCakeVersion.Version) && addin.AnalysisResult.CakeCommonVersion.IsUpToDate(latestCakeVersion.Version)));
+									(nextCakeVersion != null && (addin.AnalysisResult.CakeCoreVersion.IsUpToDate(nextCakeVersion.Version) && addin.AnalysisResult.CakeCommonVersion.IsUpToDate(nextCakeVersion.Version)));
 							})?.NuGetPackageVersion;
 						}
 
@@ -106,21 +134,18 @@ namespace Cake.AddinDiscoverer.Steps
 									(nextCakeVersion == null || !addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(nextCakeVersion.Version));
 							});
 
-							if (referencedPackage == null)
+							referencedPackage ??= context.Addins.SingleOrDefault(addin =>
 							{
-								referencedPackage = context.Addins.SingleOrDefault(addin =>
-								{
-									return addin.Name.Equals(loadReference.Name, StringComparison.OrdinalIgnoreCase) &&
-										!addin.IsPrerelease &&
-										addin.CakeVersionYaml != null &&
-										(latestCakeVersion != null && addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(latestCakeVersion.Version));
-								});
-							}
+								return addin.Name.Equals(loadReference.Name, StringComparison.OrdinalIgnoreCase) &&
+									!addin.IsPrerelease &&
+									addin.CakeVersionYaml != null &&
+									(latestCakeVersion != null && addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(latestCakeVersion.Version));
+							});
 
 							if (referencedPackage != null)
 							{
 								loadReference.LatestVersionForCurrentCake = referencedPackage.NuGetPackageVersion;
-								loadReference.LatestVersionForLatestCake = referencedPackage.NuGetPackageVersion;
+								loadReference.LatestVersionForNextCake = referencedPackage.NuGetPackageVersion;
 							}
 						}
 
@@ -144,7 +169,7 @@ namespace Cake.AddinDiscoverer.Steps
 			return recipeFiles;
 		}
 
-		private async Task UpdateOutdatedRecipeFilesAsync(DiscoveryContext context, RecipeFile[] recipeFiles)
+		private static async Task UpdateOutdatedRecipeFilesAsync(DiscoveryContext context, RecipeFile[] recipeFiles)
 		{
 			// Make sure there is at least one outdated reference
 			var outdatedReferences = recipeFiles
@@ -220,10 +245,9 @@ namespace Cake.AddinDiscoverer.Steps
 					}
 				}
 			}
-
 		}
 
-		private async Task UpgradeCakeVersionUsedByRecipeAsync(DiscoveryContext context, RecipeFile[] recipeFiles, CakeVersion latestCakeVersion)
+		private static async Task UpgradeCakeVersionUsedByRecipeAsync(DiscoveryContext context, RecipeFile[] recipeFiles, CakeVersion nextCakeVersion)
 		{
 			var recipeFilesWithAtLeastOneReference = recipeFiles
 				.Where(recipeFile => recipeFile.AddinReferences.Any() || recipeFile.LoadReferences.Any())
@@ -236,10 +260,10 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// The content of the issue body
 			var issueBody = new StringBuilder();
-			issueBody.AppendFormat("In order for Cake.Recipe to be compatible with Cake version {0}, each and every referenced addin must support Cake {0}. ", latestCakeVersion.Version.ToString(3));
-			issueBody.AppendFormat("This issue will be used to track the full list of addins referenced in Cake.Recipe and whether or not they support Cake {0}. ", latestCakeVersion.Version.ToString(3));
-			issueBody.AppendFormat("When all referenced addins are upgraded to support Cake {0}, we will automatically submit a PR to upgrade Cake.Recipe. ", latestCakeVersion.Version.ToString(3));
-			issueBody.AppendFormat("In the mean time, this issue will be regularly updated when addins are updated with Cake {0} support.{1}", latestCakeVersion.Version.ToString(3), Environment.NewLine);
+			issueBody.AppendFormat("In order for Cake.Recipe to be compatible with Cake version {0}, each and every referenced addin must support Cake {0}. ", nextCakeVersion.Version.ToString(3));
+			issueBody.AppendFormat("This issue will be used to track the full list of addins referenced in Cake.Recipe and whether or not they support Cake {0}. ", nextCakeVersion.Version.ToString(3));
+			issueBody.AppendFormat("When all referenced addins are upgraded to support Cake {0}, we will automatically submit a PR to upgrade Cake.Recipe. ", nextCakeVersion.Version.ToString(3));
+			issueBody.AppendFormat("In the mean time, this issue will be regularly updated when addins are updated with Cake {0} support.{1}", nextCakeVersion.Version.ToString(3), Environment.NewLine);
 			issueBody.AppendLine();
 			issueBody.AppendLine("Referenced Addins:");
 			foreach (var recipeFile in recipeFilesWithAtLeastOneReference)
@@ -250,7 +274,7 @@ namespace Cake.AddinDiscoverer.Steps
 					issueBody.AppendLine($"- `{recipeFile.Name}` references the following addins:");
 					foreach (var addinReference in recipeFile.AddinReferences)
 					{
-						issueBody.AppendLine($"    - [{(addinReference.UpdatedForLatestCake ? "x" : " ")}] {addinReference.Name}");
+						issueBody.AppendLine($"    - [{(addinReference.UpdatedForNextCake ? "x" : " ")}] {addinReference.Name}");
 					}
 				}
 
@@ -260,13 +284,13 @@ namespace Cake.AddinDiscoverer.Steps
 					issueBody.AppendLine($"- `{recipeFile.Name}` references the following recipes:");
 					foreach (var loadReference in recipeFile.LoadReferences)
 					{
-						issueBody.AppendLine($"    - [{(loadReference.UpdatedForLatestCake ? "x" : " ")}] {loadReference.Name}");
+						issueBody.AppendLine($"    - [{(loadReference.UpdatedForNextCake ? "x" : " ")}] {loadReference.Name}");
 					}
 				}
 			}
 
 			// Create a new issue or update existing one
-			var issueTitle = string.Format(Constants.CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE, latestCakeVersion.Version.ToString(3));
+			var issueTitle = string.Format(Constants.CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE, nextCakeVersion.Version.ToString(3));
 			var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
 			if (issue == null)
 			{
@@ -284,21 +308,19 @@ namespace Cake.AddinDiscoverer.Steps
 				issue = await context.GithubClient.Issue.Update(upstream.Owner.Login, upstream.Name, issue.Number, issueUpdate).ConfigureAwait(false);
 			}
 
-			// Submit a PR when all addins have been upgraded to latest Cake
+			// Submit a PR when all addins have been upgraded to next version of Cake
 			var totalReferencesCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count());
-			var availableForLatestCakeVersionCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count(r => r.UpdatedForLatestCake));
+			var availableForNextCakeVersionCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count(r => r.UpdatedForNextCake));
 
-			if (availableForLatestCakeVersionCount == totalReferencesCount)
+			if (availableForNextCakeVersionCount == totalReferencesCount)
 			{
-				var dotNetToolsConfig = await Misc.GetCakeRecipeDotNetToolsConfig(context).ConfigureAwait(false);
-				var dotNetToolsConfigJObject = JObject.Parse(dotNetToolsConfig);
-				dotNetToolsConfigJObject["tools"]?["cake.tool"]?["version"]?.Replace(new JValue(latestCakeVersion.Version.ToString(3)));
-				dotNetToolsConfig = dotNetToolsConfigJObject
-					.ToString(Formatting.Indented)
-					.Replace("\r\n", "\n"); // Replace Windows line endings with Unix line endings
+				var yamlVersionConfigContents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.CAKE_VERSION_YML_PATH).ConfigureAwait(false);
+				var deserializer = new YamlDotNet.Serialization.Deserializer();
+				var yamlConfig = deserializer.Deserialize<CakeVersionYamlConfig>(yamlVersionConfigContents[0].Content);
+				yamlConfig.TargetCakeVersion = nextCakeVersion.Version.ToString(3);
 
 				// Commit changes to a new branch and submit PR
-				var pullRequestTitle = $"Upgrade to Cake {latestCakeVersion.Version.ToString(3)}";
+				var pullRequestTitle = $"Upgrade to Cake {nextCakeVersion.Version.ToString(3)}";
 				var newBranchName = $"upgrade_cake_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 
 				var pullRequest = await Misc.FindGithubPullRequestAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, pullRequestTitle).ConfigureAwait(false);
@@ -306,8 +328,8 @@ namespace Cake.AddinDiscoverer.Steps
 				{
 					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
 					{
-						(CommitMessage: "Update addins references", FilesToDelete: null, FilesToUpsert: recipeFilesWithAtLeastOneReference.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForLatestCake())).ToArray()),
-						(CommitMessage: "Update Cake version in dotnet-tools.json", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.DOT_NET_TOOLS_CONFIG_PATH, Content: dotNetToolsConfig) })
+						(CommitMessage: "Update addins references", FilesToDelete: null, FilesToUpsert: recipeFilesWithAtLeastOneReference.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForNextCake())).ToArray()),
+						(CommitMessage: "Update Cake version in cake-version.yml", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.CAKE_VERSION_YML_PATH, Content: yamlConfig.ToYamlString()) })
 					};
 
 					pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);

@@ -53,7 +53,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private async Task<IssueComment> AddCommentAsync(bool debugging, DiscoveryContext context, AddinMetadata addin)
+		private static async Task<IssueComment> AddCommentAsync(bool debugging, DiscoveryContext context, AddinMetadata addin)
 		{
 			var comment = new StringBuilder();
 			comment.AppendLine($"We performed a follow up automated audit of your Cake addin and found that some (or all) issues previously identified have not been resolved.{Environment.NewLine}");
@@ -110,7 +110,7 @@ namespace Cake.AddinDiscoverer.Steps
 			return issueComment;
 		}
 
-		private async Task<Issue> CreateIssueAsync(bool debugging, DiscoveryContext context, AddinMetadata addin, CakeVersion recommendedCakeVersion)
+		private static async Task<Issue> CreateIssueAsync(bool debugging, DiscoveryContext context, AddinMetadata addin, CakeVersion recommendedCakeVersion)
 		{
 			var issuesDescription = new StringBuilder();
 			if (addin.AnalysisResult.CakeCoreVersion == Constants.UNKNOWN_VERSION)
@@ -136,14 +136,14 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (!Misc.IsFrameworkUpToDate(addin.Frameworks, recommendedCakeVersion))
 			{
-				var requiredMessage = recommendedCakeVersion.RequiredFrameworks.Count() switch
+				var requiredMessage = recommendedCakeVersion.RequiredFrameworks.Length switch
 				{
 					1 => $"- [ ] Your addin should target {recommendedCakeVersion.RequiredFrameworks.Single()}.",
 					> 1 => $"- [ ] Your addin should target all of the following: {string.Join(", ", recommendedCakeVersion.RequiredFrameworks)}.",
 					_ => string.Empty
 				};
 
-				var optionalMessage = recommendedCakeVersion.OptionalFrameworks.Count() switch
+				var optionalMessage = recommendedCakeVersion.OptionalFrameworks.Length switch
 				{
 					1 => $"Optionally, your addin can also multi-target {recommendedCakeVersion.OptionalFrameworks.Single()}.",
 					> 1 => $"Optionally, your addin can also multi-target any of the following: {string.Join(", ", recommendedCakeVersion.OptionalFrameworks)}.",

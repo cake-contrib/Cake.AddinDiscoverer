@@ -24,6 +24,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string YELLOW_EMOJI = ":warning: ";
 		public const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 		public const string DOT_NET_TOOLS_CONFIG_PATH = ".config/dotnet-tools.json";
+		public const string CAKE_VERSION_YML_PATH = "Source/Cake.Recipe/cake-version.yml";
 		public const string NO_DESCRIPTION_PROVIDED = "No description has been provided";
 		public const string COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize YAML files";
 		public const string CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize Contributors";
@@ -64,6 +65,12 @@ namespace Cake.AddinDiscoverer.Utilities
 			{
 				Version = new SemVersion(2, 0, 0),
 				RequiredFrameworks = new[] { "net6.0", "net5.0", "netcoreapp3.1" },
+				OptionalFrameworks = Array.Empty<string>()
+			},
+			new CakeVersion
+			{
+				Version = new SemVersion(3, 0, 0),
+				RequiredFrameworks = new[] { "net6.0", "net7.0" },
 				OptionalFrameworks = Array.Empty<string>()
 			}
 		};

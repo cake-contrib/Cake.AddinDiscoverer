@@ -93,7 +93,8 @@ namespace Cake.AddinDiscoverer.Steps
 					i.PullRequest.MaintainerCanModify,
 					i.PullRequest.RequestedReviewers,
 					i.PullRequest.RequestedTeams,
-					i.PullRequest.Labels))
+					i.PullRequest.Labels,
+					i.PullRequest.ActiveLockReason?.Value))
 				.ToList();
 
 			context.Addins = context.Addins
