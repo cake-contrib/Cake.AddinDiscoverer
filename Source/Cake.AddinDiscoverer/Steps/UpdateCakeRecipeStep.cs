@@ -80,10 +80,10 @@ namespace Cake.AddinDiscoverer.Steps
 			// Submit a PR if any addin reference is outdated
 			await UpdateOutdatedRecipeFilesAsync(context, recipeFiles).ConfigureAwait(false);
 
-			// Either submit a PR to upgrade to the latest version of Cake OR create an issue explaining why Cake.Recipe cannot be upgraded to latest Cake version
-			if (latestCakeVersion != null && currentCakeVersion.Version < latestCakeVersion.Version)
+			// Either submit a PR to upgrade to the next version of Cake OR create an issue explaining why Cake.Recipe cannot be upgraded to next Cake version
+			if (nextCakeVersion != null && currentCakeVersion.Version < nextCakeVersion.Version)
 			{
-				await UpgradeCakeVersionUsedByRecipeAsync(context, recipeFiles, latestCakeVersion).ConfigureAwait(false);
+				await UpgradeCakeVersionUsedByRecipeAsync(context, recipeFiles, nextCakeVersion).ConfigureAwait(false);
 			}
 		}
 
