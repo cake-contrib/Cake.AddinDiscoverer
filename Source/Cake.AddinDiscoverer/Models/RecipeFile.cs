@@ -64,11 +64,11 @@ namespace Cake.AddinDiscoverer.Models
 			return updatedContent;
 		}
 
-		public string GetContentForLatestCake()
+		public string GetContentForNextCake()
 		{
-			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, r => (r as AddinReference).LatestVersionForLatestCake);
+			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, r => (r as AddinReference).LatestVersionForNextCake);
 			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, r => (r as ToolReference).LatestVersion);
-			updatedContent = GetContent(updatedContent, LoadReferenceRegex, LoadReferences, r => (r as LoadReference).LatestVersionForLatestCake);
+			updatedContent = GetContent(updatedContent, LoadReferenceRegex, LoadReferences, r => (r as LoadReference).LatestVersionForNextCake);
 			return updatedContent;
 		}
 
@@ -138,7 +138,7 @@ namespace Cake.AddinDiscoverer.Models
 				.ToArray();
 		}
 
-		private string GetContent(string content, Regex regex, IEnumerable<CakeReference> references, Func<CakeReference, string> getUpdatedVersion)
+		private static string GetContent(string content, Regex regex, IEnumerable<CakeReference> references, Func<CakeReference, string> getUpdatedVersion)
 		{
 			// Replacing Windows CR+LF with Unix LF is important because '$' in our regex only works with Unix line endings
 			var unixFormat = content.Replace("\r\n", "\n");
