@@ -59,7 +59,7 @@ namespace Cake.AddinDiscoverer.Steps
 						if (directoryContent.Any(currentFile => currentFile.Name.EndsWith(fileName, StringComparison.OrdinalIgnoreCase)))
 						{
 							var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"contributors/{fileName}").ConfigureAwait(false);
-							currentContent = contents.FirstOrDefault()?.Content;
+							if (contents != null && contents.Count >= 1) currentContent = contents[0].Content;
 						}
 
 						var newContent = Path.GetExtension(fileName) switch
