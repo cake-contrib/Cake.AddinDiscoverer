@@ -49,7 +49,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 
 			// Get the content of the current contributors files and generate the new content
-			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "maintainers").ConfigureAwait(false);
+			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "contributors").ConfigureAwait(false);
 			var desiredContributorsFiles = new[] { "contributors.json", "contributors.yml" };
 			var contributorFilesWithContent = await desiredContributorsFiles
 				.ForEachAsync<string, (string Name, string CurrentContent, string NewContent)>(
@@ -58,7 +58,7 @@ namespace Cake.AddinDiscoverer.Steps
 						var currentContent = string.Empty;
 						if (directoryContent.Any(currentFile => currentFile.Name.EndsWith(fileName, StringComparison.OrdinalIgnoreCase)))
 						{
-							var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"maintainers/{fileName}").ConfigureAwait(false);
+							var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"contributors/{fileName}").ConfigureAwait(false);
 							currentContent = contents.FirstOrDefault()?.Content;
 						}
 
@@ -184,7 +184,7 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							(
 								Encoding: EncodingType.Utf8,
-								Path: $"maintainers/{fileToBeCreated.Name}",
+								Path: $"contributors/{fileToBeCreated.Name}",
 								Content: fileToBeCreated.NewContent
 							)
 						}
@@ -204,7 +204,7 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							(
 								Encoding: EncodingType.Utf8,
-								Path: $"maintainers/{fileToBeUpdated.Name}",
+								Path: $"contributors/{fileToBeUpdated.Name}",
 								Content: fileToBeUpdated.NewContent
 							)
 						}
