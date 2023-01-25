@@ -3,6 +3,7 @@ using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
+using NuGet.Versioning;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,294 +26,299 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Analyze nuget packages metadata";
 
-		public Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
-			context.Addins = context.Addins
-				.Select(addin =>
-				{
-					try
+			await context.Addins
+				.Where(addin => !addin.Analyzed) // Only process addins that were not previously analized
+				.ForEachAsync(
+					async addin =>
 					{
-						var packageFileName = Path.Combine(context.PackagesFolder, $"{addin.Name}.{addin.NuGetPackageVersion}.nupkg");
-						if (File.Exists(packageFileName))
+						Analyze(context, addin);
+						await Task.Delay(1).ConfigureAwait(false);
+					}, Constants.MAX_NUGET_CONCURENCY)
+				.ConfigureAwait(false);
+		}
+
+		private static void Analyze(DiscoveryContext context, AddinMetadata addin)
+		{
+			try
+			{
+				var packageFileName = Path.Combine(context.PackagesFolder, $"{addin.Name}.{addin.NuGetPackageVersion}.nupkg");
+				if (File.Exists(packageFileName))
+				{
+					using var packageStream = File.Open(packageFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
+					using var package = new PackageArchiveReader(packageStream);
+					/*
+					Workaround to get all available metadata from a NuGet package, even the metadata is not
+					exposed by NuGet.Packaging.NuspecReader. For example, NuspecReader version 4.3.0 does
+					not expose the "repository" metadata.
+					*/
+					var metadataNode = package.NuspecReader.Xml.Root.Elements()
+						.Single(e => e.Name.LocalName.Equals("metadata", StringComparison.Ordinal));
+					var rawNugetMetadata = metadataNode.Elements()
+						.ToDictionary(
+							e => e.Name.LocalName,
+							e => (e.Value, (IDictionary<string, string>)e.Attributes().ToDictionary(a => a.Name.LocalName, a => a.Value)));
+
+					var license = package.NuspecReader.GetMetadataValue("license");
+					var iconUrl = package.NuspecReader.GetIconUrl();
+					var projectUrl = package.NuspecReader.GetProjectUrl();
+					var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
+
+					// Only get TFM for lib folder. If there are other TFM used for other folders (tool, content, build, ...) we're not interested in it.
+					// Also filter out the "any" platform which is used when the platform is unknown
+					var frameworks = package
+						.GetLibItems()
+						.Select(i => i.TargetFramework.GetShortFolderName())
+						.Except(new[] { "any" })
+						.ToArray();
+
+					var normalizedPackageDependencies = package.GetPackageDependencies()
+						.SelectMany(d => d.Packages)
+						.Select(d => new
 						{
-							using var packageStream = File.Open(packageFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
-							using var package = new PackageArchiveReader(packageStream);
-							/*
-							Workaround to get all available metadata from a NuGet package, even the metadata is not
-							exposed by NuGet.Packaging.NuspecReader. For example, NuspecReader version 4.3.0 does
-							not expose the "repository" metadata.
-							*/
-							var metadataNode = package.NuspecReader.Xml.Root.Elements()
-								.Single(e => e.Name.LocalName.Equals("metadata", StringComparison.Ordinal));
-							var rawNugetMetadata = metadataNode.Elements()
-								.ToDictionary(
-									e => e.Name.LocalName,
-									e => (e.Value, (IDictionary<string, string>)e.Attributes().ToDictionary(a => a.Name.LocalName, a => a.Value)));
+							d.Id,
+							NuGetVersion = (d.VersionRange.HasUpperBound ? d.VersionRange.MaxVersion : d.VersionRange.MinVersion) ?? new NuGetVersion("0.0.0")
+						})
+						.ToArray();
 
-							var license = package.NuspecReader.GetMetadataValue("license");
-							var iconUrl = package.NuspecReader.GetIconUrl();
-							var projectUrl = package.NuspecReader.GetProjectUrl();
-							var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
+					var hasPreReleaseDependencies = normalizedPackageDependencies.Any(d => d.NuGetVersion.IsPrerelease);
 
-							// Only get TFM for lib folder. If there are other TFM used for other folders (tool, content, build, ...) we're not interested in it.
-							// Also filter out the "any" platform which is used when the platform is unknown
-							var frameworks = package
-								.GetLibItems()
-								.Select(i => i.TargetFramework.GetShortFolderName())
-								.Except(new[] { "any" })
-								.ToArray();
-
-							var normalizedPackageDependencies = package.GetPackageDependencies()
-								.SelectMany(d => d.Packages)
-								.Select(d => new
-								{
-									d.Id,
-									NuGetVersion = d.VersionRange.HasUpperBound ? d.VersionRange.MaxVersion : d.VersionRange.MinVersion
-								});
-
-							var hasPreReleaseDependencies = normalizedPackageDependencies.Any(d => d.NuGetVersion.IsPrerelease);
-
-							var packageDependencies = normalizedPackageDependencies
-								.Select(d => new DllReference()
-								{
-									Id = d.Id,
-									IsPrivate = false,
-									Version = new SemVersion(d.NuGetVersion.Version)
-								})
-								.ToArray();
+					var packageDependencies = normalizedPackageDependencies
+						.Select(d => new DllReference()
+						{
+							Id = d.Id,
+							IsPrivate = false,
+							Version = new SemVersion(d.NuGetVersion.Version)
+						})
+						.ToArray();
 
 #pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
-							var assembliesPath = package.GetFiles()
-								.Where(f =>
-									Path.GetExtension(f).EqualsIgnoreCase(".dll") &&
-									!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Core") &&
-									!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Common") &&
-									(
-										Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll") ||
-										string.IsNullOrEmpty(Path.GetDirectoryName(f)) ||
-										f.StartsWith("bin/", StringComparison.OrdinalIgnoreCase) ||
-										f.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)
-									))
-								.OrderByDescending(f =>
-									f.Contains("net8", StringComparison.OrdinalIgnoreCase) ? 7 :
-									f.Contains("net7", StringComparison.OrdinalIgnoreCase) ? 6 :
-									f.Contains("net6", StringComparison.OrdinalIgnoreCase) ? 5 :
-									f.Contains("net5", StringComparison.OrdinalIgnoreCase) ? 4 :
-									f.Contains("netstandard2", StringComparison.OrdinalIgnoreCase) ? 3 :
-									f.Contains("netstandard1", StringComparison.OrdinalIgnoreCase) ? 2 :
-									f.Contains("net4", StringComparison.OrdinalIgnoreCase) ? 1 :
-									0)
-								.ThenByDescending(f =>
-									Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll") ? 2 :
-									Path.GetFileName(f).StartsWithIgnoreCase("Cake.") ? 1 :
-									0)
-								.ToArray();
+					var assembliesPath = package.GetFiles()
+						.Where(f =>
+							Path.GetExtension(f).EqualsIgnoreCase(".dll") &&
+							!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Core") &&
+							!Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("Cake.Common") &&
+							(
+								Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll") ||
+								string.IsNullOrEmpty(Path.GetDirectoryName(f)) ||
+								f.StartsWith("bin/", StringComparison.OrdinalIgnoreCase) ||
+								f.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)
+							))
+						.OrderByDescending(f =>
+							f.Contains("net8", StringComparison.OrdinalIgnoreCase) ? 7 :
+							f.Contains("net7", StringComparison.OrdinalIgnoreCase) ? 6 :
+							f.Contains("net6", StringComparison.OrdinalIgnoreCase) ? 5 :
+							f.Contains("net5", StringComparison.OrdinalIgnoreCase) ? 4 :
+							f.Contains("netstandard2", StringComparison.OrdinalIgnoreCase) ? 3 :
+							f.Contains("netstandard1", StringComparison.OrdinalIgnoreCase) ? 2 :
+							f.Contains("net4", StringComparison.OrdinalIgnoreCase) ? 1 :
+							0)
+						.ThenByDescending(f =>
+							Path.GetFileName(f).EqualsIgnoreCase($"{addin.Name}.dll") ? 2 :
+							Path.GetFileName(f).StartsWithIgnoreCase("Cake.") ? 1 :
+							0)
+						.ToArray();
 #pragma warning restore SA1009 // Closing parenthesis should be spaced correctly
 
-							//--------------------------------------------------
-							// Find the first DLL that contains Cake alias attributes (i.e.: 'CakePropertyAlias' or 'CakeMethodAlias')
-							var assemblyInfoToAnalyze = FindAssemblyToAnalyze(package, assembliesPath);
+					//--------------------------------------------------
+					// Find the first DLL that contains Cake alias attributes (i.e.: 'CakePropertyAlias' or 'CakeMethodAlias')
+					var assemblyInfoToAnalyze = FindAssemblyToAnalyze(package, assembliesPath);
 
-							//--------------------------------------------------
-							// Determine the type of the nuget package
-							if (assembliesPath.Length == 0)
-							{
-								// This package does not contain DLLs. We'll assume it contains "recipes" .cake files.
-								addin.Type = AddinType.Recipe;
-							}
-							else if (addin.Name.EndsWith(".Module", StringComparison.OrdinalIgnoreCase))
-							{
-								addin.Type = AddinType.Module;
-							}
-							else if (assemblyInfoToAnalyze.DecoratedMethods.Any())
-							{
-								addin.Type = AddinType.Addin;
-								addin.DecoratedMethods = assemblyInfoToAnalyze.DecoratedMethods;
-							}
-							else
-							{
-								addin.Type = AddinType.Unknown;
-							}
+					//--------------------------------------------------
+					// Determine the type of the nuget package
+					if (assembliesPath.Length == 0)
+					{
+						// This package does not contain DLLs. We'll assume it contains "recipes" .cake files.
+						addin.Type = AddinType.Recipe;
+					}
+					else if (addin.Name.EndsWith(".Module", StringComparison.OrdinalIgnoreCase))
+					{
+						addin.Type = AddinType.Module;
+					}
+					else if (assemblyInfoToAnalyze.DecoratedMethods.Any())
+					{
+						addin.Type = AddinType.Addin;
+						addin.DecoratedMethods = assemblyInfoToAnalyze.DecoratedMethods;
+					}
+					else
+					{
+						addin.Type = AddinType.Unknown;
+					}
 
-							//--------------------------------------------------
-							// Check if the symbols are available.
-							// If so, check if SourceLink is enabled.
-							addin.PdbStatus = PdbStatus.NotAvailable;
-							addin.SourceLinkEnabled = false;
+					//--------------------------------------------------
+					// Check if the symbols are available.
+					// If so, check if SourceLink is enabled.
+					addin.PdbStatus = PdbStatus.NotAvailable;
+					addin.SourceLinkEnabled = false;
 
-							// First, check if the PDB is included in the nupkg
-							try
+					// First, check if the PDB is included in the nupkg
+					try
+					{
+						var pdbFileInNupkg = package.GetFiles()
+							.FirstOrDefault(f =>
+								Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
+								Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
+
+						if (!string.IsNullOrEmpty(pdbFileInNupkg))
+						{
+							addin.PdbStatus = PdbStatus.IncludedInPackage;
+
+							var pdbStream = package.GetStream(pdbFileInNupkg);
+							addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbStream);
+						}
+					}
+					catch
+					{
+						// Ignore exceptions
+					}
+
+					// Secondly, check if symbols are embedded in the DLL
+					if (addin.PdbStatus == PdbStatus.NotAvailable && assemblyInfoToAnalyze.AssemblyStream != null)
+					{
+						try
+						{
+							assemblyInfoToAnalyze.AssemblyStream.Position = 0;
+							var peReader = new PEReader(assemblyInfoToAnalyze.AssemblyStream);
+
+							if (peReader.ReadDebugDirectory().Any(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb))
 							{
-								var pdbFileInNupkg = package.GetFiles()
+								addin.PdbStatus = PdbStatus.Embedded;
+
+								var embeddedEntry = peReader.ReadDebugDirectory().First(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb);
+								using var embeddedMetadataProvider = peReader.ReadEmbeddedPortablePdbDebugDirectoryData(embeddedEntry);
+								var pdbReader = embeddedMetadataProvider.GetMetadataReader();
+								addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbReader);
+							}
+						}
+						catch
+						{
+							// Ignore exceptions
+						}
+					}
+
+					// Finally, check if the PDB is included in the snupkg
+					if (addin.PdbStatus == PdbStatus.NotAvailable)
+					{
+						try
+						{
+							var symbolsFileName = Path.Combine(context.PackagesFolder, $"{addin.Name}.{addin.NuGetPackageVersion}.snupkg");
+							if (File.Exists(symbolsFileName))
+							{
+								using var symbolsStream = File.Open(symbolsFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
+								using var symbolsPackage = new PackageArchiveReader(symbolsStream);
+
+								var pdbFileInSnupkg = symbolsPackage.GetFiles()
 									.FirstOrDefault(f =>
 										Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
 										Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
 
-								if (!string.IsNullOrEmpty(pdbFileInNupkg))
+								if (!string.IsNullOrEmpty(pdbFileInSnupkg))
 								{
-									addin.PdbStatus = PdbStatus.IncludedInPackage;
+									addin.PdbStatus = PdbStatus.IncludedInSymbolsPackage;
 
-									var pdbStream = package.GetStream(pdbFileInNupkg);
+									var pdbStream = package.GetStream(pdbFileInSnupkg);
 									addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbStream);
 								}
 							}
-							catch
-							{
-								// Ignore exceptions
-							}
-
-							// Secondly, check if symbols are embedded in the DLL
-							if (addin.PdbStatus == PdbStatus.NotAvailable && assemblyInfoToAnalyze.AssemblyStream != null)
-							{
-								try
-								{
-									assemblyInfoToAnalyze.AssemblyStream.Position = 0;
-									var peReader = new PEReader(assemblyInfoToAnalyze.AssemblyStream);
-
-									if (peReader.ReadDebugDirectory().Any(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb))
-									{
-										addin.PdbStatus = PdbStatus.Embedded;
-
-										var embeddedEntry = peReader.ReadDebugDirectory().First(de => de.Type == DebugDirectoryEntryType.EmbeddedPortablePdb);
-										using var embeddedMetadataProvider = peReader.ReadEmbeddedPortablePdbDebugDirectoryData(embeddedEntry);
-										var pdbReader = embeddedMetadataProvider.GetMetadataReader();
-										addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbReader);
-									}
-								}
-								catch
-								{
-									// Ignore exceptions
-								}
-							}
-
-							// Finally, check if the PDB is included in the snupkg
-							if (addin.PdbStatus == PdbStatus.NotAvailable)
-							{
-								try
-								{
-									var symbolsFileName = Path.Combine(context.PackagesFolder, $"{addin.Name}.{addin.NuGetPackageVersion}.snupkg");
-									if (File.Exists(symbolsFileName))
-									{
-										using var symbolsStream = File.Open(symbolsFileName, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
-										using var symbolsPackage = new PackageArchiveReader(symbolsStream);
-
-										var pdbFileInSnupkg = symbolsPackage.GetFiles()
-											.FirstOrDefault(f =>
-												Path.GetExtension(f).EqualsIgnoreCase(".pdb") &&
-												Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name));
-
-										if (!string.IsNullOrEmpty(pdbFileInSnupkg))
-										{
-											addin.PdbStatus = PdbStatus.IncludedInSymbolsPackage;
-
-											var pdbStream = package.GetStream(pdbFileInSnupkg);
-											addin.SourceLinkEnabled = HasSourceLinkDebugInformation(pdbStream);
-										}
-									}
-								}
-								catch
-								{
-									// Ignore exceptions
-								}
-							}
-
-							//--------------------------------------------------
-							// Find the XML documentation
-							var assemblyFolder = Path.GetDirectoryName(assemblyInfoToAnalyze.AssemblyPath);
-							var xmlDocumentation = package.GetFiles()
-								.FirstOrDefault(f =>
-									Path.GetExtension(f).EqualsIgnoreCase(".xml") &&
-									Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name) &&
-									Path.GetDirectoryName(f).EqualsIgnoreCase(assemblyFolder));
-
-							addin.XmlDocumentationAvailable = !string.IsNullOrEmpty(xmlDocumentation);
-
-							//--------------------------------------------------
-							// Find the DLL references
-							var dllReferences = Array.Empty<DllReference>();
-							if (assemblyInfoToAnalyze.Assembly != null)
-							{
-								var assemblyReferences = assemblyInfoToAnalyze.Assembly
-									.GetReferencedAssemblies()
-									.Select(r => new DllReference()
-									{
-										Id = r.Name,
-										IsPrivate = true,
-										Version = new SemVersion(r.Version)
-									})
-									.ToArray();
-
-								dllReferences = packageDependencies.Union(assemblyReferences)
-									.GroupBy(d => d.Id)
-									.Select(grp => new DllReference()
-									{
-										Id = grp.Key,
-										IsPrivate = grp.All(r => r.IsPrivate),
-										Version = grp.Min(r => r.Version)
-									})
-									.ToArray();
-							}
-
-							// Get the cake-version.yml (if present)
-							var yamlExtensions = new[] { ".yml", ".yaml" };
-							var cakeVersionYamlFilePath = package.GetFiles()
-								.FirstOrDefault(f =>
-									Array.Exists(yamlExtensions, e => e.EqualsIgnoreCase(Path.GetExtension(f))) &&
-									Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("cake-version"));
-							if (!string.IsNullOrEmpty(cakeVersionYamlFilePath))
-							{
-								using var cakeVersionYamlFileStream = LoadFileFromPackage(package, cakeVersionYamlFilePath);
-								using TextReader ymlReader = new StreamReader(cakeVersionYamlFileStream);
-
-								var deserializer = new YamlDotNet.Serialization.Deserializer();
-								addin.CakeVersionYaml = deserializer.Deserialize<CakeVersionYamlConfig>(ymlReader);
-							}
-
-							addin.License = license;
-							addin.IconUrl = string.IsNullOrEmpty(iconUrl) ? null : new Uri(iconUrl);
-							addin.NuGetPackageVersion = packageVersion;
-							addin.Frameworks = frameworks;
-							addin.References = dllReferences;
-							addin.HasPrereleaseDependencies = hasPreReleaseDependencies;
-							addin.DllName = string.IsNullOrEmpty(assemblyInfoToAnalyze.AssemblyPath) ? string.Empty : Path.GetFileName(assemblyInfoToAnalyze.AssemblyPath);
-							addin.AliasCategories = assemblyInfoToAnalyze.AliasCategories;
-
-							rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
-							if (repositoryInfo != default && repositoryInfo.Attributes.TryGetValue("url", out string repoUrl))
-							{
-								addin.RepositoryUrl = new Uri(repoUrl);
-							}
-
-							rawNugetMetadata.TryGetValue("icon", out (string Value, IDictionary<string, string> Attributes) iconInfo);
-							if (iconInfo != default)
-							{
-								try
-								{
-									using var iconFileContent = LoadFileFromPackage(package, iconInfo.Value);
-									addin.EmbeddedIcon = iconFileContent.ToArray();
-								}
-								catch
-								{
-									throw new Exception($"Unable to find {iconInfo.Value} in the package");
-								}
-							}
 						}
-
-						if (addin.Type == AddinType.Unknown)
+						catch
 						{
-							throw new Exception($"This addin does not contain any decorated method.{Environment.NewLine}");
+							// Ignore exceptions
 						}
 					}
-					catch (Exception e)
+
+					//--------------------------------------------------
+					// Find the XML documentation
+					var assemblyFolder = Path.GetDirectoryName(assemblyInfoToAnalyze.AssemblyPath);
+					var xmlDocumentation = package.GetFiles()
+						.FirstOrDefault(f =>
+							Path.GetExtension(f).EqualsIgnoreCase(".xml") &&
+							Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name) &&
+							Path.GetDirectoryName(f).EqualsIgnoreCase(assemblyFolder));
+
+					addin.XmlDocumentationAvailable = !string.IsNullOrEmpty(xmlDocumentation);
+
+					//--------------------------------------------------
+					// Find the DLL references
+					var dllReferences = Array.Empty<DllReference>();
+					if (assemblyInfoToAnalyze.Assembly != null)
 					{
-						addin.AnalysisResult.Notes += $"AnalyzeNugetMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
+						var assemblyReferences = assemblyInfoToAnalyze.Assembly
+							.GetReferencedAssemblies()
+							.Select(r => new DllReference()
+							{
+								Id = r.Name,
+								IsPrivate = true,
+								Version = new SemVersion(r.Version)
+							})
+							.ToArray();
+
+						dllReferences = packageDependencies.Union(assemblyReferences)
+							.GroupBy(d => d.Id)
+							.Select(grp => new DllReference()
+							{
+								Id = grp.Key,
+								IsPrivate = grp.All(r => r.IsPrivate),
+								Version = grp.Min(r => r.Version)
+							})
+							.ToArray();
 					}
 
-					return addin;
-				})
-				.ToArray();
+					// Get the cake-version.yml (if present)
+					var yamlExtensions = new[] { ".yml", ".yaml" };
+					var cakeVersionYamlFilePath = package.GetFiles()
+						.FirstOrDefault(f =>
+							Array.Exists(yamlExtensions, e => e.EqualsIgnoreCase(Path.GetExtension(f))) &&
+							Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("cake-version"));
+					if (!string.IsNullOrEmpty(cakeVersionYamlFilePath))
+					{
+						using var cakeVersionYamlFileStream = LoadFileFromPackage(package, cakeVersionYamlFilePath);
+						using TextReader ymlReader = new StreamReader(cakeVersionYamlFileStream);
 
-			return Task.CompletedTask;
+						var deserializer = new YamlDotNet.Serialization.Deserializer();
+						addin.CakeVersionYaml = deserializer.Deserialize<CakeVersionYamlConfig>(ymlReader);
+					}
+
+					addin.License = license;
+					addin.IconUrl = string.IsNullOrEmpty(iconUrl) ? null : new Uri(iconUrl);
+					addin.NuGetPackageVersion = packageVersion;
+					addin.Frameworks = frameworks;
+					addin.References = dllReferences;
+					addin.HasPrereleaseDependencies = hasPreReleaseDependencies;
+					addin.DllName = string.IsNullOrEmpty(assemblyInfoToAnalyze.AssemblyPath) ? string.Empty : Path.GetFileName(assemblyInfoToAnalyze.AssemblyPath);
+					addin.AliasCategories = assemblyInfoToAnalyze.AliasCategories;
+
+					rawNugetMetadata.TryGetValue("repository", out (string Value, IDictionary<string, string> Attributes) repositoryInfo);
+					if (repositoryInfo != default && repositoryInfo.Attributes.TryGetValue("url", out string repoUrl))
+					{
+						addin.RepositoryUrl = new Uri(repoUrl);
+					}
+
+					rawNugetMetadata.TryGetValue("icon", out (string Value, IDictionary<string, string> Attributes) iconInfo);
+					if (iconInfo != default)
+					{
+						try
+						{
+							using var iconFileContent = LoadFileFromPackage(package, iconInfo.Value);
+							addin.EmbeddedIcon = iconFileContent.ToArray();
+						}
+						catch
+						{
+							throw new Exception($"Unable to find {iconInfo.Value} in the package");
+						}
+					}
+				}
+
+				if (addin.Type == AddinType.Unknown)
+				{
+					throw new Exception($"This addin does not contain any decorated method.{Environment.NewLine}");
+				}
+			}
+			catch (Exception e)
+			{
+				addin.AnalysisResult.Notes += $"AnalyzeNugetMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
+			}
 		}
 
 		private static MemoryStream LoadFileFromPackage(IPackageCoreReader package, string filePath)
@@ -338,7 +344,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private bool HasSourceLinkDebugInformation(Stream pdbStream)
+		private static bool HasSourceLinkDebugInformation(Stream pdbStream)
 		{
 			if (!pdbStream.CanSeek)
 			{
@@ -355,7 +361,7 @@ namespace Cake.AddinDiscoverer.Steps
 			return HasSourceLinkDebugInformation(pdbReader);
 		}
 
-		private bool HasSourceLinkDebugInformation(MetadataReader pdbReader)
+		private static bool HasSourceLinkDebugInformation(MetadataReader pdbReader)
 		{
 			foreach (var customDebugInfoHandle in pdbReader.CustomDebugInformation)
 			{
@@ -371,7 +377,7 @@ namespace Cake.AddinDiscoverer.Steps
 			return false;
 		}
 
-		private (Stream AssemblyStream, Assembly Assembly, MethodInfo[] DecoratedMethods, string AssemblyPath, string[] AliasCategories) FindAssemblyToAnalyze(IPackageCoreReader package, string[] assembliesPath)
+		private static (Stream AssemblyStream, Assembly Assembly, MethodInfo[] DecoratedMethods, string AssemblyPath, string[] AliasCategories) FindAssemblyToAnalyze(IPackageCoreReader package, string[] assembliesPath)
 		{
 			foreach (var assemblyPath in assembliesPath)
 			{

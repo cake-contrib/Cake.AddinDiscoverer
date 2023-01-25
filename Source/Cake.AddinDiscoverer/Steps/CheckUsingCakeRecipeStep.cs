@@ -24,11 +24,12 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			var cakeRecipeAddin = context.Addins
 				.Where(a => a.Type == AddinType.Recipe)
+				.OrderByDescending(a => a.PublishedOn)
 				.FirstOrDefault(a => a.Name.EqualsIgnoreCase("Cake.Recipe"));
 
 			var latestCakeRecipeVersion = SemVersion.Parse(cakeRecipeAddin == null ? "0.0.0" : cakeRecipeAddin.NuGetPackageVersion);
 
-			context.Addins = await context.Addins
+			await context.Addins
 				.ForEachAsync(
 					async addin =>
 					{
@@ -80,9 +81,7 @@ namespace Cake.AddinDiscoverer.Steps
 								await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 							}
 						}
-
-						return addin;
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					}, Constants.MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
 		}
 	}

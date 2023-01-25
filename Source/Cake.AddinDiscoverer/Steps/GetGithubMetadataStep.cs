@@ -23,7 +23,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
-			context.Addins = await context.Addins
+			await context.Addins
 				.ForEachAsync(
 					async addin =>
 					{
@@ -62,8 +62,6 @@ namespace Cake.AddinDiscoverer.Steps
 								await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 							}
 						}
-
-						return addin;
 					}, Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 		}

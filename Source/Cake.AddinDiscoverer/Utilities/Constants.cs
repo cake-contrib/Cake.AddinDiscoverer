@@ -51,10 +51,17 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string ADDIN_DISCOVERER_REPO_NAME = "Cake.AddinDiscoverer";
 
 		public static readonly DateTime UtcMinDateTime = new DateTime(0, DateTimeKind.Utc); // <== Making sure the timezone is UTC. Do not use DateTime.MinValue because the 'Kind' is unspecified.
-		public static readonly SemVersion UNKNOWN_VERSION = new SemVersion(0, 0, 0);
+		public static readonly SemVersion VERSION_UNKNOWN = new SemVersion(-1, 0, 0);
+		public static readonly SemVersion VERSION_ZERO = new SemVersion(0, 0, 0);
 
 		public static readonly CakeVersion[] CAKE_VERSIONS = new[]
 		{
+			new CakeVersion
+			{
+				Version = VERSION_ZERO,
+				RequiredFrameworks = Array.Empty<string>(),
+				OptionalFrameworks = Array.Empty<string>()
+			},
 			new CakeVersion
 			{
 				Version = new SemVersion(1, 0, 0),
@@ -85,7 +92,16 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin, cakeVersion) => Color.Empty,
 				(addin) => addin.ProjectUrl,
 				AddinType.All,
-				DataDestination.All
+				DataDestination.Excel
+			),
+			(
+				"Name",
+				ExcelHorizontalAlignment.Left,
+				(addin) => $"{addin.Name} {addin.NuGetPackageVersion}",
+				(addin, cakeVersion) => Color.Empty,
+				(addin) => addin.ProjectUrl,
+				AddinType.All,
+				DataDestination.All & ~DataDestination.Excel
 			),
 			(
 				"NuGet package version",
@@ -134,7 +150,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Cake Core Version",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreVersion == Constants.UNKNOWN_VERSION ? "Unknown" : addin.AnalysisResult.CakeCoreVersion.ToString(3),
+				(addin) => addin.AnalysisResult.CakeCoreVersion == null ? string.Empty : addin.AnalysisResult.CakeCoreVersion == Constants.VERSION_UNKNOWN ? "Unknown" : addin.AnalysisResult.CakeCoreVersion == Constants.VERSION_ZERO ? "Pre 1.0.0" : addin.AnalysisResult.CakeCoreVersion.ToString(3),
 				(addin, cakeVersion) =>
 				{
 					if (addin.AnalysisResult.CakeCoreVersion == null) return Color.Empty;
@@ -169,7 +185,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Cake Common Version",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.CakeCommonVersion == null ? string.Empty : addin.AnalysisResult.CakeCommonVersion == Constants.UNKNOWN_VERSION ? "Unknown" : addin.AnalysisResult.CakeCommonVersion.ToString(3),
+				(addin) => addin.AnalysisResult.CakeCommonVersion == null ? string.Empty : addin.AnalysisResult.CakeCommonVersion == Constants.VERSION_UNKNOWN ? "Unknown" : addin.AnalysisResult.CakeCommonVersion == Constants.VERSION_ZERO ? "Pre 1.0.0" : addin.AnalysisResult.CakeCommonVersion.ToString(3),
 				(addin, cakeVersion) =>
 				{
 					if (addin.AnalysisResult.CakeCommonVersion == null) return Color.Empty;
@@ -204,7 +220,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"Framework",
 				ExcelHorizontalAlignment.Center,
-				(addin) => string.Join(", ", addin.Frameworks),
+				(addin) => string.Join(", ", addin.Frameworks ?? Array.Empty<string>()),
 				(addin, cakeVersion) => (addin.Frameworks ?? Array.Empty<string>()).Length == 0 ? Color.Empty : (Misc.IsFrameworkUpToDate(addin.Frameworks, cakeVersion) ? Color.LightGreen : Color.Red),
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,

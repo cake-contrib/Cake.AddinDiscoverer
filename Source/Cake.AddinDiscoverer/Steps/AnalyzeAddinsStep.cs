@@ -28,56 +28,61 @@ namespace Cake.AddinDiscoverer.Steps
 				new KeyValuePair<AddinType, byte[]>(AddinType.All, await context.HttpClient.GetByteArrayAsync(Constants.CAKE_CONTRIB_COMMUNITY_FANCY_ICON_URL).ConfigureAwait(false))
 			};
 
-			context.Addins = context.Addins
-				.Select(addin =>
-				{
-					addin.AnalysisResult.AtLeastOneDecoratedMethod = addin.DecoratedMethods?.Any() ?? false;
-
-					if (addin.References != null)
+			await context.Addins
+				.Where(addin => !addin.Analyzed) // Only process addins that were not previously analized
+				.ForEachAsync(
+					async addin =>
 					{
-						var cakeCommonReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Common"));
-						if (cakeCommonReference.Any())
+						await Task.Run(() =>
 						{
-							var cakeCommonVersion = cakeCommonReference.Min(r => r.Version);
-							var cakeCommonIsPrivate = cakeCommonReference.All(r => r.IsPrivate);
-							addin.AnalysisResult.CakeCommonVersion = cakeCommonVersion ?? Constants.UNKNOWN_VERSION;
-							addin.AnalysisResult.CakeCommonIsPrivate = cakeCommonIsPrivate;
-						}
-						else
-						{
-							addin.AnalysisResult.CakeCommonVersion = null;
-							addin.AnalysisResult.CakeCommonIsPrivate = true;
-						}
+							addin.AnalysisResult.AtLeastOneDecoratedMethod = addin.DecoratedMethods?.Any() ?? false;
 
-						var cakeCoreReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Core"));
-						if (cakeCoreReference.Any())
-						{
-							var cakeCoreVersion = cakeCoreReference.Min(r => r.Version);
-							var cakeCoreIsPrivate = cakeCoreReference.All(r => r.IsPrivate);
-							addin.AnalysisResult.CakeCoreVersion = cakeCoreVersion ?? Constants.UNKNOWN_VERSION;
-							addin.AnalysisResult.CakeCoreIsPrivate = cakeCoreIsPrivate;
-						}
-						else
-						{
-							addin.AnalysisResult.CakeCoreVersion = null;
-							addin.AnalysisResult.CakeCoreIsPrivate = true;
-						}
-					}
+							if (addin.References != null)
+							{
+								var cakeCommonReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Common"));
+								if (cakeCommonReference.Any())
+								{
+									var cakeCommonVersion = cakeCommonReference.Min(r => r.Version);
+									var cakeCommonIsPrivate = cakeCommonReference.All(r => r.IsPrivate);
+									addin.AnalysisResult.CakeCommonVersion = cakeCommonVersion ?? Constants.VERSION_UNKNOWN;
+									addin.AnalysisResult.CakeCommonIsPrivate = cakeCommonIsPrivate;
+								}
+								else
+								{
+									addin.AnalysisResult.CakeCommonVersion = null;
+									addin.AnalysisResult.CakeCommonIsPrivate = true;
+								}
 
-					if (addin.Type == AddinType.Addin && addin.AnalysisResult.CakeCoreVersion == null && addin.AnalysisResult.CakeCommonVersion == null)
-					{
-						addin.AnalysisResult.Notes += $"This addin seems to be referencing neither Cake.Core nor Cake.Common.{Environment.NewLine}";
-					}
+								var cakeCoreReference = addin.References.Where(r => r.Id.EqualsIgnoreCase("Cake.Core"));
+								if (cakeCoreReference.Any())
+								{
+									var cakeCoreVersion = cakeCoreReference.Min(r => r.Version);
+									var cakeCoreIsPrivate = cakeCoreReference.All(r => r.IsPrivate);
+									addin.AnalysisResult.CakeCoreVersion = cakeCoreVersion ?? Constants.VERSION_UNKNOWN;
+									addin.AnalysisResult.CakeCoreIsPrivate = cakeCoreIsPrivate;
+								}
+								else
+								{
+									addin.AnalysisResult.CakeCoreVersion = null;
+									addin.AnalysisResult.CakeCoreIsPrivate = true;
+								}
+							}
 
-					addin.AnalysisResult.Icon = AnalyzeIcon(addin, cakeContribIcon, fancyIcons);
-					addin.AnalysisResult.TransferredToCakeContribOrganization = addin.RepositoryOwner?.Equals(Constants.CAKE_CONTRIB_REPO_OWNER, StringComparison.OrdinalIgnoreCase) ?? false;
-					addin.AnalysisResult.ObsoleteLicenseUrlRemoved = !string.IsNullOrEmpty(addin.License);
-					addin.AnalysisResult.RepositoryInfoProvided = addin.RepositoryUrl != null;
-					addin.AnalysisResult.PackageCoOwnedByCakeContrib = addin.NuGetPackageOwners.Contains("cake-contrib", StringComparer.OrdinalIgnoreCase);
+							if (addin.Type == AddinType.Addin && addin.AnalysisResult.CakeCoreVersion == null && addin.AnalysisResult.CakeCommonVersion == null)
+							{
+								addin.AnalysisResult.Notes += $"This addin seems to be referencing neither Cake.Core nor Cake.Common.{Environment.NewLine}";
+							}
 
-					return addin;
-				})
-				.ToArray();
+							addin.AnalysisResult.Icon = AnalyzeIcon(addin, cakeContribIcon, fancyIcons);
+							addin.AnalysisResult.TransferredToCakeContribOrganization = addin.RepositoryOwner?.Equals(Constants.CAKE_CONTRIB_REPO_OWNER, StringComparison.OrdinalIgnoreCase) ?? false;
+							addin.AnalysisResult.ObsoleteLicenseUrlRemoved = !string.IsNullOrEmpty(addin.License);
+							addin.AnalysisResult.RepositoryInfoProvided = addin.RepositoryUrl != null;
+							addin.AnalysisResult.PackageCoOwnedByCakeContrib = addin.NuGetPackageOwners.Contains("cake-contrib", StringComparer.OrdinalIgnoreCase);
+
+							addin.Analyzed = true;
+						}).ConfigureAwait(false);
+					}, Constants.MAX_NUGET_CONCURENCY)
+				.ConfigureAwait(false);
 		}
 
 		private IconAnalysisResult AnalyzeIcon(AddinMetadata addin, byte[] recommendedIcon, IEnumerable<KeyValuePair<AddinType, byte[]>> fancyIcons)

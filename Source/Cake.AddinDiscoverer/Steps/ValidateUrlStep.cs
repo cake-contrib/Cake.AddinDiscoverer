@@ -23,7 +23,8 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			var cakeContribRepositories = await context.GithubClient.Repository.GetAllForUser(Constants.CAKE_CONTRIB_REPO_OWNER).ConfigureAwait(false);
 
-			context.Addins = await context.Addins
+			await context.Addins
+				.Where(addin => !addin.Analyzed) // Only process addins that were not previously analized
 				.ForEachAsync(
 					async addin =>
 					{

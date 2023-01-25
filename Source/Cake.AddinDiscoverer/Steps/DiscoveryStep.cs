@@ -1,5 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
+using Cake.Incubator.StringExtensions;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using System;
@@ -27,57 +28,61 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			var nugetPackageMetadataClient = await context.NugetRepository.GetResourceAsync<PackageMetadataResource>().ConfigureAwait(false);
 			var addinPackages = new List<IPackageSearchMetadata>();
+			var packageNames = new List<string>();
 
 			//--------------------------------------------------
-			// Get the metadata from NuGet.org
+			// Discover all the existing addins
 			if (!string.IsNullOrEmpty(context.Options.AddinName))
 			{
-				// Get metadata for one specific package
-				var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, context.Options.AddinName).ConfigureAwait(false);
-				if (packageMetadata != null)
-				{
-					addinPackages.AddRange(packageMetadata);
-				}
+				packageNames.Add(context.Options.AddinName);
 			}
 			else
 			{
-				// Get the most recent "stable" version of packages matching the naming convention.
-				await foreach (var packageMetadata in SearchForPackages(context.NugetRepository, "Cake", false, CancellationToken.None))
-				{
-					addinPackages.Add(packageMetadata);
-				}
-
-				// Get the most recent version of packages matching the naming convention (regardless of the stable/prerelease status)
+				// Get all the packages matching the naming convention (regardless of the stable/prerelease status)
 				await foreach (var packageMetadata in SearchForPackages(context.NugetRepository, "Cake", true, CancellationToken.None))
 				{
-					addinPackages.Add(packageMetadata);
+					packageNames.Add(packageMetadata.Identity.Id);
 				}
 
-				// Get metadata for the packages we specifically want to include
-				foreach (var additionalPackageName in context.IncludedAddins)
-				{
-					var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, additionalPackageName).ConfigureAwait(false);
-					if (packageMetadata != null)
-					{
-						addinPackages.AddRange(packageMetadata);
-					}
-				}
+				// Add the "white listed" packages
+				packageNames.AddRange(context.IncludedAddins);
+
+				// Remove the "black listed" packages
+				packageNames.RemoveAll(packageName => context.ExcludedAddins.Any(excludedAddinName => packageName.IsMatch(excludedAddinName)));
 			}
 
 			//--------------------------------------------------
-			// Select the most recent "stable" release of each addin.
-			// If an addin does not have any stable release, select the most recent, regardless of its stable/prerelease status
-			var uniqueAddinPackages = addinPackages
-				.GroupBy(p => p.Identity.Id)
-				.Select(g => g
-					.OrderBy(p => p.Identity.Version.IsPrerelease ? 1 : 0) // Stable versions are sorted first, prerelease versions sorted second
-					.ThenByDescending(p => p.Published)
-					.First())
+			// Retrieve the metadata from each version of the package
+			var metadata = await packageNames
+				.Distinct()
+				.ForEachAsync(
+					async packageName =>
+					{
+						var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, packageName).ConfigureAwait(false);
+						var addinMetadata = await ConvertPackageMetadataToAddinMetadataAsync(packageMetadata).ConfigureAwait(false);
+						return addinMetadata;
+					}, Constants.MAX_NUGET_CONCURENCY)
+				.ConfigureAwait(false);
+
+			// Filter out the addins that were previously analysed
+			var newAddins = metadata
+				.SelectMany(item => item) // Flatten the array of arrays
+				.Where(item => !context.Addins.Any(a => a.Name.EqualsIgnoreCase(item.Name) && a.NuGetPackageVersion == item.NuGetPackageVersion))
 				.ToArray();
 
-			//--------------------------------------------------
-			// Convert metadata from nuget into our own metadata
-			context.Addins = await uniqueAddinPackages
+			// Add the new addins that have not yet been analysed
+			context.Addins = context.Addins.Union(newAddins).ToArray();
+
+			// Sort the addins for convenience
+			context.Addins = context.Addins
+				.OrderBy(a => a.Name) // Sort alphabetically
+				.ThenByDescending(a => a.PublishedOn) // Sort chronologically
+				.ToArray();
+		}
+
+		private static Task<AddinMetadata[]> ConvertPackageMetadataToAddinMetadataAsync(IEnumerable<IPackageSearchMetadata> packageMetadata)
+		{
+			return packageMetadata
 				.ForEachAsync(
 					async package =>
 					{
@@ -96,6 +101,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 						var addinMetadata = new AddinMetadata()
 						{
+							Analyzed = false,
 							AnalysisResult = new AddinAnalysisResult()
 							{
 								CakeRecipeIsUsed = false,
@@ -116,7 +122,7 @@ namespace Cake.AddinDiscoverer.Steps
 							HasPrereleaseDependencies = false,
 							Tags = tags,
 							Type = AddinType.Unknown,
-							PublishedOn = Constants.UtcMinDateTime,
+							PublishedOn = package.Published.Value,
 							RepoContent = ImmutableDictionary<string, Stream>.Empty
 						};
 
@@ -127,20 +133,7 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 						else
 						{
-							// The metadata returned by nugetSearchClient.SearchAsync is minimal.
-							// That's why we need to invoke nugetPackageMetadataClient.GetMetadataAsync to get more detailed metadata.
-							var packageMetadata = await nugetPackageMetadataClient.GetMetadataAsync(package.Identity.Id, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
-							var detailedPackageMetadata = packageMetadata.SingleOrDefault(m => m.Identity.Equals(package.Identity));
-
-							if (detailedPackageMetadata != null)
-							{
-								addinMetadata.PublishedOn = detailedPackageMetadata.Published.Value;
-							}
-
-							// We need to look at the most recent version (even if that's not the version that would otherwise be analyzed)
-							// to determine if the package has been deprecated
-							var mostRecentPackageMetadata = packageMetadata.OrderByDescending(p => p.Published).FirstOrDefault();
-							var deprecationMetadata = mostRecentPackageMetadata != null ? await mostRecentPackageMetadata.GetDeprecationMetadataAsync().ConfigureAwait(false) : null;
+							var deprecationMetadata = await package.GetDeprecationMetadataAsync().ConfigureAwait(false);
 
 							if (deprecationMetadata != null)
 							{
@@ -165,8 +158,7 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 
 						return addinMetadata;
-					}, Constants.MAX_NUGET_CONCURENCY)
-				.ConfigureAwait(false);
+					}, Constants.MAX_GITHUB_CONCURENCY);
 		}
 
 		private static Task<IEnumerable<IPackageSearchMetadata>> FetchPackageMetadata(PackageMetadataResource nugetPackageMetadataClient, string name)

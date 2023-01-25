@@ -1,4 +1,5 @@
 using Cake.AddinDiscoverer.Utilities;
+using System.Linq;
 
 namespace Cake.AddinDiscoverer.Models
 {
@@ -90,14 +91,29 @@ namespace Cake.AddinDiscoverer.Models
 		public bool AtLeastOneDecoratedMethod { get; set; }
 
 		/// <summary>
-		/// Get the version of Cake targeted by this addin.
+		/// Get the precise version of Cake targeted by this addin.
 		/// </summary>
-		/// <returns>The version of Cake targeted by this addin.</returns>
+		/// <returns>The precise version of Cake targeted by this addin.</returns>
 		public SemVersion GetTargetedCakeVersion()
 		{
 			if (CakeCoreVersion == null) return CakeCommonVersion;
 			else if (CakeCommonVersion == null) return CakeCoreVersion;
 			else return CakeCoreVersion >= CakeCommonVersion ? CakeCoreVersion : CakeCommonVersion;
+		}
+
+		/// <summary>
+		/// Get the version of Cake targeted by this addin.
+		/// </summary>
+		/// <returns>The version of Cake targeted by this addin.</returns>
+		public CakeVersion GetCakeVersion()
+		{
+			var targetedVersion = GetTargetedCakeVersion();
+			if (targetedVersion == null) return null;
+
+			return Constants.CAKE_VERSIONS
+				.Where(v => v.Version.Major <= targetedVersion.Major)
+				.OrderByDescending(v => v.Version)
+				.First();
 		}
 	}
 }

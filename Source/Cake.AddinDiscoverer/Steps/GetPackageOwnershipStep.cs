@@ -1,4 +1,5 @@
 using Cake.AddinDiscoverer.Models;
+using Cake.AddinDiscoverer.Utilities;
 using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
@@ -29,20 +30,20 @@ namespace Cake.AddinDiscoverer.Steps
 					e => e[0].Value<string>(),
 					e => e[1].Values<string>().ToArray());
 
-			context.Addins = context.Addins
-				.Select(addin =>
-				{
-					if (addin.NuGetPackageOwners == Array.Empty<string>())
+			await context.Addins
+				.Where(addin => !addin.Analyzed) // Only process addins that were not previously analized
+				.ForEachAsync(
+					async addin =>
 					{
-						if (packageOwners.TryGetValue(addin.Name, out string[] owners))
+						if (addin.NuGetPackageOwners == Array.Empty<string>())
 						{
-							addin.NuGetPackageOwners = owners;
+							if (packageOwners.TryGetValue(addin.Name, out string[] owners))
+							{
+								addin.NuGetPackageOwners = owners;
+							}
 						}
-					}
-
-					return addin;
-				})
-				.ToArray();
+					}, Constants.MAX_NUGET_CONCURENCY)
+				.ConfigureAwait(false);
 		}
 	}
 }

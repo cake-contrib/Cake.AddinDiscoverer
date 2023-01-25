@@ -5,6 +5,7 @@ using NuGet.Packaging.Core;
 using NuGet.Protocol.Core.Types;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,6 +26,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var nugetPackageDownloadClient = context.NugetRepository.GetResource<DownloadResource>();
 
 			await context.Addins
+				.Where(addin => !addin.Analyzed) // Only process addins that were not previously analized
 				.ForEachAsync(
 					async package =>
 					{
@@ -39,18 +41,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var packageFileName = Path.Combine(context.PackagesFolder, $"{package.Name}.{package.NuGetPackageVersion}.nupkg");
 			if (!File.Exists(packageFileName))
 			{
-				// Delete prior versions of this package
-				foreach (var f in Directory.EnumerateFiles(context.PackagesFolder, $"{package.Name}.*.nupkg"))
-				{
-					var expectedSplitLength = package.Name.Split('.').Length + package.NuGetPackageVersion.Split('.').Length;
-					var fileName = Path.GetFileNameWithoutExtension(f);
-					if (fileName.Split('.').Length == expectedSplitLength)
-					{
-						File.Delete(f);
-					}
-				}
-
-				// Download the latest version of the package
+				// Download the package
 				using var sourceCacheContext = new SourceCacheContext() { NoCache = true };
 				var downloadContext = new PackageDownloadContext(sourceCacheContext, Path.GetTempPath(), true);
 				var packageIdentity = new PackageIdentity(package.Name, new NuGet.Versioning.NuGetVersion(package.NuGetPackageVersion));
@@ -77,18 +68,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var packageFileName = Path.Combine(context.PackagesFolder, $"{package.Name}.{package.NuGetPackageVersion}.snupkg");
 			if (!File.Exists(packageFileName))
 			{
-				// Delete prior versions of this package
-				foreach (var f in Directory.EnumerateFiles(context.PackagesFolder, $"{package.Name}.*.snupkg"))
-				{
-					var expectedSplitLength = package.Name.Split('.').Length + package.NuGetPackageVersion.Split('.').Length;
-					var fileName = Path.GetFileNameWithoutExtension(f);
-					if (fileName.Split('.').Length == expectedSplitLength)
-					{
-						File.Delete(f);
-					}
-				}
-
-				// Download the latest version of the symbols package
+				// Download the symbols package
 				try
 				{
 					var response = await context.HttpClient
