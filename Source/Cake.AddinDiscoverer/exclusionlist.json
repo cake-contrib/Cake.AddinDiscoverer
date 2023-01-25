@@ -22,6 +22,7 @@
     "Cake.Frosting.Template",
     "Cake.Frosting.*", // Exclude any Frosting related addin
     "Cake.Git.NonPortable", // This is a clone of Cake.Git
+    "Cake.GitHubReleases", // The features of this addin have been merged into the Cake.GitHub
     "Cake.LittleHelpers",
     "Cake.LocalMarkdownToPdf", // This is a clone of Cake.MarkdownToPdf
     "Cake.LycheeOS",
