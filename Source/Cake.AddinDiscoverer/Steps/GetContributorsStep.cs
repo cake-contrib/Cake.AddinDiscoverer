@@ -40,8 +40,8 @@ namespace Cake.AddinDiscoverer.Steps
 				.Select(contributor => new
 				{
 					Name = contributor.Login,
-					AvatarUrl = contributor.AvatarUrl,
-					HtmlUrl = contributor.HtmlUrl,
+					contributor.AvatarUrl,
+					contributor.HtmlUrl,
 				})
 				.ToArray();
 
@@ -49,7 +49,17 @@ namespace Cake.AddinDiscoverer.Steps
 			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 
 			// Get the content of the current contributors files and generate the new content
-			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "maintainers").ConfigureAwait(false);
+			IReadOnlyList<RepositoryContent> directoryContent;
+
+			try
+			{
+				directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "contributors").ConfigureAwait(false);
+			}
+			catch (Octokit.NotFoundException)
+			{
+				directoryContent = Array.Empty<RepositoryContent>();
+			}
+
 			var desiredContributorsFiles = new[] { "contributors.json", "contributors.yml" };
 			var contributorFilesWithContent = await desiredContributorsFiles
 				.ForEachAsync<string, (string Name, string CurrentContent, string NewContent)>(
@@ -58,8 +68,8 @@ namespace Cake.AddinDiscoverer.Steps
 						var currentContent = string.Empty;
 						if (directoryContent.Any(currentFile => currentFile.Name.EndsWith(fileName, StringComparison.OrdinalIgnoreCase)))
 						{
-							var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"maintainers/{fileName}").ConfigureAwait(false);
-							currentContent = contents.FirstOrDefault()?.Content;
+							var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"contributors/{fileName}").ConfigureAwait(false);
+							if (contents != null && contents.Count >= 1) currentContent = contents[0].Content;
 						}
 
 						var newContent = Path.GetExtension(fileName) switch
@@ -146,8 +156,6 @@ namespace Cake.AddinDiscoverer.Steps
 				return;
 			}
 
-			var upstream = fork.Parent;
-
 			// Convert files into commits
 			var newBranchName = $"contributors_files_sync_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 			var commits = ConvertToCommits(filesToBeCreated, filesToBeUpdated);
@@ -184,7 +192,7 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							(
 								Encoding: EncodingType.Utf8,
-								Path: $"maintainers/{fileToBeCreated.Name}",
+								Path: $"contributors/{fileToBeCreated.Name}",
 								Content: fileToBeCreated.NewContent
 							)
 						}
@@ -204,7 +212,7 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							(
 								Encoding: EncodingType.Utf8,
-								Path: $"maintainers/{fileToBeUpdated.Name}",
+								Path: $"contributors/{fileToBeUpdated.Name}",
 								Content: fileToBeUpdated.NewContent
 							)
 						}
