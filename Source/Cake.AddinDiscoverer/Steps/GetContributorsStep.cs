@@ -40,8 +40,8 @@ namespace Cake.AddinDiscoverer.Steps
 				.Select(contributor => new
 				{
 					Name = contributor.Login,
-					AvatarUrl = contributor.AvatarUrl,
-					HtmlUrl = contributor.HtmlUrl,
+					contributor.AvatarUrl,
+					contributor.HtmlUrl,
 				})
 				.ToArray();
 
