@@ -49,7 +49,17 @@ namespace Cake.AddinDiscoverer.Steps
 			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 
 			// Get the content of the current contributors files and generate the new content
-			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "contributors").ConfigureAwait(false);
+			IReadOnlyList<RepositoryContent> directoryContent;
+
+			try
+			{
+				directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "contributors").ConfigureAwait(false);
+			}
+			catch (Octokit.NotFoundException)
+			{
+				directoryContent = Array.Empty<RepositoryContent>();
+			}
+
 			var desiredContributorsFiles = new[] { "contributors.json", "contributors.yml" };
 			var contributorFilesWithContent = await desiredContributorsFiles
 				.ForEachAsync<string, (string Name, string CurrentContent, string NewContent)>(
