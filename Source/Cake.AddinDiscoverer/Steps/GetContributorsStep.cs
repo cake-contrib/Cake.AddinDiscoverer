@@ -146,8 +146,6 @@ namespace Cake.AddinDiscoverer.Steps
 				return;
 			}
 
-			var upstream = fork.Parent;
-
 			// Convert files into commits
 			var newBranchName = $"contributors_files_sync_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 			var commits = ConvertToCommits(filesToBeCreated, filesToBeUpdated);
