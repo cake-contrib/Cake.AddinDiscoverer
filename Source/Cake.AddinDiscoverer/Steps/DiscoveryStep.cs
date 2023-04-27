@@ -51,6 +51,9 @@ namespace Cake.AddinDiscoverer.Steps
 				packageNames.RemoveAll(packageName => context.ExcludedAddins.Any(excludedAddinName => packageName.IsMatch(excludedAddinName)));
 			}
 
+			// Sort the package names alphabetically, for convenience
+			packageNames.Sort();
+
 			//--------------------------------------------------
 			// Retrieve the metadata from each version of the package
 			var metadata = await packageNames
@@ -61,7 +64,8 @@ namespace Cake.AddinDiscoverer.Steps
 						var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, packageName).ConfigureAwait(false);
 						var addinMetadata = await ConvertPackageMetadataToAddinMetadataAsync(packageMetadata).ConfigureAwait(false);
 						return addinMetadata;
-					}, Constants.MAX_NUGET_CONCURENCY)
+					},
+					Constants.MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
 
 			// Filter out the addins that were previously analysed

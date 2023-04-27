@@ -27,10 +27,10 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class AnalyzeStep : IStep
 	{
+		private const string PackageOwnersJsonFileUri = "https://nugetprod0.blob.core.windows.net/ng-search-data/owners.json";
+
 		// https://github.com/dotnet/roslyn/blob/b3cbe7abce7633e45d7dd468bde96bfe24ccde47/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L18
 		private static readonly Guid SourceLinkCustomDebugInfoGuid = new("CC110556-A091-4D38-9FEC-25AB9A351A6A");
-
-		private const string PackageOwnersJsonFileUri = "https://nugetprod0.blob.core.windows.net/ng-search-data/owners.json";
 
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
@@ -59,38 +59,36 @@ namespace Cake.AddinDiscoverer.Steps
 			};
 
 			await context.Addins
+				.Where(addin => !addin.Analyzed) // Analysis needs to be performed only on new addin versions
 				.ForEachAsync(
 					async addin =>
 					{
-						// The following steps need to be performed only on new addin versions
-						if (!addin.Analyzed)
-						{
-							// Download the package from NuGet if it's not already in the cache
-							await DownloadNugetPackage(nugetPackageDownloadClient, context, addin).ConfigureAwait(false);
-							await DownloadSymbolsPackage(context, addin).ConfigureAwait(false);
+						// Download the package from NuGet if it's not already in the cache
+						await DownloadNugetPackage(nugetPackageDownloadClient, context, addin).ConfigureAwait(false);
+						await DownloadSymbolsPackage(context, addin).ConfigureAwait(false);
 
-							// Analyze the metadata in the downloaded nuget package
-							AnalyzeNuGet(context, addin);
+						// Analyze the metadata in the downloaded nuget package
+						AnalyzeNuGet(context, addin);
 
-							// Set the owners of the NuGet package
-							DeterminePackageOwners(packageOwners, addin);
+						// Set the owners of the NuGet package
+						DeterminePackageOwners(packageOwners, addin);
 
-							// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
-							// points to the original repo. This step corrects the URL to ensure it points to the right repo.
-							// Also, this step forces HTTPS for github URLs.
-							await ValidateUrls(context, addin, cakeContribRepositories).ConfigureAwait(false);
+						// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
+						// points to the original repo. This step corrects the URL to ensure it points to the right repo.
+						// Also, this step forces HTTPS for github URLs.
+						await ValidateUrls(context, addin, cakeContribRepositories).ConfigureAwait(false);
 
-							// Determine if the addin meet the best practices
-							AnalyzeAddin(context, addin, cakeContribIcon, fancyIcons);
+						// Determine if the addin meets the best practices
+						AnalyzeAddin(context, addin, cakeContribIcon, fancyIcons);
 
-							// Mark the addin as 'analized'
-							addin.Analyzed = true;
+						// Mark the addin as 'analyzed'
+						addin.Analyzed = true;
 
-							// Save the result of the analysis for each addin to a file to ensure that we
-							// can resume the analysis without analysing the same addins multiple times.
-							SaveAnalysis(context, addin);
-						}
-					}, Constants.MAX_GITHUB_CONCURENCY)
+						// Save the result of the analysis for each addin to a file to ensure that we
+						// can resume the analysis without analysing the same addins multiple times.
+						SaveAnalysis(context, addin);
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 		}
 
