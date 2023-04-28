@@ -81,7 +81,8 @@ namespace Cake.AddinDiscoverer.Steps
 								await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 							}
 						}
-					}, Constants.MAX_NUGET_CONCURENCY)
+					},
+					Constants.MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
 		}
 	}
