@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 
 namespace Cake.AddinDiscoverer.Models
 {
-	[DebuggerDisplay("Name = {Name}; Type = {Type}")]
+	[DebuggerDisplay("Name = {Name}; Version = {NuGetPackageVersion}; Type = {Type}")]
 	internal class AddinMetadata
 	{
 		public string Name { get; set; }
