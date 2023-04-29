@@ -56,7 +56,7 @@ namespace Cake.AddinDiscoverer.Utilities
 
 		public static readonly CakeVersion[] CAKE_VERSIONS = new[]
 		{
-			new CakeVersion
+			new CakeVersion // This represents all versions of Cake prior to 1.0.0. For example: 0.36.0
 			{
 				Version = VERSION_ZERO,
 				RequiredFrameworks = Array.Empty<string>(),

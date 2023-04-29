@@ -9,8 +9,6 @@ namespace Cake.AddinDiscoverer.Models
 {
 	internal class DiscoveryContext
 	{
-		private ReportData _reportData;
-
 		public Options Options { get; set; }
 
 		public string TempFolder { get; set; }
@@ -64,7 +62,5 @@ namespace Cake.AddinDiscoverer.Models
 		public string StatsSaveLocation => Path.Combine(this.TempFolder, "Audit_stats.csv");
 
 		public string GraphSaveLocation => Path.Combine(this.TempFolder, "Audit_progress.png");
-
-		public ReportData ReportData => _reportData ??= new ReportData(Addins);
 	}
 }

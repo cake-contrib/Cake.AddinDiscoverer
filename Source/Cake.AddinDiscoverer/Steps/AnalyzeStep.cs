@@ -746,28 +746,3 @@ namespace Cake.AddinDiscoverer.Steps
 		}
 	}
 }
-
-/*
- * // Download the packages from NuGet if they are not already in the cache
-typeof(DownloadStep),
-
-// Analyze the metadata in the downloaded nuget package
-typeof(AnalyzeNuGetMetadataStep),
-
-// Get the owners of the NuGet package
-typeof(GetPackageOwnershipStep),
-
-// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
-// points to the original repo. This step corrects the URL to ensure it points to the right repo.
-// Also, this step forces HTTPS for github URLs.
-typeof(ValidateUrlStep),
-
-// Use the info from previous steps to determine if addins meet the best practices
-typeof(AnalyzeAddinsStep),
-
-// Get previously created issue and pull request from the Github repo
-//typeof(GetGithubIssuesStep),
-
-// Get statistics, content, etc. from the Github repo
-//typeof(GetGithubMetadataStep),
-*/
