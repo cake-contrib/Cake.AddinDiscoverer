@@ -25,6 +25,10 @@ namespace Cake.AddinDiscoverer.Steps
 			var latestCakeVersion = cakeVersionsForReport.Max();
 
 			var reportData = new ReportData(context.Addins);
+			var addins = reportData.GetAddinsForCakeVersion(latestCakeVersion);
+			var analizedAddins = addins.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
+			var exceptionAddins = addins.Where(a => !a.IsDeprecated && !string.IsNullOrEmpty(a.AnalysisResult.Notes));
+			var deprecatedAddins = addins.Where(a => a.IsDeprecated);
 
 			var now = DateTime.UtcNow;
 			var markdown = new StringBuilder();
@@ -36,28 +40,27 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine();
 			markdown.AppendLine("## Overall statistics");
 			markdown.AppendLine();
-			markdown.AppendLine($"- The analysis discovered {reportData.DistinctPackages.Count()} distinct nuget packages.");
+			markdown.AppendLine($"- The analysis discovered {addins.Count()} distinct nuget packages.");
 			markdown.AppendLine($"- If you count all the versions of these addins, there's a grand total of {reportData.AllPackages.Count()} packages on NuGet.org");
-			markdown.AppendLine($"- We were able to successfully analyze {reportData.AllPackages.Count() - reportData.ExceptionsPackages.Count()} of these NuGet packages");
 
 			markdown.AppendLine();
 			markdown.AppendLine("## Statistics");
 			markdown.AppendLine();
-			markdown.AppendLine($"- Of the {reportData.DistinctPackages.Count()} audited nuget packages:");
-			markdown.AppendLine($"  - {reportData.Addins.Count()} are addins");
-			markdown.AppendLine($"  - {reportData.Recipes.Count()} are recipes");
-			markdown.AppendLine($"  - {reportData.Modules.Count()} are modules");
-			markdown.AppendLine($"  - {reportData.Deprecated.Count()} are marked as deprecated");
-			markdown.AppendLine($"  - {reportData.Exceptions.Count()} could not be audited (see the 'Exceptions' section)");
-			markdown.AppendLine($"- Miscellanious other stats:");
-			markdown.AppendLine($"  - {reportData.DistinctPackages.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.RawgitUrl)} are using the cake-contrib icon on the rawgit CDN (which has been shutdown since October 2019)");
-			markdown.AppendLine($"  - {reportData.DistinctPackages.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.JsDelivrUrl)} are using the cake-contrib icon on the jsDelivr CDN (which was our preferred CDN to replace rawgit)");
-			markdown.AppendLine($"  - {reportData.DistinctPackages.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.CustomUrl)} are using a custom icon hosted on a web site");
-			markdown.AppendLine($"  - {reportData.DistinctPackages.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedCakeContrib)} are embedding the cake-contrib icon (which is the current recommendation)");
-			markdown.AppendLine($"  - {reportData.DistinctPackages.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedFancyCakeContrib)} are embedding one of the \"fancy\" cake-contrib icons (which is also recommended)");
-			markdown.AppendLine($"  - {reportData.DistinctPackages.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedCustom)} are embedding a custom icon");
-			markdown.AppendLine($"  - {reportData.DistinctPackages.Count(addin => addin.AnalysisResult.TransferredToCakeContribOrganization)} have been transferred to the cake-contrib organization");
-			markdown.AppendLine($"  - {reportData.DistinctPackages.Count(addin => addin.AnalysisResult.ObsoleteLicenseUrlRemoved)} have replaced the obsolete `licenseUrl` with proper license metadata (see the `Additional audit results` section below for details)");
+			markdown.AppendLine($"- Of the {addins.Count()} audited nuget packages:");
+			markdown.AppendLine($"  - {analizedAddins.Count(a => a.Type == AddinType.Addin)} are addins");
+			markdown.AppendLine($"  - {analizedAddins.Count(a => a.Type == AddinType.Module)} are modules");
+			markdown.AppendLine($"  - {analizedAddins.Count(a => a.Type == AddinType.Recipe)} are recipes");
+			markdown.AppendLine($"  - {deprecatedAddins.Count()} are marked as deprecated");
+			markdown.AppendLine($"  - {exceptionAddins.Count()} could not be audied (see the 'Exceptions' section)");
+			markdown.AppendLine($"- Of the {analizedAddins.Count()} successfully analyzed packages:");
+			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.RawgitUrl)} are using the cake-contrib icon on the rawgit CDN (which has been shutdown since October 2019)");
+			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.JsDelivrUrl)} are using the cake-contrib icon on the jsDelivr CDN (which was our preferred CDN to replace rawgit)");
+			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.CustomUrl)} are using a custom icon hosted on a web site");
+			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedCakeContrib)} are embedding the cake-contrib icon (which is the current recommendation)");
+			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedFancyCakeContrib)} are embedding one of the \"fancy\" cake-contrib icons (which is also recommended)");
+			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.EmbeddedCustom)} are embedding a custom icon");
+			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.TransferredToCakeContribOrganization)} have been transferred to the cake-contrib organization");
+			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.ObsoleteLicenseUrlRemoved)} have replaced the obsolete `licenseUrl` with proper license metadata (see the `Additional audit results` section below for details)");
 			markdown.AppendLine();
 
 			markdown.AppendLine();
@@ -102,11 +105,11 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// Exceptions report
 			markdown.AppendLine();
-			markdown.Append(GenerateMarkdownWithNotes(reportData.Exceptions, "Exceptions"));
+			markdown.Append(GenerateMarkdownWithNotes(exceptionAddins, "Exceptions"));
 
 			// Deprecated report
 			markdown.AppendLine();
-			markdown.Append(GenerateMarkdownWithNotes(reportData.Deprecated, "Deprecated"));
+			markdown.Append(GenerateMarkdownWithNotes(deprecatedAddins, "Deprecated"));
 
 			// Save
 			await File.WriteAllTextAsync(context.MarkdownReportPath, markdown.ToString(), cancellationToken).ConfigureAwait(false);
@@ -114,7 +117,7 @@ namespace Cake.AddinDiscoverer.Steps
 			// Generate the markdown report for nuget packages containing recipes
 			var recipesReportName = $"{Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}_for_recipes.md";
 			var recipesReportPath = Path.Combine(context.TempFolder, recipesReportName);
-			var markdownReportForRecipes = GenerateMarkdown(context, reportData.GetAuditedAddinsForCakeVersion(latestCakeVersion, false), latestCakeVersion, AddinType.Recipe);
+			var markdownReportForRecipes = GenerateMarkdown(context, reportData.GetAddinsForCakeVersion(latestCakeVersion), latestCakeVersion, AddinType.Recipe);
 			await File.WriteAllTextAsync(recipesReportPath, markdownReportForRecipes).ConfigureAwait(false);
 
 			// Generate the markdown report for each version of Cake
@@ -122,7 +125,7 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				var reportName = $"{Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}_for_Cake_{cakeVersion.Version}.md";
 				var reportPath = Path.Combine(context.TempFolder, reportName);
-				var markdownReportForCakeVersion = GenerateMarkdown(context, reportData.GetAuditedAddinsForCakeVersion(cakeVersion, false), cakeVersion, AddinType.Addin);
+				var markdownReportForCakeVersion = GenerateMarkdown(context, reportData.GetAddinsForCakeVersion(cakeVersion), cakeVersion, AddinType.Addin);
 				await File.WriteAllTextAsync(reportPath, markdownReportForCakeVersion, cancellationToken).ConfigureAwait(false);
 			}
 		}
@@ -138,6 +141,8 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			var filteredAddins = addins
 				.Where(addin => addin.Type == type)
+				.Where(addin => !addin.IsDeprecated)
+				.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
 				.ToArray();
 
 			var reportColumns = Constants.REPORT_COLUMNS
@@ -188,7 +193,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 
 			// Title
-			markdown.AppendLine("## DistinctPackages");
+			markdown.AppendLine("## Package");
 			markdown.AppendLine();
 
 			// Header row 1

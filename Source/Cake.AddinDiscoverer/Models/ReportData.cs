@@ -8,45 +8,27 @@ namespace Cake.AddinDiscoverer.Models
 	{
 		public IEnumerable<AddinMetadata> AllPackages { get; private set; }
 
-		public IEnumerable<AddinMetadata> DeprecatedPackages => AllPackages.Where(addin => addin.IsDeprecated);
-
-		public IEnumerable<AddinMetadata> AuditedPackages => AllPackages.Where(addin => !addin.IsDeprecated && string.IsNullOrEmpty(addin.AnalysisResult.Notes));
-
-		public IEnumerable<AddinMetadata> ExceptionsPackages => AllPackages.Where(addin => !addin.IsDeprecated && !string.IsNullOrEmpty(addin.AnalysisResult.Notes));
-
-		public IEnumerable<AddinMetadata> DistinctPackages => AllPackages.GroupBy(a => a.Name).Select(grp => grp.OrderByDescending(p => p.PublishedOn).First());
-
-		public IEnumerable<AddinMetadata> Addins => DistinctPackages.Where(a => a.Type == AddinType.Addin && !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
-
-		public IEnumerable<AddinMetadata> Recipes => DistinctPackages.Where(a => a.Type == AddinType.Recipe && !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
-
-		public IEnumerable<AddinMetadata> Modules => DistinctPackages.Where(a => a.Type == AddinType.Module && !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
-
-		public IEnumerable<AddinMetadata> Deprecated => DistinctPackages.Where(a => a.IsDeprecated);
-
-		public IEnumerable<AddinMetadata> Exceptions => DistinctPackages.Where(a => !a.IsDeprecated && !string.IsNullOrEmpty(a.AnalysisResult.Notes));
-
 		public ReportData(IEnumerable<AddinMetadata> packages)
 		{
 			AllPackages = packages;
 		}
 
 		/// <summary>
-		/// Returns audited DistinctPackages that were publicly available for download
+		/// Returns distinct packages that were publicly available for download
 		/// at the time the specified Cake version was the most recent version.
 		/// </summary>
 		/// <param name="cakeVersion">The desired Cake version.</param>
 		/// <returns>An enumeration of DistinctPackages.<returns>
-		public IEnumerable<AddinMetadata> GetAuditedAddinsForCakeVersion(CakeVersion cakeVersion, bool strict = false)
+		public IEnumerable<AddinMetadata> GetAddinsForCakeVersion(CakeVersion cakeVersion)
 		{
-			return AuditedPackages
+			return AllPackages
 				.GroupBy(addin => addin.Name)
-				.Select(group => MostRecentAddinVersion(group, cakeVersion, strict))
+				.Select(group => MostRecentAddinVersion(group, cakeVersion))
 				.Where(addin => addin != null); // this condition filters out packages that were not publicly avaiable
 		}
 
 		// Returns the most recent version of an addin that is compatible with a given version of Cake
-		private static AddinMetadata MostRecentAddinVersion(IEnumerable<AddinMetadata> addinVersions, CakeVersion cakeVersion = null, bool strict = false)
+		private static AddinMetadata MostRecentAddinVersion(IEnumerable<AddinMetadata> addinVersions, CakeVersion cakeVersion = null)
 		{
 			var cakeVersionZero = Constants.CAKE_VERSIONS.Single(cv => cv.Version == Constants.VERSION_ZERO);
 
@@ -58,7 +40,7 @@ namespace Cake.AddinDiscoverer.Models
 						var targetedCakeVersion = addinVersion.AnalysisResult?.GetCakeVersion() ?? cakeVersionZero;
 						var comparisonResult = targetedCakeVersion.CompareTo(cakeVersion);
 
-						return strict ? comparisonResult == 0 : comparisonResult <= 0;
+						return comparisonResult <= 0;
 					})
 					.OrderBy(addinVersion => addinVersion.IsPrerelease ? 1 : 0) // Stable versions are sorted first, prerelease versions sorted second)
 					.ThenByDescending(addinVersion => addinVersion.PublishedOn)

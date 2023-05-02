@@ -57,7 +57,7 @@ namespace Cake.AddinDiscoverer
 			typeof(GenerateMarkdownReportStep),
 
 			// Update the CSV file with statistics about the audit
-			//typeof(UpdateStatsCsvStep),
+			typeof(UpdateStatsCsvStep),
 
 			// Generate a graph to percentage of addins that meet best practices over time
 			//typeof(GenerateStatsGraphStep),

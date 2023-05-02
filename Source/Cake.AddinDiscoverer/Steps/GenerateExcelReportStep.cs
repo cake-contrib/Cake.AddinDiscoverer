@@ -26,6 +26,10 @@ namespace Cake.AddinDiscoverer.Steps
 			var latestCakeVersion = cakeVersionsForReport.Max();
 
 			var reportData = new ReportData(context.Addins);
+			var mostRecentAddins = reportData.GetAddinsForCakeVersion(latestCakeVersion);
+			var analizedAddins = mostRecentAddins.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
+			var exceptionAddins = mostRecentAddins.Where(a => !a.IsDeprecated && !string.IsNullOrEmpty(a.AnalysisResult.Notes));
+			var deprecatedAddins = mostRecentAddins.Where(a => a.IsDeprecated);
 
 			using (var excel = new ExcelPackage(new FileInfo(context.ExcelReportPath)))
 			{
@@ -36,17 +40,22 @@ namespace Cake.AddinDiscoverer.Steps
 				// One worksheet per version of Cake (reverse order so first tab in excel shows data for most recent version of Cake)
 				foreach (var cakeVersion in cakeVersionsForReport.OrderByDescending(v => v.Version))
 				{
-					GenerateExcelWorksheet(reportData.GetAuditedAddinsForCakeVersion(cakeVersion), cakeVersion, AddinType.Addin | AddinType.Module, $"Cake {cakeVersion.Version}", excel);
+					var addins = reportData.GetAddinsForCakeVersion(cakeVersion)
+						.Where(addin => !addin.IsDeprecated)
+						.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
+						.ToArray();
+
+					GenerateExcelWorksheet(addins, cakeVersion, AddinType.Addin | AddinType.Module, $"Cake {cakeVersion.Version}", excel);
 				}
 
 				// One worksheet for recipes
-				GenerateExcelWorksheet(reportData.AuditedPackages, latestCakeVersion, AddinType.Recipe, "Recipes", excel);
+				GenerateExcelWorksheet(analizedAddins, latestCakeVersion, AddinType.Recipe, "Recipes", excel);
 
 				// Exceptions report
-				GenerateExcelWorksheetWithNotes(reportData.ExceptionsPackages, "Exceptions", excel);
+				GenerateExcelWorksheetWithNotes(exceptionAddins, "Exceptions", excel);
 
 				// Deprecated report
-				GenerateExcelWorksheetWithNotes(reportData.DeprecatedPackages, "Deprecated", excel);
+				GenerateExcelWorksheetWithNotes(deprecatedAddins, "Deprecated", excel);
 
 				// Save the Excel file
 				await excel.SaveAsync(cancellationToken).ConfigureAwait(false);
