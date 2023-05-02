@@ -47,40 +47,40 @@ namespace Cake.AddinDiscoverer
 			// Check if addins are using Cake.Recipe
 			typeof(CheckUsingCakeRecipeStep),
 
-			// Generate an Excel spreadsheet with the result of the audit
-			typeof(GenerateExcelReportStep),
-
 			// Save the result of the analysis
 			typeof(SaveAnalysisStep),
+
+			// Generate an Excel spreadsheet with the result of the audit
+			typeof(GenerateExcelReportStep),
 
 			// Generate a markdown file with the result of the audit
 			typeof(GenerateMarkdownReportStep),
 
 			// Update the CSV file with statistics about the audit
-			typeof(UpdateStatsCsvStep),
+			//typeof(UpdateStatsCsvStep),
 
 			// Generate a graph to percentage of addins that meet best practices over time
-			typeof(GenerateStatsGraphStep),
+			//typeof(GenerateStatsGraphStep),
 
 			// Commit the artifacts (such as Excel and markdown reports, CSV, etc.) to the cake-contrib/home github repo
-			typeof(CommitToRepoStep),
+			//typeof(CommitToRepoStep),
 
 			// Create an issue to inform addin authors of the issues we discovered
-			typeof(CreateGithubIssueStep),
+			//typeof(CreateGithubIssueStep),
 
 			// Submit a pull request to fix the issue we discovered
-			typeof(SubmitGithubPullRequest),
+			//typeof(SubmitGithubPullRequest),
 
 			// Make sure the YAML files in the cake-build/website repo are up to date
 			// These files are used to generate the addins documentation published on Cake's web site
-			typeof(SynchronizeYamlStep),
+			//typeof(SynchronizeYamlStep),
 
 			// Update the addin references in the Cake.Recipe. Also, upgrade the version of Cake used to build
 			// Cake.Recipe IF AND ONLY IF all references have been updated to be compatible with the latest version
-			typeof(UpdateCakeRecipeStep),
+			//typeof(UpdateCakeRecipeStep),
 
 			// Get the list of people who contributed to Cake
-			typeof(GetContributorsStep)
+			//typeof(GetContributorsStep)
 		};
 
 		private readonly DiscoveryContext _context;
