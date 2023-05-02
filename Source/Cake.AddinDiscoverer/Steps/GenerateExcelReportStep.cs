@@ -33,20 +33,20 @@ namespace Cake.AddinDiscoverer.Steps
 				namedStyle.Style.Font.UnderLine = true;
 				namedStyle.Style.Font.Color.SetColor(Color.Blue);
 
-				// One worksheet per version of Cake
-				foreach (var cakeVersion in cakeVersionsForReport)
+				// One worksheet per version of Cake (reverse order so first tab in excel shows data for most recent version of Cake)
+				foreach (var cakeVersion in cakeVersionsForReport.OrderByDescending(v => v.Version))
 				{
 					GenerateExcelWorksheet(reportData.GetAuditedAddinsForCakeVersion(cakeVersion), cakeVersion, AddinType.Addin | AddinType.Module, $"Cake {cakeVersion.Version}", excel);
 				}
 
 				// One worksheet for recipes
-				GenerateExcelWorksheet(reportData.AuditedAddins, latestCakeVersion, AddinType.Recipe, "Recipes", excel);
+				GenerateExcelWorksheet(reportData.AuditedPackages, latestCakeVersion, AddinType.Recipe, "Recipes", excel);
 
 				// Exceptions report
-				GenerateExcelWorksheetWithNotes(reportData.ExceptionsAddins, "Exceptions", excel);
+				GenerateExcelWorksheetWithNotes(reportData.ExceptionsPackages, "Exceptions", excel);
 
 				// Deprecated report
-				GenerateExcelWorksheetWithNotes(reportData.DeprecatedAddins, "Deprecated", excel);
+				GenerateExcelWorksheetWithNotes(reportData.DeprecatedPackages, "Deprecated", excel);
 
 				// Save the Excel file
 				await excel.SaveAsync(cancellationToken).ConfigureAwait(false);
