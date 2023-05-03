@@ -166,7 +166,7 @@ namespace Cake.AddinDiscoverer.Steps
 				markdown.AppendLine("- The `Cake Core Version` and `Cake Common Version` columns  show the version referenced by a given addin");
 				markdown.AppendLine($"- The `Cake Core IsPrivate` and `Cake Common IsPrivate` columns indicate whether the references are marked as private. In other words, we are looking for references with the `PrivateAssets=All` attribute like in this example: `<PackageReference Include=\"Cake.Common\" Version=\"{cakeVersion.Version}\" PrivateAssets=\"All\" />`");
 
-				var targets = $"- The `Framework` column shows the .NET framework(s) targeted by a given addin. DistinctPackages should target {string.Join(" and ", cakeVersion.RequiredFrameworks)} at a minimum";
+				var targets = $"- The `Framework` column shows the .NET framework(s) targeted by a given addin. Addins should target {string.Join(" and ", cakeVersion.RequiredFrameworks)} at a minimum";
 				if (cakeVersion.OptionalFrameworks.Any()) targets += $", and they can also optionally multi-target {string.Join(" or ", cakeVersion.OptionalFrameworks)}";
 
 				markdown.AppendLine(targets);

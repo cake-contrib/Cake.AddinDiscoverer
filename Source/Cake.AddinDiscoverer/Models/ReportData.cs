@@ -18,7 +18,7 @@ namespace Cake.AddinDiscoverer.Models
 		/// at the time the specified Cake version was the most recent version.
 		/// </summary>
 		/// <param name="cakeVersion">The desired Cake version.</param>
-		/// <returns>An enumeration of DistinctPackages.<returns>
+		/// <returns>An enumeration of Addins.<returns>
 		public IEnumerable<AddinMetadata> GetAddinsForCakeVersion(CakeVersion cakeVersion)
 		{
 			return AllPackages
@@ -79,7 +79,7 @@ namespace Cake.AddinDiscoverer.Models
 	//public ReportData GetAddinDataForReports()
 	//{
 	//	var cakeVersionsForReport = Constants.CAKE_VERSIONS.Where(cakeVersion => cakeVersion.Version != Constants.VERSION_ZERO).ToArray();
-	//	var allAddins = AddinsWithCakeVersionSupported(DistinctPackages);
+	//	var allAddins = AddinsWithCakeVersionSupported(addins);
 	//	var distinctCount = allAddins.Length;
 
 	//	var deprecated = allAddins.Where(grp => grp.MetadataForCakeVersion.Any(m => m.Metadata?.IsDeprecated ?? false)).ToArray();
