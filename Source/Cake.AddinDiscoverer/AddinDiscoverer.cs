@@ -60,10 +60,10 @@ namespace Cake.AddinDiscoverer
 			typeof(UpdateStatsCsvStep),
 
 			// Generate a graph to percentage of addins that meet best practices over time
-			//typeof(GenerateStatsGraphStep),
+			typeof(GenerateStatsGraphStep),
 
 			// Commit the artifacts (such as Excel and markdown reports, CSV, etc.) to the cake-contrib/home github repo
-			//typeof(CommitToRepoStep),
+			typeof(CommitToRepoStep),
 
 			// Create an issue to inform addin authors of the issues we discovered
 			//typeof(CreateGithubIssueStep),

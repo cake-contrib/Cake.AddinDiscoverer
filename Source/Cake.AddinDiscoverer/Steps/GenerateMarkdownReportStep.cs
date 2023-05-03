@@ -14,7 +14,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class GenerateMarkdownReportStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.MarkdownReportToFile || context.Options.MarkdownReportToRepo;
+		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.GenerateMarkdownReport;
 
 		public string GetDescription(DiscoveryContext context) => "Generate the markdown report";
 

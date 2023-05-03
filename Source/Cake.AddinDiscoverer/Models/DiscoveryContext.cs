@@ -62,5 +62,7 @@ namespace Cake.AddinDiscoverer.Models
 		public string StatsSaveLocation => Path.Combine(this.TempFolder, "Audit_stats.csv");
 
 		public string GraphSaveLocation => Path.Combine(this.TempFolder, "Audit_progress.png");
+
+		public string AnalysisResultSaveLocation => Path.Combine(this.TempFolder, "Analysis_result.json");
 	}
 }

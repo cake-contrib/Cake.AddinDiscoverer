@@ -1,12 +1,9 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
-using Cake.Incubator.StringExtensions;
 using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,37 +27,6 @@ namespace Cake.AddinDiscoverer.Steps
 			var inclusionListContent = await GetResourceFileContentAsync(context, "inclusionlist.json").ConfigureAwait(false);
 			var inclusionListAsJObject = JObject.Parse(inclusionListContent);
 			context.IncludedAddins = inclusionListAsJObject.Property("packages")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
-
-			// Load the result of previous analysis
-			var previousAnalysisContent = await GetResourceFileContentAsync(context, "Analysis_result.json").ConfigureAwait(false);
-			if (!string.IsNullOrEmpty(previousAnalysisContent))
-			{
-				context.Addins = JsonSerializer.Deserialize<AddinMetadata[]>(previousAnalysisContent, default(JsonSerializerOptions));
-			}
-
-			// Load individual analysis results (which are present if the previous analysis was interrupted)
-			var deserializedAddins = Directory.GetFiles(context.AnalysisFolder, "*.json")
-				.Select(fileName =>
-				{
-					using FileStream fileStream = File.OpenRead(fileName);
-					var deserializedAddin = JsonSerializer.Deserialize<AddinMetadata>(fileStream);
-					return deserializedAddin;
-				})
-				.ToArray();
-
-			if (deserializedAddins.Length > 0)
-			{
-				var addinsList = context.Addins.ToList();
-				addinsList.RemoveAll(addin => deserializedAddins.Any(d => d.Name.EqualsIgnoreCase(addin.Name) && d.NuGetPackageVersion == addin.NuGetPackageVersion));
-				addinsList.AddRange(deserializedAddins);
-				context.Addins = addinsList.ToArray();
-			}
-
-			// Filter the addins if necessary
-			if (!string.IsNullOrEmpty(context.Options.AddinName))
-			{
-				context.Addins = context.Addins.Where(addin => addin.Name.EqualsIgnoreCase(context.Options.AddinName)).ToArray();
-			}
 		}
 
 		private static Task<string> GetResourceFileContentAsync(DiscoveryContext context, string resourceName)

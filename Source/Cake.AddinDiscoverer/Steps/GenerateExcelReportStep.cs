@@ -14,7 +14,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class GenerateExcelReportStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo;
+		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.GenerateExcelReport;
 
 		public string GetDescription(DiscoveryContext context) => "Generate the excel report";
 
