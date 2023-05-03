@@ -3,6 +3,7 @@ using Cake.AddinDiscoverer.Utilities;
 using CsvHelper;
 using OxyPlot;
 using OxyPlot.Axes;
+using OxyPlot.Legends;
 using OxyPlot.Series;
 using OxyPlot.WindowsForms;
 using System;
@@ -38,14 +39,21 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// ===========================================================================
 			// STEP 2: Prepare the graph
-			var graphPath = System.IO.Path.Combine(context.TempFolder, "Audit_progress.png");
+			var graphPath = Path.Combine(context.TempFolder, "Audit_progress.png");
 
 			var plotModel = new PlotModel
 			{
 				Title = "Addins compatibility over time",
-				Subtitle = "Percentage of all known addins compatible with a given version of Cake",
+				Subtitle = "Percentage of addins compatible with a given version of Cake",
 				Background = OxyColors.White
 			};
+
+			plotModel.Legends.Add(new Legend()
+			{
+				LegendTitle = "Cake Version",
+				LegendPosition = LegendPosition.TopLeft,
+			});
+
 			var startTime = csvRecords.Min(r => r.Date);
 			var minDate = DateTimeAxis.ToDouble(startTime);
 			var maxDate = minDate + (DateTime.UtcNow - startTime).TotalDays + 2;
@@ -77,7 +85,7 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				var series = new LineSeries()
 				{
-					Title = $"Cake {grp.Key}"
+					Title = grp.Key
 				};
 				foreach (var statsSummary in grp)
 				{
