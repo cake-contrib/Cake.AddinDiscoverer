@@ -80,7 +80,7 @@ namespace Cake.AddinDiscoverer
 			//typeof(UpdateCakeRecipeStep),
 
 			// Get the list of people who contributed to Cake
-			//typeof(GetContributorsStep)
+			typeof(GetContributorsStep)
 		};
 
 		private readonly DiscoveryContext _context;
