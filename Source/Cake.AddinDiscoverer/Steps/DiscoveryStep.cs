@@ -59,7 +59,7 @@ namespace Cake.AddinDiscoverer.Steps
 					async packageName =>
 					{
 						var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, packageName).ConfigureAwait(false);
-						var addinMetadata = await ConvertPackageMetadataToAddinMetadataAsync(packageMetadata).ConfigureAwait(false);
+						var addinMetadata = await ConvertPackageMetadataToAddinMetadataAsync(packageMetadata, packageName).ConfigureAwait(false);
 						return addinMetadata;
 					},
 					Constants.MAX_NUGET_CONCURENCY)
@@ -87,7 +87,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ToArray();
 		}
 
-		private static Task<AddinMetadata[]> ConvertPackageMetadataToAddinMetadataAsync(IEnumerable<IPackageSearchMetadata> packageMetadata)
+		private static Task<AddinMetadata[]> ConvertPackageMetadataToAddinMetadataAsync(IEnumerable<IPackageSearchMetadata> packageMetadata, string packageName)
 		{
 			return packageMetadata
 				.ForEachAsync(
@@ -120,8 +120,22 @@ namespace Cake.AddinDiscoverer.Steps
 							Description = package.Description,
 							ProjectUrl = package.ProjectUrl,
 							IconUrl = package.IconUrl,
-							Name = package.Identity.Id,
-							NuGetPackageUrl = new Uri($"https://www.nuget.org/packages/{package.Identity.Id}/"),
+
+							// It's important to use the same name for all versions of a given package rather than
+							// rely on the package.Identity.Id because the casing of the Id could change from one
+							// version to the next. I am aware of two cases where the Id of the package is not
+							// constant between versions and in both cases the casing changed between versions.
+							// Cake.Aws.ElasticBeanstalk:
+							// - The Id was Cake.Aws.ElasticBeanstalk for version 1.0.0
+							// - The Id was Cake.AWS.ElasticBeanstalk from version 1.1.0 until 1.3.1
+							// - The Id was Cake.Aws.ElasticBeanstalk from version 1.3.2 until 1.3.3
+							// - The Id is now Cake.AWS.ElasticBeanstalk
+							// Cake.GitHubUtility:
+							// - The Id was Cake.GithubUtility from version 0.1.0 until 0.3.0
+							// - The Id is now Cake.GitHubUtility
+							Name = packageName,
+
+							NuGetPackageUrl = new Uri($"https://www.nuget.org/packages/{packageName}/"),
 							NuGetPackageOwners = packageOwners,
 							NuGetPackageVersion = package.Identity.Version.ToNormalizedString(),
 							IsDeprecated = false,

@@ -1,5 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
+using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
@@ -43,13 +44,13 @@ namespace Cake.AddinDiscoverer.Steps
 			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "extensions").ConfigureAwait(false);
 			var yamlFiles = directoryContent
 				.Where(file => file.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-				.Where(file => string.IsNullOrEmpty(context.Options.AddinName) || Path.GetFileNameWithoutExtension(file.Name) == context.Options.AddinName)
+				.Where(file => string.IsNullOrEmpty(context.Options.AddinName) || Path.GetFileNameWithoutExtension(file.Name).EqualsIgnoreCase(context.Options.AddinName))
 				.ToArray();
 
 			var yamlFilesToBeDeleted = yamlFiles
 				.Where(f =>
 				{
-					var addin = context.Addins.FirstOrDefault(a => a.Name == Path.GetFileNameWithoutExtension(f.Name));
+					var addin = context.Addins.FirstOrDefault(a => a.Name.EqualsIgnoreCase(Path.GetFileNameWithoutExtension(f.Name)));
 					return addin == null || ShouldDeleteYamlFile(addin);
 				})
 				.OrderBy(f => f.Name)
@@ -58,7 +59,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			var addinsWithContent = await context.Addins
 				.Where(ShouldUpdateOrCreateYamlFile)
-				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
+				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name).EqualsIgnoreCase(addin.Name)))
 				.ForEachAsync<AddinMetadata, (AddinMetadata Addin, string CurrentContent, string NewContent)>(
 					async addin =>
 					{
@@ -76,7 +77,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			var addinsToBeCreated = context.Addins
 				.Where(ShouldUpdateOrCreateYamlFile)
-				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
+				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name).EqualsIgnoreCase(addin.Name)))
 				.OrderBy(addin => addin.Name)
 				.Select<AddinMetadata, (AddinMetadata Addin, string CurrentContent, string NewContent)>(addin => (addin, string.Empty, GenerateYamlFile(context, addin)))
 				.Where(addin => !string.IsNullOrEmpty(addin.NewContent))
