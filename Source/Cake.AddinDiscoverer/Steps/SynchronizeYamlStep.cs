@@ -27,6 +27,11 @@ namespace Cake.AddinDiscoverer.Steps
 			// Ensure the fork is up-to-date
 			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 
+			// The content of the YAML files is based on the most recent version of the addins
+			var latestCakeVersion = Constants.CAKE_VERSIONS.OrderByDescending(cv => cv.Version).First();
+			var reportData = new ReportData(context.Addins);
+			var addins = reportData.GetAddinsForCakeVersion(latestCakeVersion);
+
 			// Local functions that indicate if the YAML file for a given addin should be created/updated/deleted
 			bool ShouldDeleteYamlFile(AddinMetadata addin)
 			{
@@ -50,14 +55,14 @@ namespace Cake.AddinDiscoverer.Steps
 			var yamlFilesToBeDeleted = yamlFiles
 				.Where(f =>
 				{
-					var addin = context.Addins.FirstOrDefault(a => a.Name.EqualsIgnoreCase(Path.GetFileNameWithoutExtension(f.Name)));
+					var addin = addins.FirstOrDefault(a => a.Name.EqualsIgnoreCase(Path.GetFileNameWithoutExtension(f.Name)));
 					return addin == null || ShouldDeleteYamlFile(addin);
 				})
 				.OrderBy(f => f.Name)
 				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
-			var addinsWithContent = await context.Addins
+			var addinsWithContent = await addins
 				.Where(ShouldUpdateOrCreateYamlFile)
 				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name).EqualsIgnoreCase(addin.Name)))
 				.ForEachAsync<AddinMetadata, (AddinMetadata Addin, string CurrentContent, string NewContent)>(
@@ -75,7 +80,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
-			var addinsToBeCreated = context.Addins
+			var addinsToBeCreated = addins
 				.Where(ShouldUpdateOrCreateYamlFile)
 				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name).EqualsIgnoreCase(addin.Name)))
 				.OrderBy(addin => addin.Name)
