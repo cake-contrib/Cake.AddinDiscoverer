@@ -98,7 +98,7 @@ namespace Cake.AddinDiscoverer.Models
 		{
 			if (CakeCoreVersion == null) return CakeCommonVersion;
 			else if (CakeCommonVersion == null) return CakeCoreVersion;
-			else return CakeCoreVersion >= CakeCommonVersion ? CakeCoreVersion : CakeCommonVersion;
+			else return CakeCoreVersion < CakeCommonVersion ? CakeCoreVersion : CakeCommonVersion; // Return the lowest version. This only matters when an addin targets different versions, which would be extremely weird!
 		}
 
 		/// <summary>
