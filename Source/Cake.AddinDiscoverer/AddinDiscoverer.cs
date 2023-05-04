@@ -73,7 +73,7 @@ namespace Cake.AddinDiscoverer
 
 			// Make sure the YAML files in the cake-build/website repo are up to date
 			// These files are used to generate the addins documentation published on Cake's web site
-			//typeof(SynchronizeYamlStep),
+			typeof(SynchronizeYamlStep),
 
 			// Update the addin references in the Cake.Recipe. Also, upgrade the version of Cake used to build
 			// Cake.Recipe IF AND ONLY IF all references have been updated to be compatible with the latest version
