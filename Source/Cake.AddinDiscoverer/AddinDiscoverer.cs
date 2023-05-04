@@ -29,6 +29,9 @@ namespace Cake.AddinDiscoverer
 			// Download resource files (such as exclusion list, inclusion list and previous analysis)
 			typeof(GetResourceFiles),
 
+			// Load the result of previous analysis
+			typeof(LoadPreviousAnalysisStep),
+
 			// Discover all existing Cake addins on NuGet
 			typeof(DiscoveryStep),
 
