@@ -17,7 +17,7 @@ namespace Cake.AddinDiscoverer.Steps
 	internal class GetGithubMetadataStep : IStep
 	{
 		// The pre condition should be the same as the steps that use this information. For instance: CheckUsingCakeRecipeStep.
-		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && (context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo);
+		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && context.Options.GenerateExcelReport;
 
 		public string GetDescription(DiscoveryContext context) => "Get metadata (such as stats, content, etc.) from Github";
 
