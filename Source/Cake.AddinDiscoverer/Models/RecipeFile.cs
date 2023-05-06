@@ -67,9 +67,9 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string GetContentForNextCake()
 		{
-			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, r => (r as AddinReference).LatestVersionForNextCake);
+			var updatedContent = GetContent(Content, AddinReferenceRegex, AddinReferences, r => (r as AddinReference).LatestVersionForNextCake ?? (r as AddinReference).LatestVersionForCurrentCake);
 			updatedContent = GetContent(updatedContent, ToolReferenceRegex, ToolReferences, r => (r as ToolReference).LatestVersion);
-			updatedContent = GetContent(updatedContent, LoadReferenceRegex, LoadReferences, r => (r as LoadReference).LatestVersionForNextCake);
+			updatedContent = GetContent(updatedContent, LoadReferenceRegex, LoadReferences, r => (r as LoadReference).LatestVersionForNextCake ?? (r as LoadReference).LatestVersionForCurrentCake);
 			return updatedContent;
 		}
 

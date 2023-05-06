@@ -325,15 +325,27 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 
 			// Submit a PR when all addins have been upgraded to next version of Cake
-			var totalReferencesCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count());
-			var availableForNextCakeVersionCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count(r => r.UpdatedForNextCake));
+			var totalReferencesCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile =>
+			{
+				var addinReferences = recipeFile.AddinReferences.Count();
+				var recipeReferences = recipeFile.LoadReferences.Count();
+				return addinReferences + recipeReferences;
+			});
+			var availableForNextCakeVersionCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile =>
+			{
+				var addinReferences = recipeFile.AddinReferences.Count(r => r.UpdatedForNextCake || r.SkippedNextCake);
+				var recipeReferences = recipeFile.LoadReferences.Count(r => r.UpdatedForNextCake || r.SkippedNextCake);
+				return addinReferences + recipeReferences;
+			});
 
 			if (availableForNextCakeVersionCount == totalReferencesCount)
 			{
 				var yamlVersionConfigContents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.CAKE_VERSION_YML_PATH).ConfigureAwait(false);
-				var deserializer = new YamlDotNet.Serialization.Deserializer();
+				var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+					.WithTypeConverter(new SemVersionConverter())
+					.Build();
 				var yamlConfig = deserializer.Deserialize<CakeVersionYamlConfig>(yamlVersionConfigContents[0].Content);
-				yamlConfig.TargetCakeVersion = nextCakeVersion.Version.ToString(3);
+				yamlConfig.TargetCakeVersion = nextCakeVersion.Version;
 
 				// Commit changes to a new branch and submit PR
 				var pullRequestTitle = $"Upgrade to Cake {nextCakeVersion.Version.ToString(3)}";

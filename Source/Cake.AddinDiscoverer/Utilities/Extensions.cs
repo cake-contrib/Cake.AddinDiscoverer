@@ -365,7 +365,9 @@ namespace Cake.AddinDiscoverer
 			var sb = new StringBuilder();
 			using (var sw = new StringWriter(sb))
 			{
-				var serializer = new YamlDotNet.Serialization.Serializer();
+				var serializer = new YamlDotNet.Serialization.SerializerBuilder()
+					.WithTypeConverter(new SemVersionConverter())
+					.Build();
 				serializer.Serialize(sw, obj);
 			}
 
