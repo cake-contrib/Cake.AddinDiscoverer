@@ -30,7 +30,7 @@ namespace Cake.AddinDiscoverer.Steps
 			// The content of the YAML files is based on the most recent version of the addins
 			var latestCakeVersion = Constants.CAKE_VERSIONS.OrderByDescending(cv => cv.Version).First();
 			var reportData = new ReportData(context.Addins);
-			var addins = reportData.GetAddinsForCakeVersion(latestCakeVersion);
+			var addins = reportData.GetAddinsForCakeVersion(latestCakeVersion, false);
 
 			// Local functions that indicate if the YAML file for a given addin should be created/updated/deleted
 			bool ShouldDeleteYamlFile(AddinMetadata addin)

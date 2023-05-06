@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -138,7 +139,7 @@ namespace Cake.AddinDiscoverer.Models
 				.ToArray();
 		}
 
-		private static string GetContent(string content, Regex regex, IEnumerable<CakeReference> references, Func<CakeReference, string> getUpdatedVersion)
+		private static string GetContent(string content, Regex regex, IEnumerable<CakeReference> references, Func<CakeReference, SemVersion> getUpdatedVersion)
 		{
 			// Replacing Windows CR+LF with Unix LF is important because '$' in our regex only works with Unix line endings
 			var unixFormat = content.Replace("\r\n", "\n");
@@ -159,7 +160,7 @@ namespace Cake.AddinDiscoverer.Models
 				if (!referencedAddin.Any()) return match.Groups[0].Value;
 
 				var updatedVersion = getUpdatedVersion(referencedAddin.First());
-				if (string.IsNullOrEmpty(updatedVersion)) return match.Groups[0].Value;
+				if (updatedVersion == null) return match.Groups[0].Value;
 				if (referencedVersion == updatedVersion) return match.Groups[0].Value;
 
 				var newContent = new StringBuilder();

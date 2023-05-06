@@ -38,7 +38,7 @@ namespace Cake.AddinDiscoverer.Steps
 				foreach (var cakeVersion in cakeVersionsForReport)
 				{
 					var addins = reportData
-						.GetAddinsForCakeVersion(cakeVersion)
+						.GetAddinsForCakeVersion(cakeVersion, false)
 						.Where(a => a.Type.IsFlagSet(AddinType.Addin | AddinType.Module))
 						.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
 

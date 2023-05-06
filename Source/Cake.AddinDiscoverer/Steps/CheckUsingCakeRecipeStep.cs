@@ -61,9 +61,9 @@ namespace Cake.AddinDiscoverer.Steps
 										if (cakeRecipeReference != null)
 										{
 											addin.AnalysisResult.CakeRecipeIsUsed = true;
-											addin.AnalysisResult.CakeRecipeVersion = string.IsNullOrEmpty(cakeRecipeReference.ReferencedVersion) ? null : SemVersion.Parse(cakeRecipeReference.ReferencedVersion);
+											addin.AnalysisResult.CakeRecipeVersion = cakeRecipeReference.ReferencedVersion;
 											addin.AnalysisResult.CakeRecipeIsPrerelease = cakeRecipeReference.Prerelease;
-											addin.AnalysisResult.CakeRecipeIsLatest = string.IsNullOrEmpty(cakeRecipeReference.ReferencedVersion) || cakeRecipeReference.ReferencedVersion == latestCakeRecipeVersion;
+											addin.AnalysisResult.CakeRecipeIsLatest = cakeRecipeReference.ReferencedVersion == null || cakeRecipeReference.ReferencedVersion == latestCakeRecipeVersion;
 										}
 									}
 

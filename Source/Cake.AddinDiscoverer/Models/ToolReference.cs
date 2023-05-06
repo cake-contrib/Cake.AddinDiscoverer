@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Utilities;
 using System.Diagnostics;
 
 namespace Cake.AddinDiscoverer.Models
@@ -5,6 +6,6 @@ namespace Cake.AddinDiscoverer.Models
 	[DebuggerDisplay("{Name} {ReferencedVersion}")]
 	internal class ToolReference : CakeReference
 	{
-		public string LatestVersion { get; set; }
+		public SemVersion LatestVersion { get; set; }
 	}
 }

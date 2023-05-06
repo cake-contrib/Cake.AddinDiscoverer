@@ -25,7 +25,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var latestCakeVersion = cakeVersionsForReport.Max();
 
 			var reportData = new ReportData(context.Addins);
-			var addins = reportData.GetAddinsForCakeVersion(latestCakeVersion);
+			var addins = reportData.GetAddinsForCakeVersion(latestCakeVersion, false);
 			var analizedAddins = addins.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
 			var exceptionAddins = addins.Where(a => !a.IsDeprecated && !string.IsNullOrEmpty(a.AnalysisResult.Notes));
 			var deprecatedAddins = addins.Where(a => a.IsDeprecated);
@@ -117,7 +117,7 @@ namespace Cake.AddinDiscoverer.Steps
 			// Generate the markdown report for nuget packages containing recipes
 			var recipesReportName = $"{Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}_for_recipes.md";
 			var recipesReportPath = Path.Combine(context.TempFolder, recipesReportName);
-			var markdownReportForRecipes = GenerateMarkdown(context, reportData.GetAddinsForCakeVersion(latestCakeVersion), latestCakeVersion, AddinType.Recipe);
+			var markdownReportForRecipes = GenerateMarkdown(context, reportData.GetAddinsForCakeVersion(latestCakeVersion, false), latestCakeVersion, AddinType.Recipe);
 			await File.WriteAllTextAsync(recipesReportPath, markdownReportForRecipes).ConfigureAwait(false);
 
 			// Generate the markdown report for each version of Cake
@@ -125,7 +125,7 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				var reportName = $"{Path.GetFileNameWithoutExtension(context.MarkdownReportPath)}_for_Cake_{cakeVersion.Version}.md";
 				var reportPath = Path.Combine(context.TempFolder, reportName);
-				var markdownReportForCakeVersion = GenerateMarkdown(context, reportData.GetAddinsForCakeVersion(cakeVersion), cakeVersion, AddinType.Addin);
+				var markdownReportForCakeVersion = GenerateMarkdown(context, reportData.GetAddinsForCakeVersion(cakeVersion, false), cakeVersion, AddinType.Addin);
 				await File.WriteAllTextAsync(reportPath, markdownReportForCakeVersion, cancellationToken).ConfigureAwait(false);
 			}
 		}
