@@ -95,18 +95,18 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (File.Exists(context.AnalysisResultSaveLocation))
 			{
-				var graphBlob = new NewBlob
+				var analysisResultBlob = new NewBlob
 				{
-					Encoding = EncodingType.Base64,
+					Encoding = EncodingType.Utf8,
 					Content = await File.ReadAllTextAsync(context.AnalysisResultSaveLocation).ConfigureAwait(false)
 				};
-				var graphBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, graphBlob).ConfigureAwait(false);
+				var analysisResultBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, analysisResultBlob).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
 				{
 					Path = Path.GetFileName(context.AnalysisResultSaveLocation),
 					Mode = Constants.FILE_MODE,
 					Type = TreeType.Blob,
-					Sha = graphBlobRef.Sha
+					Sha = analysisResultBlobRef.Sha
 				});
 			}
 
