@@ -103,7 +103,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (latestCakeVersion != null && !addins.ContainsKey(latestCakeVersion)) addins.Add(latestCakeVersion, reportData.GetAddinsForCakeVersion(latestCakeVersion, true));
 
 			// Local functions that indicates if an addin corresponds to the reference
-			bool AddinIsEqualToReference(AddinMetadata addin, AddinReference addinReference)
+			static bool AddinIsEqualToReference(AddinMetadata addin, AddinReference addinReference)
 			{
 				return addin.Name.EqualsIgnoreCase(addinReference.Name) && !addin.IsPrerelease;
 			}

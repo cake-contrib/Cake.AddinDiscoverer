@@ -144,9 +144,7 @@ namespace Cake.AddinDiscoverer
 
 		public static async Task<Repository> RefreshFork(this IGitHubClient githubClient, Repository fork)
 		{
-			var upstream = fork.Parent;
-			if (upstream == null) throw new Exception("This repository is not a fork");
-
+			var upstream = fork.Parent ?? throw new Exception("This repository is not a fork");
 			var compareResult = await githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}").ConfigureAwait(false);
 			if (compareResult.BehindBy > 0)
 			{

@@ -15,7 +15,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			return SemVersion.Parse(versionAsString);
 		}
 
-		public void WriteYaml(IEmitter emitter, object? value, Type type)
+		public void WriteYaml(IEmitter emitter, object value, Type type)
 		{
 			var semVersion = (SemVersion)value;
 			emitter.Emit(new Scalar(semVersion.ToString(3)));
