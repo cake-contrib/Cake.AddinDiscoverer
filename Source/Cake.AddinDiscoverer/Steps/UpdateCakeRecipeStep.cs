@@ -285,7 +285,7 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						if (addinReference.SkippedNextCake)
 						{
-							issueBody.AppendLine($"    - [x] {addinReference.Name} skipped support for Cake {nextCakeVersion.Version}. Therefore this reference will no be upgraded.");
+							issueBody.AppendLine($"    - [x] {addinReference.Name} skipped support for Cake {nextCakeVersion.Version}. Therefore this reference will not be upgraded.");
 						}
 						else
 						{
