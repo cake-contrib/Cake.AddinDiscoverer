@@ -69,10 +69,10 @@ namespace Cake.AddinDiscoverer
 			typeof(CommitToRepoStep),
 
 			// Create an issue to inform addin authors of the issues we discovered
-			//typeof(CreateGithubIssueStep),
+			typeof(CreateGithubIssueStep),
 
 			// Submit a pull request to fix the issue we discovered
-			//typeof(SubmitGithubPullRequest),
+			typeof(SubmitGithubPullRequest),
 
 			// Make sure the YAML files in the cake-build/website repo are up to date
 			// These files are used to generate the addins documentation published on Cake's web site
