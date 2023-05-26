@@ -1,8 +1,10 @@
 using Cake.AddinDiscoverer.Utilities;
 using System;
+using System.Diagnostics;
 
 namespace Cake.AddinDiscoverer.Models
 {
+	[DebuggerDisplay("Cake {Version.ToString()}")]
 	internal class CakeVersion : IComparable<CakeVersion>, IComparable
 	{
 		public SemVersion Version { get; set; }

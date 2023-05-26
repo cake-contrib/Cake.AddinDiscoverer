@@ -42,6 +42,12 @@ namespace Cake.AddinDiscoverer.Steps
 				await Task.Delay(500).ConfigureAwait(false);
 			}
 
+			if (!Directory.Exists(context.AnalysisFolder))
+			{
+				Directory.CreateDirectory(context.AnalysisFolder);
+				await Task.Delay(500).ConfigureAwait(false);
+			}
+
 			if (File.Exists(context.ExcelReportPath)) File.Delete(context.ExcelReportPath);
 			if (File.Exists(context.MarkdownReportPath)) File.Delete(context.MarkdownReportPath);
 			if (File.Exists(context.StatsSaveLocation)) File.Delete(context.StatsSaveLocation);

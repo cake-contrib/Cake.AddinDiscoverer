@@ -1,5 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
+using Cake.Incubator.StringExtensions;
 using Newtonsoft.Json.Linq;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
@@ -29,7 +30,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static async Task<SemVersion> FindCakeVersionUsedByRecipe(DiscoveryContext context)
 		{
-			// Try to get "CakeVersion" from Cake.Recipe.csproj
+			// Try to get Cake version from cake-version.yml
 			var cakeVersion = await FindCakeVersionUsedByRecipeFromCakeVersionYaml(context).ConfigureAwait(false);
 
 			// Fallback on dotnet-tools.json
@@ -92,6 +93,21 @@ namespace Cake.AddinDiscoverer.Steps
 			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, "Source/Cake.Recipe/Content").ConfigureAwait(false);
 			var cakeFiles = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.File) && c.Name.EndsWith(".cake", StringComparison.OrdinalIgnoreCase));
 
+			var reportData = new ReportData(context.Addins);
+			var addins = new Dictionary<CakeVersion, IEnumerable<AddinMetadata>>
+			{
+				{ currentCakeVersion, reportData.GetAddinsForCakeVersion(currentCakeVersion, true) }
+			};
+
+			if (nextCakeVersion != null && !addins.ContainsKey(nextCakeVersion)) addins.Add(nextCakeVersion, reportData.GetAddinsForCakeVersion(nextCakeVersion, true));
+			if (latestCakeVersion != null && !addins.ContainsKey(latestCakeVersion)) addins.Add(latestCakeVersion, reportData.GetAddinsForCakeVersion(latestCakeVersion, true));
+
+			// Local functions that indicates if an addin corresponds to the reference
+			static bool AddinIsEqualToReference(AddinMetadata addin, AddinReference addinReference)
+			{
+				return addin.Name.EqualsIgnoreCase(addinReference.Name) && !addin.IsPrerelease;
+			}
+
 			var recipeFiles = await cakeFiles
 				.ForEachAsync(
 					async cakeFile =>
@@ -107,45 +123,36 @@ namespace Cake.AddinDiscoverer.Steps
 
 						foreach (var addinReference in recipeFile.AddinReferences)
 						{
-							addinReference.LatestVersionForCurrentCake = context.Addins.SingleOrDefault(addin =>
-							{
-								return addin.Name.Equals(addinReference.Name, StringComparison.OrdinalIgnoreCase) &&
-									!addin.IsPrerelease &&
-									(currentCakeVersion == null || (addin.AnalysisResult.CakeCoreVersion.IsUpToDate(currentCakeVersion.Version) && addin.AnalysisResult.CakeCommonVersion.IsUpToDate(currentCakeVersion.Version))) &&
-									(nextCakeVersion == null || !(addin.AnalysisResult.CakeCoreVersion.IsUpToDate(nextCakeVersion.Version) && addin.AnalysisResult.CakeCommonVersion.IsUpToDate(nextCakeVersion.Version)));
-							})?.NuGetPackageVersion;
+							addinReference.LatestVersionForCurrentCake = addins[currentCakeVersion]
+								.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
+								.NuGetPackageVersion;
 
-							addinReference.LatestVersionForNextCake = context.Addins.SingleOrDefault(addin =>
+							if (nextCakeVersion != null)
 							{
-								return addin.Name.Equals(addinReference.Name, StringComparison.OrdinalIgnoreCase) &&
-									!addin.IsPrerelease &&
-									(nextCakeVersion != null && (addin.AnalysisResult.CakeCoreVersion.IsUpToDate(nextCakeVersion.Version) && addin.AnalysisResult.CakeCommonVersion.IsUpToDate(nextCakeVersion.Version)));
-							})?.NuGetPackageVersion;
+								addinReference.LatestVersionForNextCake = addins[nextCakeVersion]
+									.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
+									.NuGetPackageVersion;
+							}
+
+							if (latestCakeVersion != null)
+							{
+								addinReference.LatestVersionForLatestCake = addins[latestCakeVersion]
+									.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
+									.NuGetPackageVersion;
+							}
 						}
 
 						foreach (var loadReference in recipeFile.LoadReferences)
 						{
-							var referencedPackage = context.Addins.SingleOrDefault(addin =>
-							{
-								return addin.Name.Equals(loadReference.Name, StringComparison.OrdinalIgnoreCase) &&
-									!addin.IsPrerelease &&
-									addin.CakeVersionYaml != null &&
-									(currentCakeVersion == null || addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(currentCakeVersion.Version)) &&
-									(nextCakeVersion == null || !addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(nextCakeVersion.Version));
-							});
-
-							referencedPackage ??= context.Addins.SingleOrDefault(addin =>
-							{
-								return addin.Name.Equals(loadReference.Name, StringComparison.OrdinalIgnoreCase) &&
-									!addin.IsPrerelease &&
-									addin.CakeVersionYaml != null &&
-									(latestCakeVersion != null && addin.CakeVersionYaml.TargetCakeVersion.IsUpToDate(latestCakeVersion.Version));
-							});
+							var referencedPackage = addins[currentCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
+							referencedPackage ??= addins[nextCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
+							referencedPackage ??= addins[latestCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
 
 							if (referencedPackage != null)
 							{
 								loadReference.LatestVersionForCurrentCake = referencedPackage.NuGetPackageVersion;
 								loadReference.LatestVersionForNextCake = referencedPackage.NuGetPackageVersion;
+								loadReference.LatestVersionForLatestCake = referencedPackage.NuGetPackageVersion;
 							}
 						}
 
@@ -159,11 +166,13 @@ namespace Cake.AddinDiscoverer.Steps
 								{
 									toolReference.LatestVersion = mostRecentPackageMetadata.Identity.Version.ToNormalizedString();
 								}
-							}, Constants.MAX_NUGET_CONCURENCY)
+							},
+							Constants.MAX_NUGET_CONCURENCY)
 						.ConfigureAwait(false);
 
 						return recipeFile;
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			return recipeFiles;
@@ -174,15 +183,15 @@ namespace Cake.AddinDiscoverer.Steps
 			// Make sure there is at least one outdated reference
 			var outdatedReferences = recipeFiles
 				.SelectMany(recipeFile => recipeFile.AddinReferences
-					.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake)
+					.Where(r => r.LatestVersionForCurrentCake != null && r.ReferencedVersion < r.LatestVersionForCurrentCake)
 					.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "addin", LatestVersion = r.LatestVersionForCurrentCake }))
-				.Concat(recipeFiles
+				.Union(recipeFiles
 					.SelectMany(recipeFile => recipeFile.ToolReferences
-						.Where(r => !string.IsNullOrEmpty(r.LatestVersion) && r.ReferencedVersion != r.LatestVersion)
+						.Where(r => r.LatestVersion != null && r.ReferencedVersion < r.LatestVersion)
 						.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "tool", r.LatestVersion })))
 				.Concat(recipeFiles
 					.SelectMany(recipeFile => recipeFile.LoadReferences
-						.Where(r => !string.IsNullOrEmpty(r.LatestVersionForCurrentCake) && r.ReferencedVersion != r.LatestVersionForCurrentCake)
+						.Where(r => r.LatestVersionForCurrentCake != null && r.ReferencedVersion < r.LatestVersionForCurrentCake)
 					.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "load", LatestVersion = r.LatestVersionForCurrentCake })))
 				.ToArray();
 			if (!outdatedReferences.Any()) return;
@@ -274,7 +283,14 @@ namespace Cake.AddinDiscoverer.Steps
 					issueBody.AppendLine($"- `{recipeFile.Name}` references the following addins:");
 					foreach (var addinReference in recipeFile.AddinReferences)
 					{
-						issueBody.AppendLine($"    - [{(addinReference.UpdatedForNextCake ? "x" : " ")}] {addinReference.Name}");
+						if (addinReference.SkippedNextCake)
+						{
+							issueBody.AppendLine($"    - [x] {addinReference.Name} skipped support for Cake {nextCakeVersion.Version}. Therefore this reference will not be upgraded.");
+						}
+						else
+						{
+							issueBody.AppendLine($"    - [{(addinReference.UpdatedForNextCake ? "x" : " ")}] {addinReference.Name}");
+						}
 					}
 				}
 
@@ -309,15 +325,27 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 
 			// Submit a PR when all addins have been upgraded to next version of Cake
-			var totalReferencesCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count());
-			var availableForNextCakeVersionCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile => recipeFile.AddinReferences.Count(r => r.UpdatedForNextCake));
+			var totalReferencesCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile =>
+			{
+				var addinReferences = recipeFile.AddinReferences.Count();
+				var recipeReferences = recipeFile.LoadReferences.Count();
+				return addinReferences + recipeReferences;
+			});
+			var availableForNextCakeVersionCount = recipeFilesWithAtLeastOneReference.Sum(recipeFile =>
+			{
+				var addinReferences = recipeFile.AddinReferences.Count(r => r.UpdatedForNextCake || r.SkippedNextCake);
+				var recipeReferences = recipeFile.LoadReferences.Count(r => r.UpdatedForNextCake || r.SkippedNextCake);
+				return addinReferences + recipeReferences;
+			});
 
 			if (availableForNextCakeVersionCount == totalReferencesCount)
 			{
 				var yamlVersionConfigContents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.CAKE_VERSION_YML_PATH).ConfigureAwait(false);
-				var deserializer = new YamlDotNet.Serialization.Deserializer();
+				var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+					.WithTypeConverter(new SemVersionConverter())
+					.Build();
 				var yamlConfig = deserializer.Deserialize<CakeVersionYamlConfig>(yamlVersionConfigContents[0].Content);
-				yamlConfig.TargetCakeVersion = nextCakeVersion.Version.ToString(3);
+				yamlConfig.TargetCakeVersion = nextCakeVersion.Version;
 
 				// Commit changes to a new branch and submit PR
 				var pullRequestTitle = $"Upgrade to Cake {nextCakeVersion.Version.ToString(3)}";

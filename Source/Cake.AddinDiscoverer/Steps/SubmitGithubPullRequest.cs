@@ -23,7 +23,10 @@ namespace Cake.AddinDiscoverer.Steps
 				.OrderByDescending(cakeVersion => cakeVersion.Version)
 				.First();
 
-			context.Addins = await context.Addins
+			var reportData = new ReportData(context.Addins);
+			var addins = reportData.GetAddinsForCakeVersion(recommendedCakeVersion, false);
+
+			addins = await addins
 				.OrderBy(a => a.Name)
 				.ForEachAsync(
 					async addin =>
@@ -74,15 +77,15 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 
 						return addin;
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 		}
 
-		private async Task FixNuspec(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private static async Task FixNuspec(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			// Get the nuspec file
-			var nuspecFiles = addin.RepoContent
-				.Where(item => Path.GetFileName(item.Key).EqualsIgnoreCase($"{addin.Name}.nuspec"));
+			var nuspecFiles = addin.RepoContent.Where(item => Path.GetFileName(item.Key).EqualsIgnoreCase($"{addin.Name}.nuspec"));
 			if (!nuspecFiles.Any()) return;
 			var nuspecFile = nuspecFiles.First();
 
@@ -107,11 +110,10 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private async Task FixCsproj(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private static async Task FixCsproj(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			// Get the csproj files
-			var projectFiles = addin.RepoContent
-				.Where(item => Path.GetExtension(item.Key).EqualsIgnoreCase(".csproj"));
+			var projectFiles = addin.RepoContent.Where(item => Path.GetExtension(item.Key).EqualsIgnoreCase(".csproj"));
 			if (!projectFiles.Any()) return;
 
 			// Loop through the project files
@@ -166,7 +168,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 						// We might need to rename the node if the csproj current only targets a single framework and we are switching to multiple targets
 						// or vice-versa: the csproj targets multiple frameworks and we are switching to a single target
-						if (cakeVersion.RequiredFrameworks.Count() > 1)
+						if (cakeVersion.RequiredFrameworks.Length > 1)
 						{
 							if (targetFrameworkElement != null) targetFrameworkElement.Name = "TargetFrameworks";
 						}
@@ -178,7 +180,7 @@ namespace Cake.AddinDiscoverer.Steps
 						// Make sure we only have one node in the XDocument related to target framework (I doubt this scenario is possible but better safe than sorry)
 						if (targetFrameworkElement != null && targetFrameworksElement != null)
 						{
-							if (cakeVersion.RequiredFrameworks.Count() > 1) targetFrameworkElement.Remove();
+							if (cakeVersion.RequiredFrameworks.Length > 1) targetFrameworkElement.Remove();
 							else targetFrameworksElement.Remove();
 						}
 
@@ -193,7 +195,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private void FixCakeReferenceInProjectFile(XDocumentFormatPreserved document, string referenceName, CakeVersion cakeVersion, string filePath, bool isMainProjectFile, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private static void FixCakeReferenceInProjectFile(XDocumentFormatPreserved document, string referenceName, CakeVersion cakeVersion, string filePath, bool isMainProjectFile, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			var ns = document.Document.Root?.Name.Namespace;
 			var packageReferenceXName = ns.GetXNameWithNamespace("PackageReference");

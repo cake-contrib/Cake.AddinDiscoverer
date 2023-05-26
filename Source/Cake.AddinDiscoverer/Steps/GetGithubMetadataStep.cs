@@ -17,34 +17,43 @@ namespace Cake.AddinDiscoverer.Steps
 	internal class GetGithubMetadataStep : IStep
 	{
 		// The pre condition should be the same as the steps that use this information. For instance: CheckUsingCakeRecipeStep.
-		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && (context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo);
+		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && context.Options.GenerateExcelReport;
 
 		public string GetDescription(DiscoveryContext context) => "Get metadata (such as stats, content, etc.) from Github";
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
-			context.Addins = await context.Addins
+			var addinsGroupedByRepoInfo = context.Addins
+				.GroupBy(addin => (addin.RepositoryName, addin.RepositoryOwner))
+				.ToArray();
+
+			await addinsGroupedByRepoInfo
 				.ForEachAsync(
-					async addin =>
+					async addinsGroup =>
 					{
-						if (!string.IsNullOrEmpty(addin.RepositoryName) && !string.IsNullOrEmpty(addin.RepositoryOwner))
+						if (!string.IsNullOrEmpty(addinsGroup.Key.RepositoryName) && !string.IsNullOrEmpty(addinsGroup.Key.RepositoryOwner))
 						{
 							try
 							{
 								// Get all files from the repo
-								addin.RepoContent = await Misc.GetRepoContentAsync(context, addin).ConfigureAwait(false);
+								var repoContent = await Misc.GetRepoContentAsync(context, addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
 
 								// Total count includes both issues and pull requests.
-								var totalCount = await GetRecordsCount(context, "issues", addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
-								var pullRequestsCount = await GetRecordsCount(context, "pulls", addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
+								var totalCount = await GetRecordsCount(context, "issues", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
+								var pullRequestsCount = await GetRecordsCount(context, "pulls", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
 								var issuesCount = totalCount - pullRequestsCount;
 
-								addin.AnalysisResult.OpenIssuesCount = issuesCount;
-								addin.AnalysisResult.OpenPullRequestsCount = pullRequestsCount;
+								// Update all the addins for this repo
+								foreach (AddinMetadata addin in addinsGroup)
+								{
+									addin.RepoContent = repoContent;
+									addin.AnalysisResult.OpenIssuesCount = issuesCount;
+									addin.AnalysisResult.OpenPullRequestsCount = pullRequestsCount;
+								}
 							}
 							catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Issues are disabled for this repo"))
 							{
-								// There's a NuGet package with a project URL that points to a fork which doesn't allow issue.
+								// There's a NuGet package with a project URL that points to a fork which doesn't allow issues.
 								// Therefore it's safe to ignore this error.
 							}
 							catch (ApiException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -54,7 +63,10 @@ namespace Cake.AddinDiscoverer.Steps
 							}
 							catch (Exception e)
 							{
-								addin.AnalysisResult.Notes += $"GetGithubMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
+								foreach (AddinMetadata addin in addinsGroup)
+								{
+									addin.AnalysisResult.Notes += $"GetGithubMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
+								}
 							}
 							finally
 							{
@@ -62,9 +74,8 @@ namespace Cake.AddinDiscoverer.Steps
 								await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 							}
 						}
-
-						return addin;
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 		}
 

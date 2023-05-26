@@ -24,7 +24,10 @@ namespace Cake.AddinDiscoverer.Steps
 				.OrderByDescending(cakeVersion => cakeVersion.Version)
 				.First();
 
-			context.Addins = await context.Addins
+			var reportData = new ReportData(context.Addins);
+			var addins = reportData.GetAddinsForCakeVersion(recommendedCakeVersion, false);
+
+			addins = await addins
 				.ForEachAsync(
 					async addin =>
 					{
@@ -49,7 +52,8 @@ namespace Cake.AddinDiscoverer.Steps
 						}
 
 						return addin;
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 		}
 
@@ -113,7 +117,7 @@ namespace Cake.AddinDiscoverer.Steps
 		private static async Task<Issue> CreateIssueAsync(bool debugging, DiscoveryContext context, AddinMetadata addin, CakeVersion recommendedCakeVersion)
 		{
 			var issuesDescription = new StringBuilder();
-			if (addin.AnalysisResult.CakeCoreVersion == Constants.UNKNOWN_VERSION)
+			if (addin.AnalysisResult.CakeCoreVersion == Constants.VERSION_UNKNOWN)
 			{
 				issuesDescription.AppendLine($"- [ ] We were unable to determine what version of Cake.Core your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}");
 			}
@@ -122,7 +126,7 @@ namespace Cake.AddinDiscoverer.Steps
 				issuesDescription.AppendLine($"- [ ] You are currently referencing Cake.Core {addin.AnalysisResult.CakeCoreVersion}. Please upgrade to {recommendedCakeVersion.Version}");
 			}
 
-			if (addin.AnalysisResult.CakeCommonVersion == Constants.UNKNOWN_VERSION)
+			if (addin.AnalysisResult.CakeCommonVersion == Constants.VERSION_UNKNOWN)
 			{
 				issuesDescription.AppendLine($"- [ ] We were unable to determine what version of Cake.Common your addin is referencing. Please make sure you are referencing {recommendedCakeVersion.Version}");
 			}

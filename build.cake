@@ -165,23 +165,24 @@ Task("Run")
 	.Does(() =>
 {
 	var args = new ProcessArgumentBuilder()
-		.AppendSwitchQuoted("-t", outputDir)
-		.AppendSwitchQuoted("-u", gitHubUserName)
-		.AppendSwitchQuotedSecret("-p", gitHubPassword);
+		.AppendSwitchQuoted("-t", outputDir) // "Folder where temporary files (including reports) are saved."
+		.AppendSwitchQuoted("-u", gitHubUserName) // "Github username."
+		.AppendSwitchQuotedSecret("-p", gitHubPassword); // "Github password."
 
 	if (clearCache) args.Append("-c");
 	if (isMainBranch)
 	{
-		args.Append("-r");
-		args.Append("-x");
-		args.Append("-s");
-		args.Append("-k");
-		args.Append("-n");
+		args.Append("-e"); // "Generate the Excel report and write to a file."
+		args.Append("-k"); // "Update addin references in CakeRecipe."
+		args.Append("-m"); // "Generate the Markdown report and write to a file."
+		args.Append("-n"); // "Synchronize the list of contributors."
+		args.Append("-r"); // "Commit reports and other files to cake-contrib repo."
+		args.Append("-s"); // "Synchronize the yaml files on Cake's web site with the packages discovered on NuGet."
 	}
 	else
 	{
-		args.Append("-m");
-		args.Append("-e");
+		args.Append("-e"); // "Generate the Excel report and write to a file."
+		args.Append("-m"); // "Generate the Markdown report and write to a file."
 	}
 
 	// Execute the command

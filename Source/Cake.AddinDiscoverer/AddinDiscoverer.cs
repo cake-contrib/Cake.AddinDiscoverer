@@ -26,34 +26,20 @@ namespace Cake.AddinDiscoverer
 			// Delete artifacts from previous audits
 			typeof(CleanupStep),
 
-			// Download resource files (such as exclusion list and inclusion list)
+			// Download resource files (such as exclusion list, inclusion list and previous analysis)
 			typeof(GetResourceFiles),
+
+			// Load the result of previous analysis
+			typeof(LoadPreviousAnalysisStep),
 
 			// Discover all existing Cake addins on NuGet
 			typeof(DiscoveryStep),
 
-			// Remove excluded addins
-			typeof(ExclusionlistStep),
-
 			// Sanity check on the list of addins we discovered
 			typeof(ValidateDiscoveryStep),
 
-			// Download the packages from NuGet if they are not already in the cache
-			typeof(DownloadStep),
-
-			// Analyze the metadata in the downloaded nuget package
-			typeof(AnalyzeNuGetMetadataStep),
-
-			// Get the owners of the NuGet package
-			typeof(GetPackageOwnershipStep),
-
-			// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
-			// points to the original repo. This step corrects the URL to ensure it points to the right repo.
-			// Also, this step forces HTTPS for github URLs.
-			typeof(ValidateUrlStep),
-
-			// Use the info from previous steps to determine if addins meet the best practices
-			typeof(AnalyzeAddinsStep),
+			// Analyze the addins
+			typeof(AnalyzeStep),
 
 			// Get previously created issue and pull request from the Github repo
 			typeof(GetGithubIssuesStep),
@@ -63,6 +49,9 @@ namespace Cake.AddinDiscoverer
 
 			// Check if addins are using Cake.Recipe
 			typeof(CheckUsingCakeRecipeStep),
+
+			// Save the result of the analysis
+			typeof(SaveAnalysisStep),
 
 			// Generate an Excel spreadsheet with the result of the audit
 			typeof(GenerateExcelReportStep),

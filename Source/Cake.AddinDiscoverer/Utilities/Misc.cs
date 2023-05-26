@@ -152,11 +152,11 @@ namespace Cake.AddinDiscoverer.Utilities
 			return pullRequest;
 		}
 
-		public static async Task<IDictionary<string, Stream>> GetRepoContentAsync(DiscoveryContext context, AddinMetadata addin)
+		public static async Task<IDictionary<string, Stream>> GetRepoContentAsync(DiscoveryContext context, string repoOwner, string repoName)
 		{
 			IDictionary<string, Stream> repoContent;
 
-			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(addin.RepositoryOwner, addin.RepositoryName, ArchiveFormat.Zipball).ConfigureAwait(false);
+			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(repoOwner, repoName, ArchiveFormat.Zipball).ConfigureAwait(false);
 			using (var data = new MemoryStream(zipArchive))
 			{
 				using var archive = new ZipArchive(data);

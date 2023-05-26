@@ -10,7 +10,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class CommitToRepoStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.MarkdownReportToRepo || context.Options.ExcelReportToRepo;
+		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.DryRun && context.Options.CommitToRepo;
 
 		public string GetDescription(DiscoveryContext context) => $"Committing changes to {Constants.CAKE_CONTRIB_REPO_OWNER}/{Constants.CAKE_CONTRIB_REPO_NAME} repo";
 
@@ -23,45 +23,39 @@ namespace Cake.AddinDiscoverer.Steps
 			var tree = new NewTree { BaseTree = latestCommit.Tree.Sha };
 
 			// Create the blobs corresponding to the reports and add them to the tree
-			if (context.Options.ExcelReportToRepo)
+			foreach (var excelReport in Directory.EnumerateFiles(context.TempFolder, $"*.xlsx"))
 			{
-				foreach (var excelReport in Directory.EnumerateFiles(context.TempFolder, $"*.xlsx"))
+				var excelBinary = await File.ReadAllBytesAsync(excelReport).ConfigureAwait(false);
+				var excelReportBlob = new NewBlob
 				{
-					var excelBinary = await File.ReadAllBytesAsync(excelReport).ConfigureAwait(false);
-					var excelReportBlob = new NewBlob
-					{
-						Encoding = EncodingType.Base64,
-						Content = Convert.ToBase64String(excelBinary)
-					};
-					var excelReportBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, excelReportBlob).ConfigureAwait(false);
-					tree.Tree.Add(new NewTreeItem
-					{
-						Path = Path.GetFileName(excelReport),
-						Mode = Constants.FILE_MODE,
-						Type = TreeType.Blob,
-						Sha = excelReportBlobRef.Sha
-					});
-				}
+					Encoding = EncodingType.Base64,
+					Content = Convert.ToBase64String(excelBinary)
+				};
+				var excelReportBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, excelReportBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = Path.GetFileName(excelReport),
+					Mode = Constants.FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = excelReportBlobRef.Sha
+				});
 			}
 
-			if (context.Options.MarkdownReportToRepo)
+			foreach (var markdownReport in Directory.EnumerateFiles(context.TempFolder, $"*.md"))
 			{
-				foreach (var markdownReport in Directory.EnumerateFiles(context.TempFolder, $"*.md"))
+				var makdownReportBlob = new NewBlob
 				{
-					var makdownReportBlob = new NewBlob
-					{
-						Encoding = EncodingType.Utf8,
-						Content = await File.ReadAllTextAsync(markdownReport).ConfigureAwait(false)
-					};
-					var makdownReportBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, makdownReportBlob).ConfigureAwait(false);
-					tree.Tree.Add(new NewTreeItem
-					{
-						Path = Path.GetFileName(markdownReport),
-						Mode = Constants.FILE_MODE,
-						Type = TreeType.Blob,
-						Sha = makdownReportBlobRef.Sha
-					});
-				}
+					Encoding = EncodingType.Utf8,
+					Content = await File.ReadAllTextAsync(markdownReport).ConfigureAwait(false)
+				};
+				var makdownReportBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, makdownReportBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = Path.GetFileName(markdownReport),
+					Mode = Constants.FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = makdownReportBlobRef.Sha
+				});
 			}
 
 			if (File.Exists(context.StatsSaveLocation))
@@ -96,6 +90,23 @@ namespace Cake.AddinDiscoverer.Steps
 					Mode = Constants.FILE_MODE,
 					Type = TreeType.Blob,
 					Sha = graphBlobRef.Sha
+				});
+			}
+
+			if (File.Exists(context.AnalysisResultSaveLocation))
+			{
+				var analysisResultBlob = new NewBlob
+				{
+					Encoding = EncodingType.Utf8,
+					Content = await File.ReadAllTextAsync(context.AnalysisResultSaveLocation).ConfigureAwait(false)
+				};
+				var analysisResultBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, analysisResultBlob).ConfigureAwait(false);
+				tree.Tree.Add(new NewTreeItem
+				{
+					Path = Path.GetFileName(context.AnalysisResultSaveLocation),
+					Mode = Constants.FILE_MODE,
+					Type = TreeType.Blob,
+					Sha = analysisResultBlobRef.Sha
 				});
 			}
 

@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace Cake.AddinDiscoverer.Utilities
@@ -29,6 +30,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <param name="patch">The patch version.</param>
 		/// <param name="prerelease">The prerelease version (eg. "alpha").</param>
 		/// <param name="build">The build eg ("nightly.232").</param>
+		[JsonConstructor]
 		public SemVersion(int major, int minor = 0, int patch = 0, string prerelease = "", string build = "")
 		{
 			this.Major = major;
@@ -85,6 +87,8 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <exception cref="System.InvalidOperationException">When a invalid version string is passed.</exception>
 		public static SemVersion Parse(string version, bool strict = false)
 		{
+			if (string.IsNullOrEmpty(version)) return null;
+
 			var match = PARSE_REGEX.Match(version);
 			if (!match.Success)
 				throw new ArgumentException("Invalid version.", "version");
