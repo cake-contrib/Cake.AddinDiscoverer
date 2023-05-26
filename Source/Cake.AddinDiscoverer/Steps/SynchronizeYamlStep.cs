@@ -310,7 +310,8 @@ namespace Cake.AddinDiscoverer.Steps
 						var issueTitle = $"Delete {yamlFileToBeDeleted.Name}";
 						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, string.Format(issueTitle, yamlFileToBeDeleted.Name)).ConfigureAwait(false);
 						return (YamlFile: yamlFileToBeDeleted, Issue: issue);
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			var filteredYamlFilesToBeDeleted = yamlFilesToBeDeletedWithIssue
@@ -326,7 +327,8 @@ namespace Cake.AddinDiscoverer.Steps
 						var issueTitle = $"Add {addinToBeCreated.Addin.Name}.yml";
 						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, string.Format(issueTitle, addinToBeCreated.Addin.Name)).ConfigureAwait(false);
 						return (Addin: addinToBeCreated, Issue: issue);
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			var filteredAddinsToBeCreated = addinsToBeCreatedWithIssue
@@ -342,7 +344,8 @@ namespace Cake.AddinDiscoverer.Steps
 						var issueTitle = $"Update {addinToBeUpdated.Addin.Name}.yml";
 						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, string.Format(issueTitle, addinToBeUpdated.Addin.Name)).ConfigureAwait(false);
 						return (Addin: addinToBeUpdated, Issue: issue);
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			var filteredAddinsToBeUpdated = addinsToBeUpdatedWithIssue
