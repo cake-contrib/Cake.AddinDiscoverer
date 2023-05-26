@@ -1,6 +1,6 @@
 
 // Install tools.
-#tool nuget:?package=GitVersion.CommandLine&version=5.3.7
+#tool nuget:?package=GitVersion.CommandLine&version=5.12.0
 
 
 ///////////////////////////////////////////////////////////////////////////////
