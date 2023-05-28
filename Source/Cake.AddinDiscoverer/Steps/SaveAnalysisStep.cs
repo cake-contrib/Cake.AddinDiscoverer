@@ -12,16 +12,14 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public string GetDescription(DiscoveryContext context) => "Save the result of the analysis";
 
-		public Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
+		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			// Save file
 			using FileStream jsonFileStream = File.Create(context.AnalysisResultSaveLocation);
-			JsonSerializer.Serialize(jsonFileStream, context.Addins, typeof(AddinMetadata[]), new JsonSerializerOptions { WriteIndented = true });
+			await JsonSerializer.SerializeAsync(jsonFileStream, context.Addins, typeof(AddinMetadata[]), new JsonSerializerOptions { WriteIndented = false }).ConfigureAwait(false);
 
 			// Clear the temporary files
 			Directory.Delete(context.AnalysisFolder, true);
-
-			return Task.CompletedTask;
 		}
 	}
 }
