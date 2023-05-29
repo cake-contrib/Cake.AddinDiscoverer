@@ -16,7 +16,7 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			// Save file
 			using FileStream jsonFileStream = File.Create(context.AnalysisResultSaveLocation);
-			await JsonSerializer.SerializeAsync(jsonFileStream, context.Addins, typeof(AddinMetadata[]), new JsonSerializerOptions { WriteIndented = false }).ConfigureAwait(false);
+			await JsonSerializer.SerializeAsync(jsonFileStream, context.Addins, typeof(AddinMetadata[]), new JsonSerializerOptions { WriteIndented = true }).ConfigureAwait(false);
 
 			// Clear the temporary files
 			Directory.Delete(context.AnalysisFolder, true);
