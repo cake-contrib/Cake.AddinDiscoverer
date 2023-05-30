@@ -183,7 +183,6 @@ Task("Run")
 	{
 		args.Append("-e"); // "Generate the Excel report and write to a file."
 		args.Append("-m"); // "Generate the Markdown report and write to a file."
-		args.Append("-w"); // Exclude slow steps so we fail fast while investigating the timeout issue on AppVeyor
 	}
 
 	// Execute the command
