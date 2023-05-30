@@ -58,6 +58,13 @@ namespace Cake.AddinDiscoverer.Steps
 				new KeyValuePair<AddinType, byte[]>(AddinType.All, await context.HttpClient.GetByteArrayAsync(Constants.CAKE_CONTRIB_COMMUNITY_FANCY_ICON_URL, cancellationToken).ConfigureAwait(false))
 			};
 
+			var cakeRecipeAddin = context.Addins
+				.Where(a => a.Type == AddinType.Recipe)
+				.OrderByDescending(a => a.PublishedOn)
+				.FirstOrDefault(a => a.Name.EqualsIgnoreCase("Cake.Recipe"));
+
+			var latestCakeRecipeVersion = SemVersion.Parse(cakeRecipeAddin == null ? "0.0.0" : cakeRecipeAddin.NuGetPackageVersion);
+
 			await context.Addins
 				.Where(addin => !addin.Analyzed) // Analysis needs to be performed only on new addin versions
 				.ForEachAsync(
@@ -77,6 +84,9 @@ namespace Cake.AddinDiscoverer.Steps
 						// points to the original repo. This step corrects the URL to ensure it points to the right repo.
 						// Also, this step forces HTTPS for github URLs.
 						await ValidateUrls(context, addin, cakeContribRepositories).ConfigureAwait(false);
+
+						// Check if this addin is using Cake.Recipe
+						await CheckUsingCakeRecipe(context, addin, latestCakeRecipeVersion).ConfigureAwait(false);
 
 						// Determine if the addin meets the best practices
 						AnalyzeAddin(context, addin, cakeContribIcon, fancyIcons);
@@ -741,6 +751,61 @@ namespace Cake.AddinDiscoverer.Steps
 				if (allOwners.TryGetValue(addin.Name, out string[] owners))
 				{
 					addin.NuGetPackageOwners = owners;
+				}
+			}
+		}
+
+		private static async Task CheckUsingCakeRecipe(DiscoveryContext context, AddinMetadata addin, SemVersion latestCakeRecipeVersion)
+		{
+			if (!string.IsNullOrEmpty(addin.RepositoryName) && !string.IsNullOrEmpty(addin.RepositoryOwner))
+			{
+				try
+				{
+					// Get all files from the repo
+					var repoContent = await Misc.GetRepoContentAsync(context, addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
+
+					// Get the cake files
+					var repoItems = repoContent
+						.Where(item => Path.GetExtension(item.Key) == ".cake")
+						.ToArray();
+
+					foreach (var repoItem in repoItems)
+					{
+						// Get the content of the cake file
+						repoItem.Value.Position = 0;
+						var cakeFileContent = await new StreamReader(repoItem.Value).ReadToEndAsync().ConfigureAwait(false);
+
+						if (!string.IsNullOrEmpty(cakeFileContent))
+						{
+							// Parse the cake file
+							var recipeFile = new RecipeFile()
+							{
+								Content = cakeFileContent
+							};
+
+							// Check if this file references Cake.Recipe
+							var cakeRecipeReference = recipeFile.LoadReferences.FirstOrDefault(r => r.Name.EqualsIgnoreCase("Cake.Recipe"));
+							if (cakeRecipeReference != null)
+							{
+								addin.AnalysisResult.CakeRecipeIsUsed = true;
+								addin.AnalysisResult.CakeRecipeVersion = cakeRecipeReference.ReferencedVersion;
+								addin.AnalysisResult.CakeRecipeIsPrerelease = cakeRecipeReference.Prerelease;
+								addin.AnalysisResult.CakeRecipeIsLatest = cakeRecipeReference.ReferencedVersion == null || cakeRecipeReference.ReferencedVersion == latestCakeRecipeVersion;
+							}
+						}
+
+						if (addin.AnalysisResult.CakeRecipeIsUsed) break;
+					}
+				}
+				catch (ApiException e) when (e.StatusCode == HttpStatusCode.NotFound)
+				{
+					// I know of at least one case where the URL in the NuGet metadata points to a repo that has been deleted.
+					// Therefore it's safe to ignore this error.
+				}
+				finally
+				{
+					// This is to ensure we don't issue requests too quickly and therefore trigger Github's abuse detection
+					await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 				}
 			}
 		}

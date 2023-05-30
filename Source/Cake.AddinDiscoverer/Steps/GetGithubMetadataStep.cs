@@ -16,10 +16,9 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class GetGithubMetadataStep : IStep
 	{
-		// The pre condition should be the same as the steps that use this information. For instance: CheckUsingCakeRecipeStep.
 		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && context.Options.GenerateExcelReport;
 
-		public string GetDescription(DiscoveryContext context) => "Get metadata (such as stats, content, etc.) from Github";
+		public string GetDescription(DiscoveryContext context) => "Get stats from Github (number of open issues, etc.)";
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
@@ -35,9 +34,6 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							try
 							{
-								// Get all files from the repo
-								var repoContent = await Misc.GetRepoContentAsync(context, addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
-
 								// Total count includes both issues and pull requests.
 								var totalCount = await GetRecordsCount(context, "issues", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
 								var pullRequestsCount = await GetRecordsCount(context, "pulls", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
@@ -46,7 +42,6 @@ namespace Cake.AddinDiscoverer.Steps
 								// Update all the addins for this repo
 								foreach (AddinMetadata addin in addinsGroup)
 								{
-									addin.RepoContent = repoContent;
 									addin.AnalysisResult.OpenIssuesCount = issuesCount;
 									addin.AnalysisResult.OpenPullRequestsCount = pullRequestsCount;
 								}

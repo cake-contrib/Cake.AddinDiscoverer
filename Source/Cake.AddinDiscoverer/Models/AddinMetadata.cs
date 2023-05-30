@@ -1,9 +1,7 @@
 using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Reflection;
 using System.Text.Json.Serialization;
 
@@ -88,9 +86,6 @@ namespace Cake.AddinDiscoverer.Models
 		public string[] AliasCategories { get; set; }
 
 		public DateTimeOffset PublishedOn { get; set; }
-
-		[JsonIgnore]
-		public IDictionary<string, Stream> RepoContent { get; set; }
 
 		public CakeVersionYamlConfig CakeVersionYaml { get; set; }
 

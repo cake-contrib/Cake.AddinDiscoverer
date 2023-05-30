@@ -5,7 +5,7 @@ using YamlDotNet.Serialization;
 
 namespace Cake.AddinDiscoverer.Utilities
 {
-	public sealed class SemVersionConverter : IYamlTypeConverter
+	internal sealed class SemVersionConverter : IYamlTypeConverter
 	{
 		public bool Accepts(Type type) => type == typeof(SemVersion);
 

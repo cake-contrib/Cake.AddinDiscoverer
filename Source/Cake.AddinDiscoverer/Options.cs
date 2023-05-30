@@ -52,7 +52,7 @@ namespace Cake.AddinDiscoverer
 		[Option('u', "user", Required = false, HelpText = "Github username.")]
 		public string GithubUsername { get; set; }
 
-		[Option('w', "excludeslowsteps", Default = false, HelpText = "Exclude steps that take a lot of time to complete (such as GetGithubStats and CheckUsingCakeRecipe).")]
+		[Option('w', "excludeslowsteps", Default = false, HelpText = "Exclude steps that take a lot of time to complete (such as 'Get stats from Github').")]
 		public bool ExcludeSlowSteps { get; set; }
 
 		[Option('y', "proxy", Required = false, HelpText = "The URL of your proxy. For example, to proxy requests through Fiddler use: 'http://localhost:8888'.")]

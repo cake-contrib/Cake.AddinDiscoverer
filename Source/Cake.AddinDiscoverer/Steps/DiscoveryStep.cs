@@ -5,7 +5,6 @@ using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -144,7 +143,6 @@ namespace Cake.AddinDiscoverer.Steps
 							Tags = tags,
 							Type = AddinType.Unknown,
 							PublishedOn = package.Published.Value,
-							RepoContent = ImmutableDictionary<string, Stream>.Empty
 						};
 
 						if (package.Title.Contains("[DEPRECATED]", StringComparison.OrdinalIgnoreCase))

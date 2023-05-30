@@ -38,9 +38,10 @@ namespace Cake.AddinDiscoverer.Steps
 							!string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
 							var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
+							var repoContent = await Misc.GetRepoContentAsync(context, addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 
-							await FixNuspec(context, addin, recommendedCakeVersion, commits).ConfigureAwait(false);
-							await FixCsproj(context, addin, recommendedCakeVersion, commits).ConfigureAwait(false);
+							await FixNuspec(context, addin, repoContent, recommendedCakeVersion, commits).ConfigureAwait(false);
+							await FixCsproj(context, addin, repoContent, recommendedCakeVersion, commits).ConfigureAwait(false);
 
 							if (commits.Any())
 							{
@@ -82,10 +83,10 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private static async Task FixNuspec(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private static async Task FixNuspec(DiscoveryContext context, AddinMetadata addin, IDictionary<string, Stream> repoContent, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			// Get the nuspec file
-			var nuspecFiles = addin.RepoContent.Where(item => Path.GetFileName(item.Key).EqualsIgnoreCase($"{addin.Name}.nuspec"));
+			var nuspecFiles = repoContent.Where(item => Path.GetFileName(item.Key).EqualsIgnoreCase($"{addin.Name}.nuspec"));
 			if (!nuspecFiles.Any()) return;
 			var nuspecFile = nuspecFiles.First();
 
@@ -110,10 +111,10 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private static async Task FixCsproj(DiscoveryContext context, AddinMetadata addin, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
+		private static async Task FixCsproj(DiscoveryContext context, AddinMetadata addin, IDictionary<string, Stream> repoContent, CakeVersion cakeVersion, IList<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)> commits)
 		{
 			// Get the csproj files
-			var projectFiles = addin.RepoContent.Where(item => Path.GetExtension(item.Key).EqualsIgnoreCase(".csproj"));
+			var projectFiles = repoContent.Where(item => Path.GetExtension(item.Key).EqualsIgnoreCase(".csproj"));
 			if (!projectFiles.Any()) return;
 
 			// Loop through the project files

@@ -47,9 +47,6 @@ namespace Cake.AddinDiscoverer
 			// Get statistics, content, etc. from the Github repo
 			typeof(GetGithubMetadataStep),
 
-			// Check if addins are using Cake.Recipe
-			typeof(CheckUsingCakeRecipeStep),
-
 			// Save the result of the analysis
 			typeof(SaveAnalysisStep),
 
