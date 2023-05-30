@@ -206,11 +206,12 @@ Task("Upload-Artifacts")
 	.WithCriteria(() => AppVeyor.IsRunningOnAppVeyor)
 	.Does(() =>
 {
-	var artifacts = [
+	var artifacts = new string[]
+	{
 		 "Audit.xlsx",
 		 "Audit.md",
 		 "Analysis_result.json"
-	];
+	};
 
 	foreach (var artifact in artifacts)
 	{
