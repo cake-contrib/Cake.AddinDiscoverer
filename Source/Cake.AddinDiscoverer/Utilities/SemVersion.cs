@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
@@ -10,8 +9,8 @@ namespace Cake.AddinDiscoverer.Utilities
 	/// A semantic version implementation.
 	/// Conforms to v2.0.0 of http://semver.org/.
 	/// </summary>
-	[Serializable]
-	internal sealed class SemVersion : IComparable<SemVersion>, IComparable, ISerializable
+	[JsonConverter(typeof(Json.SemVersionConverter))]
+	internal sealed class SemVersion : IComparable<SemVersion>, IComparable
 	{
 		private static readonly Regex PARSE_REGEX =
 			new Regex(
@@ -59,23 +58,6 @@ namespace Cake.AddinDiscoverer.Utilities
 			this.Patch = version.Build;
 			this.Build = version.Revision > 0 ? version.Revision.ToString() : string.Empty;
 			this.Prerelease = string.Empty;
-		}
-
-		/// <summary>
-		/// Initializes a new instance of the <see cref="SemVersion" /> class.
-		/// </summary>
-		/// <param name="info">The serialization info.</param>
-		/// <param name="context">The serialization context.</param>
-		/// <exception cref="ArgumentNullException">If info is null.</exception>
-		private SemVersion(SerializationInfo info, StreamingContext context)
-		{
-			if (info == null) throw new ArgumentNullException("info");
-			var semVersion = Parse(info.GetString("SemVersion"));
-			Major = semVersion.Major;
-			Minor = semVersion.Minor;
-			Patch = semVersion.Patch;
-			Prerelease = semVersion.Prerelease;
-			Build = semVersion.Build;
 		}
 
 		/// <summary>
@@ -363,17 +345,6 @@ namespace Cake.AddinDiscoverer.Utilities
 				result = (result * 31) + this.Build.GetHashCode();
 				return result;
 			}
-		}
-
-		/// <summary>
-		/// For serialization.
-		/// </summary>
-		/// <param name="info">The serialization info.</param>
-		/// <param name="context">The context.</param>
-		public void GetObjectData(SerializationInfo info, StreamingContext context)
-		{
-			if (info == null) throw new ArgumentNullException("info");
-			info.AddValue("SemVersion", ToString());
 		}
 
 		/// <summary>
