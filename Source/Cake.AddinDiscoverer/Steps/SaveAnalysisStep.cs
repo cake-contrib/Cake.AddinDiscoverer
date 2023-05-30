@@ -1,5 +1,8 @@
 using Cake.AddinDiscoverer.Models;
+using System;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,9 +17,14 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
+			// Serialize
+			var sb = new StringBuilder();
+			sb.AppendLine("[");
+			sb.AppendJoin(',', context.Addins.Select(addinMetadata => "\t" + Encoding.UTF8.GetString(JsonSerializer.SerializeToUtf8Bytes(addinMetadata, new JsonSerializerOptions { WriteIndented = false })) + Environment.NewLine));
+			sb.AppendLine("]");
+
 			// Save file
-			using FileStream jsonFileStream = File.Create(context.AnalysisResultSaveLocation);
-			await JsonSerializer.SerializeAsync(jsonFileStream, context.Addins, typeof(AddinMetadata[]), new JsonSerializerOptions { WriteIndented = true }).ConfigureAwait(false);
+			await File.WriteAllTextAsync(context.AnalysisResultSaveLocation, sb.ToString(), cancellationToken).ConfigureAwait(false);
 
 			// Clear the temporary files
 			Directory.Delete(context.AnalysisFolder, true);
