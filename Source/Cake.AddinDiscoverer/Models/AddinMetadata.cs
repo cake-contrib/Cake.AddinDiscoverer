@@ -89,6 +89,7 @@ namespace Cake.AddinDiscoverer.Models
 
 		public DateTimeOffset PublishedOn { get; set; }
 
+		[JsonIgnore]
 		public IDictionary<string, Stream> RepoContent { get; set; }
 
 		public CakeVersionYamlConfig CakeVersionYaml { get; set; }
