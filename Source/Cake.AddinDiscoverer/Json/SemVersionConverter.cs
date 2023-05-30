@@ -14,7 +14,6 @@ namespace Cake.AddinDiscoverer.Json
 	{
 		public override SemVersion Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-
 			if (reader.TokenType == JsonTokenType.String)
 			{
 				var version = reader.GetString();
