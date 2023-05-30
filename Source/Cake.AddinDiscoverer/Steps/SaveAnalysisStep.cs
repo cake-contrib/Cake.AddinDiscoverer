@@ -20,7 +20,7 @@ namespace Cake.AddinDiscoverer.Steps
 			// Serialize
 			var sb = new StringBuilder();
 			sb.AppendLine("[");
-			sb.AppendJoin(',', context.Addins.Select(addinMetadata => "\t" + Encoding.UTF8.GetString(JsonSerializer.SerializeToUtf8Bytes(addinMetadata, new JsonSerializerOptions { WriteIndented = false })) + Environment.NewLine));
+			sb.AppendJoin(',', context.Addins.Select(addinMetadata => $"\t{Encoding.UTF8.GetString(JsonSerializer.SerializeToUtf8Bytes(addinMetadata, new JsonSerializerOptions { WriteIndented = false }))}{Environment.NewLine}"));
 			sb.AppendLine("]");
 
 			// Save file
