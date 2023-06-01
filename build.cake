@@ -155,7 +155,8 @@ Task("Publish")
 		Configuration = configuration,
 		NoBuild = true,
 		NoRestore = true,
-		OutputDirectory = publishDir
+		ArgumentCustomization = args => args
+			.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
 	});
 });
 
