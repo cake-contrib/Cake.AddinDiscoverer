@@ -1,5 +1,6 @@
 using Cake.AddinDiscoverer.Utilities;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace Cake.AddinDiscoverer.Models
 {
@@ -61,11 +62,13 @@ namespace Cake.AddinDiscoverer.Models
 		/// <summary>
 		/// Gets or sets the number of open issues in the github repository.
 		/// </summary>
+		[JsonIgnore]
 		public int? OpenIssuesCount { get; set; }
 
 		/// <summary>
 		/// Gets or sets the number of open pull requests in the github repository.
 		/// </summary>
+		[JsonIgnore]
 		public int? OpenPullRequestsCount { get; set; }
 
 		/// <summary>

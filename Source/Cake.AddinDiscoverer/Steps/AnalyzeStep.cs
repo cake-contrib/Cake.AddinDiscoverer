@@ -34,7 +34,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
-		public string GetDescription(DiscoveryContext context) => "Analize addins";
+		public string GetDescription(DiscoveryContext context) => "Analyze addins";
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
@@ -562,6 +562,8 @@ namespace Cake.AddinDiscoverer.Steps
 			// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
 			// points to the original repo. This step corrects the URL to ensure it points to the right repo
 			var repo = cakeContribRepositories.FirstOrDefault(r => r.Name.EqualsIgnoreCase(addin.Name));
+			if (!string.IsNullOrEmpty(addin.RepositoryName)) repo ??= cakeContribRepositories.FirstOrDefault(r => r.Name.EqualsIgnoreCase(addin.RepositoryName));
+
 			if (repo != null)
 			{
 				// Only overwrite GitHub and Bitbucket URLs and preserve custom URLs such as 'https://cakeissues.net/' for example.
