@@ -27,7 +27,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			var reportData = new ReportData(context.Addins);
 			var mostRecentAddins = reportData.GetAddinsForCakeVersion(latestCakeVersion, false);
-			var analizedAddins = mostRecentAddins.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
+			var analyzedAddins = mostRecentAddins.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
 			var exceptionAddins = mostRecentAddins.Where(a => !a.IsDeprecated && !string.IsNullOrEmpty(a.AnalysisResult.Notes));
 			var deprecatedAddins = mostRecentAddins.Where(a => a.IsDeprecated);
 
@@ -49,7 +49,7 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 
 				// One worksheet for recipes
-				GenerateExcelWorksheet(analizedAddins, latestCakeVersion, AddinType.Recipe, "Recipes", excel);
+				GenerateExcelWorksheet(analyzedAddins, latestCakeVersion, AddinType.Recipe, "Recipes", excel);
 
 				// Exceptions report
 				GenerateExcelWorksheetWithNotes(exceptionAddins, "Exceptions", excel);
