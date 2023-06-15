@@ -1,6 +1,6 @@
 
 // Install tools.
-#tool nuget:?package=GitVersion.CommandLine&version=5.3.7
+#tool nuget:?package=GitVersion.CommandLine&version=5.12.0
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -155,7 +155,8 @@ Task("Publish")
 		Configuration = configuration,
 		NoBuild = true,
 		NoRestore = true,
-		OutputDirectory = publishDir
+		ArgumentCustomization = args => args
+			.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
 	});
 });
 
@@ -165,23 +166,24 @@ Task("Run")
 	.Does(() =>
 {
 	var args = new ProcessArgumentBuilder()
-		.AppendSwitchQuoted("-t", outputDir)
-		.AppendSwitchQuoted("-u", gitHubUserName)
-		.AppendSwitchQuotedSecret("-p", gitHubPassword);
+		.AppendSwitchQuoted("-t", outputDir) // "Folder where temporary files (including reports) are saved."
+		.AppendSwitchQuoted("-u", gitHubUserName) // "Github username."
+		.AppendSwitchQuotedSecret("-p", gitHubPassword); // "Github password."
 
 	if (clearCache) args.Append("-c");
 	if (isMainBranch)
 	{
-		args.Append("-r");
-		args.Append("-x");
-		args.Append("-s");
-		args.Append("-k");
-		args.Append("-n");
+		args.Append("-e"); // "Generate the Excel report and write to a file."
+		args.Append("-k"); // "Update addin references in CakeRecipe."
+		args.Append("-m"); // "Generate the Markdown report and write to a file."
+		args.Append("-n"); // "Synchronize the list of contributors."
+		args.Append("-r"); // "Commit reports and other files to cake-contrib repo."
+		args.Append("-s"); // "Synchronize the yaml files on Cake's web site with the packages discovered on NuGet."
 	}
 	else
 	{
-		args.Append("-m");
-		args.Append("-e");
+		args.Append("-e"); // "Generate the Excel report and write to a file."
+		args.Append("-m"); // "Generate the Markdown report and write to a file."
 	}
 
 	// Execute the command
@@ -205,17 +207,21 @@ Task("Upload-Artifacts")
 	.WithCriteria(() => AppVeyor.IsRunningOnAppVeyor)
 	.Does(() =>
 {
-	var markdownReport = $"{outputDir}{appName}/AddinDiscoveryReport.md";
-	if (FileExists(markdownReport))
+	var artifacts = new string[]
 	{
-		AppVeyor.UploadArtifact(markdownReport);
-	}
+		 "Audit.xlsx",
+		 "Audit.md",
+		 "Analysis_result.json"
+	};
 
-	var excelReport = $"{outputDir}{appName}/AddinDiscoveryReport.xlsx";
-	if (FileExists(excelReport))
+	foreach (var artifact in artifacts)
 	{
-		AppVeyor.UploadArtifact(excelReport);
-    }
+		var path = $"{outputDir}{appName}/{artifact}";
+		if (FileExists(path))
+		{
+			AppVeyor.UploadArtifact(path);
+		}
+	}
 });
 
 

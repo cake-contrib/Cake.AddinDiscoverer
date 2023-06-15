@@ -80,7 +80,8 @@ namespace Cake.AddinDiscoverer.Steps
 						};
 
 						return (fileName, currentContent, newContent);
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			// Determine which files need to be created/updated

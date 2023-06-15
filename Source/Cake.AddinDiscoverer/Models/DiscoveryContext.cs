@@ -51,6 +51,8 @@ namespace Cake.AddinDiscoverer.Models
 		/// </summary>
 		public IList<PullRequest> PullRequestsCreatedByCurrentUser { get; set; }
 
+		public string AnalysisFolder => Path.Combine(this.TempFolder, "analysis");
+
 		public string PackagesFolder => Path.Combine(this.TempFolder, "packages");
 
 		public string ExcelReportPath => Path.Combine(this.TempFolder, "Audit.xlsx");
@@ -60,5 +62,7 @@ namespace Cake.AddinDiscoverer.Models
 		public string StatsSaveLocation => Path.Combine(this.TempFolder, "Audit_stats.csv");
 
 		public string GraphSaveLocation => Path.Combine(this.TempFolder, "Audit_progress.png");
+
+		public string AnalysisResultSaveLocation => Path.Combine(this.TempFolder, "Analysis_result.json");
 	}
 }

@@ -1,6 +1,6 @@
 using System;
 using System.Globalization;
-using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace Cake.AddinDiscoverer.Utilities
@@ -9,8 +9,8 @@ namespace Cake.AddinDiscoverer.Utilities
 	/// A semantic version implementation.
 	/// Conforms to v2.0.0 of http://semver.org/.
 	/// </summary>
-	[Serializable]
-	internal sealed class SemVersion : IComparable<SemVersion>, IComparable, ISerializable
+	[JsonConverter(typeof(Json.SemVersionConverter))]
+	internal sealed class SemVersion : IComparable<SemVersion>, IComparable
 	{
 		private static readonly Regex PARSE_REGEX =
 			new Regex(
@@ -29,6 +29,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <param name="patch">The patch version.</param>
 		/// <param name="prerelease">The prerelease version (eg. "alpha").</param>
 		/// <param name="build">The build eg ("nightly.232").</param>
+		[JsonConstructor]
 		public SemVersion(int major, int minor = 0, int patch = 0, string prerelease = "", string build = "")
 		{
 			this.Major = major;
@@ -60,23 +61,6 @@ namespace Cake.AddinDiscoverer.Utilities
 		}
 
 		/// <summary>
-		/// Initializes a new instance of the <see cref="SemVersion" /> class.
-		/// </summary>
-		/// <param name="info">The serialization info.</param>
-		/// <param name="context">The serialization context.</param>
-		/// <exception cref="ArgumentNullException">If info is null.</exception>
-		private SemVersion(SerializationInfo info, StreamingContext context)
-		{
-			if (info == null) throw new ArgumentNullException("info");
-			var semVersion = Parse(info.GetString("SemVersion"));
-			Major = semVersion.Major;
-			Minor = semVersion.Minor;
-			Patch = semVersion.Patch;
-			Prerelease = semVersion.Prerelease;
-			Build = semVersion.Build;
-		}
-
-		/// <summary>
 		/// Parses the specified string to a semantic version.
 		/// </summary>
 		/// <param name="version">The version string.</param>
@@ -85,6 +69,8 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <exception cref="System.InvalidOperationException">When a invalid version string is passed.</exception>
 		public static SemVersion Parse(string version, bool strict = false)
 		{
+			if (string.IsNullOrEmpty(version)) return null;
+
 			var match = PARSE_REGEX.Match(version);
 			if (!match.Success)
 				throw new ArgumentException("Invalid version.", "version");
@@ -359,17 +345,6 @@ namespace Cake.AddinDiscoverer.Utilities
 				result = (result * 31) + this.Build.GetHashCode();
 				return result;
 			}
-		}
-
-		/// <summary>
-		/// For serialization.
-		/// </summary>
-		/// <param name="info">The serialization info.</param>
-		/// <param name="context">The context.</param>
-		public void GetObjectData(SerializationInfo info, StreamingContext context)
-		{
-			if (info == null) throw new ArgumentNullException("info");
-			info.AddValue("SemVersion", ToString());
 		}
 
 		/// <summary>

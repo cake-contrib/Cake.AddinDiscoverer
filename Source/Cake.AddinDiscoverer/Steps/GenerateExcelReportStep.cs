@@ -14,7 +14,7 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class GenerateExcelReportStep : IStep
 	{
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.ExcelReportToFile || context.Options.ExcelReportToRepo;
+		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.GenerateExcelReport;
 
 		public string GetDescription(DiscoveryContext context) => "Generate the excel report";
 
@@ -22,26 +22,34 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
-			var latestCakeVersion = Constants.CAKE_VERSIONS.Max();
+			var cakeVersionsForReport = Constants.CAKE_VERSIONS.Where(cakeVersion => cakeVersion.Version != Constants.VERSION_ZERO).ToArray();
+			var latestCakeVersion = cakeVersionsForReport.Max();
+
+			var reportData = new ReportData(context.Addins);
+			var mostRecentAddins = reportData.GetAddinsForCakeVersion(latestCakeVersion, false);
+			var analizedAddins = mostRecentAddins.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
+			var exceptionAddins = mostRecentAddins.Where(a => !a.IsDeprecated && !string.IsNullOrEmpty(a.AnalysisResult.Notes));
+			var deprecatedAddins = mostRecentAddins.Where(a => a.IsDeprecated);
 
 			using (var excel = new ExcelPackage(new FileInfo(context.ExcelReportPath)))
 			{
-				var deprecatedAddins = context.Addins.Where(addin => addin.IsDeprecated).ToArray();
-				var auditedAddins = context.Addins.Where(addin => !addin.IsDeprecated && string.IsNullOrEmpty(addin.AnalysisResult.Notes)).ToArray();
-				var exceptionAddins = context.Addins.Where(addin => !addin.IsDeprecated && !string.IsNullOrEmpty(addin.AnalysisResult.Notes)).ToArray();
-
 				var namedStyle = excel.Workbook.Styles.CreateNamedStyle("HyperLink");
 				namedStyle.Style.Font.UnderLine = true;
 				namedStyle.Style.Font.Color.SetColor(Color.Blue);
 
-				// One worksheet per version of Cake
-				foreach (var cakeVersion in Constants.CAKE_VERSIONS.OrderByDescending(cakeVersion => cakeVersion.Version))
+				// One worksheet per version of Cake (reverse order so first tab in excel shows data for most recent version of Cake)
+				foreach (var cakeVersion in cakeVersionsForReport.OrderByDescending(v => v.Version))
 				{
-					GenerateExcelWorksheet(auditedAddins, cakeVersion, AddinType.Addin | AddinType.Module, $"Cake {cakeVersion.Version}", excel);
+					var addins = reportData.GetAddinsForCakeVersion(cakeVersion, false)
+						.Where(addin => !addin.IsDeprecated)
+						.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
+						.ToArray();
+
+					GenerateExcelWorksheet(addins, cakeVersion, AddinType.Addin | AddinType.Module, $"Cake {cakeVersion.Version}", excel);
 				}
 
 				// One worksheet for recipes
-				GenerateExcelWorksheet(auditedAddins, latestCakeVersion, AddinType.Recipe, "Recipes", excel);
+				GenerateExcelWorksheet(analizedAddins, latestCakeVersion, AddinType.Recipe, "Recipes", excel);
 
 				// Exceptions report
 				GenerateExcelWorksheetWithNotes(exceptionAddins, "Exceptions", excel);
@@ -136,18 +144,20 @@ namespace Cake.AddinDiscoverer.Steps
 			var worksheet = excel.Workbook.Worksheets.Add(caption);
 
 			worksheet.Cells[1, 1].Value = "Addin";
-			worksheet.Cells[1, 2].Value = "Notes";
+			worksheet.Cells[1, 2].Value = "Version";
+			worksheet.Cells[1, 3].Value = "Notes";
 
 			var row = 1;
 			foreach (var addin in addins.OrderBy(p => p.Name))
 			{
 				row++;
 				worksheet.Cells[row, 1].Value = addin.Name;
-				worksheet.Cells[row, 2].Value = addin.AnalysisResult.Notes?.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)[0] ?? string.Empty;
+				worksheet.Cells[row, 2].Value = addin.NuGetPackageVersion;
+				worksheet.Cells[row, 3].Value = addin.AnalysisResult.Notes?.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)[0] ?? string.Empty;
 			}
 
 			// Resize columns and freeze the top row
-			worksheet.Cells[1, 1, row, 2].AutoFitColumns();
+			worksheet.Cells[1, 1, row, 3].AutoFitColumns();
 			worksheet.View.FreezePanes(2, 1);
 		}
 	}

@@ -1,14 +1,13 @@
 using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Reflection;
+using System.Text.Json.Serialization;
 
 namespace Cake.AddinDiscoverer.Models
 {
-	[DebuggerDisplay("Name = {Name}; Type = {Type}")]
+	[DebuggerDisplay("Name = {Name}; Version = {NuGetPackageVersion}; Type = {Type}")]
 	internal class AddinMetadata
 	{
 		public string Name { get; set; }
@@ -22,6 +21,8 @@ namespace Cake.AddinDiscoverer.Models
 		public string[] Frameworks { get; set; }
 
 		public DllReference[] References { get; set; }
+
+		public bool Analyzed { get; set; }
 
 		public AddinAnalysisResult AnalysisResult { get; set; }
 
@@ -79,13 +80,12 @@ namespace Cake.AddinDiscoverer.Models
 
 		public bool XmlDocumentationAvailable { get; set; }
 
+		[JsonIgnore]
 		public MethodInfo[] DecoratedMethods { get; set; }
 
 		public string[] AliasCategories { get; set; }
 
 		public DateTimeOffset PublishedOn { get; set; }
-
-		public IDictionary<string, Stream> RepoContent { get; set; }
 
 		public CakeVersionYamlConfig CakeVersionYaml { get; set; }
 

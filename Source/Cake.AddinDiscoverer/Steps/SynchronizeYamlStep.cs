@@ -1,5 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
+using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
@@ -26,6 +27,11 @@ namespace Cake.AddinDiscoverer.Steps
 			// Ensure the fork is up-to-date
 			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME).ConfigureAwait(false);
 
+			// The content of the YAML files is based on the most recent version of the addins
+			var latestCakeVersion = Constants.CAKE_VERSIONS.OrderByDescending(cv => cv.Version).First();
+			var reportData = new ReportData(context.Addins);
+			var addins = reportData.GetAddinsForCakeVersion(latestCakeVersion, false);
+
 			// Local functions that indicate if the YAML file for a given addin should be created/updated/deleted
 			bool ShouldDeleteYamlFile(AddinMetadata addin)
 			{
@@ -43,28 +49,29 @@ namespace Cake.AddinDiscoverer.Steps
 			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "extensions").ConfigureAwait(false);
 			var yamlFiles = directoryContent
 				.Where(file => file.Name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-				.Where(file => string.IsNullOrEmpty(context.Options.AddinName) || Path.GetFileNameWithoutExtension(file.Name) == context.Options.AddinName)
+				.Where(file => string.IsNullOrEmpty(context.Options.AddinName) || Path.GetFileNameWithoutExtension(file.Name).EqualsIgnoreCase(context.Options.AddinName))
 				.ToArray();
 
 			var yamlFilesToBeDeleted = yamlFiles
 				.Where(f =>
 				{
-					var addin = context.Addins.FirstOrDefault(a => a.Name == Path.GetFileNameWithoutExtension(f.Name));
+					var addin = addins.FirstOrDefault(a => a.Name.EqualsIgnoreCase(Path.GetFileNameWithoutExtension(f.Name)));
 					return addin == null || ShouldDeleteYamlFile(addin);
 				})
 				.OrderBy(f => f.Name)
 				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
-			var addinsWithContent = await context.Addins
+			var addinsWithContent = await addins
 				.Where(ShouldUpdateOrCreateYamlFile)
-				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
+				.Where(addin => yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name).EqualsIgnoreCase(addin.Name)))
 				.ForEachAsync<AddinMetadata, (AddinMetadata Addin, string CurrentContent, string NewContent)>(
 					async addin =>
 					{
 						var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"extensions/{addin.Name}.yml").ConfigureAwait(false);
 						return (addin, contents[0].Content, UpdateYamlFile(context, addin, contents[0].Content));
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			var addinsToBeUpdated = addinsWithContent
@@ -73,9 +80,9 @@ namespace Cake.AddinDiscoverer.Steps
 				.Take(MAX_FILES_TO_COMMIT)
 				.ToArray();
 
-			var addinsToBeCreated = context.Addins
+			var addinsToBeCreated = addins
 				.Where(ShouldUpdateOrCreateYamlFile)
-				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name) == addin.Name))
+				.Where(addin => !yamlFiles.Any(f => Path.GetFileNameWithoutExtension(f.Name).EqualsIgnoreCase(addin.Name)))
 				.OrderBy(addin => addin.Name)
 				.Select<AddinMetadata, (AddinMetadata Addin, string CurrentContent, string NewContent)>(addin => (addin, string.Empty, GenerateYamlFile(context, addin)))
 				.Where(addin => !string.IsNullOrEmpty(addin.NewContent))
@@ -303,7 +310,8 @@ namespace Cake.AddinDiscoverer.Steps
 						var issueTitle = $"Delete {yamlFileToBeDeleted.Name}";
 						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, string.Format(issueTitle, yamlFileToBeDeleted.Name)).ConfigureAwait(false);
 						return (YamlFile: yamlFileToBeDeleted, Issue: issue);
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			var filteredYamlFilesToBeDeleted = yamlFilesToBeDeletedWithIssue
@@ -319,7 +327,8 @@ namespace Cake.AddinDiscoverer.Steps
 						var issueTitle = $"Add {addinToBeCreated.Addin.Name}.yml";
 						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, string.Format(issueTitle, addinToBeCreated.Addin.Name)).ConfigureAwait(false);
 						return (Addin: addinToBeCreated, Issue: issue);
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			var filteredAddinsToBeCreated = addinsToBeCreatedWithIssue
@@ -335,7 +344,8 @@ namespace Cake.AddinDiscoverer.Steps
 						var issueTitle = $"Update {addinToBeUpdated.Addin.Name}.yml";
 						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, string.Format(issueTitle, addinToBeUpdated.Addin.Name)).ConfigureAwait(false);
 						return (Addin: addinToBeUpdated, Issue: issue);
-					}, Constants.MAX_GITHUB_CONCURENCY)
+					},
+					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
 
 			var filteredAddinsToBeUpdated = addinsToBeUpdatedWithIssue

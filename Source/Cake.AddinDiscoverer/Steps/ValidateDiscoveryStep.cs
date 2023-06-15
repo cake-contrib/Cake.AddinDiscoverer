@@ -21,14 +21,8 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			if (!context.Addins.Any())
 			{
-				if (string.IsNullOrEmpty(context.Options.AddinName))
-				{
-					throw new Exception($"Unable to find any addin");
-				}
-				else
-				{
-					throw new Exception($"Unable to find '{context.Options.AddinName}'");
-				}
+				if (string.IsNullOrEmpty(context.Options.AddinName)) throw new Exception($"Unable to find any addin");
+				else throw new Exception($"Unable to find '{context.Options.AddinName}'");
 			}
 
 			return Task.CompletedTask;
