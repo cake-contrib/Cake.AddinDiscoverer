@@ -100,6 +100,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine("## Progress");
 			markdown.AppendLine();
 			markdown.AppendLine("The following graph shows the percentage of addins that are compatible with Cake over time. For the purpose of this graph, we consider an addin to be compatible with a given version of Cake if it references the desired version of Cake.Core and Cake.Common.");
+			markdown.AppendLine("Please note that AddinDiscover 1.0.0 through 4.x.x made assumptions regarding Addins compatibility with prior versions of Cake. However, AddinDiscoverer version 5.0 (which was released on June 15 2023) is much more accurate due to the fact that all historical packages of all addins are analyzed as opposed to analyzing only the latest version of each given addin. This explains why you can observe a change in the number of Addins compatible with Cake 1 and Cake 2 in the graph below starting on June 15 2023:");
 			markdown.AppendLine();
 			markdown.AppendLine($"![Progress over time]({Path.GetFileName(context.GraphSaveLocation)})");
 
