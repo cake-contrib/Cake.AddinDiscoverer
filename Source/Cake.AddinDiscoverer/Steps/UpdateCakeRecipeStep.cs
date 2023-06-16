@@ -144,16 +144,20 @@ namespace Cake.AddinDiscoverer.Steps
 
 						foreach (var loadReference in recipeFile.LoadReferences)
 						{
-							var referencedPackage = addins[currentCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
-							referencedPackage ??= addins[nextCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
-							referencedPackage ??= addins[latestCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
+							var allVersions = reportData.AllPackages.Where(addin => AddinIsEqualToReference(addin, loadReference)).ToArray();
 
-							if (referencedPackage != null)
-							{
-								loadReference.LatestVersionForCurrentCake = referencedPackage.NuGetPackageVersion;
-								loadReference.LatestVersionForNextCake = referencedPackage.NuGetPackageVersion;
-								loadReference.LatestVersionForLatestCake = referencedPackage.NuGetPackageVersion;
-							}
+							var latestVersionForCurrentCake = addins[currentCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
+							latestVersionForCurrentCake ??= allVersions.FirstOrDefault(addin => addin.CakeVersionYaml == null || addin.CakeVersionYaml.TargetCakeVersion < currentCakeVersion.Version);
+
+							var latestVersionForNextCake = addins[nextCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
+							latestVersionForNextCake ??= allVersions.FirstOrDefault(addin => addin.CakeVersionYaml == null || addin.CakeVersionYaml.TargetCakeVersion < nextCakeVersion.Version);
+
+							var latestVersionForLatestCake = addins[latestCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
+							latestVersionForLatestCake ??= allVersions.FirstOrDefault();
+
+							loadReference.LatestVersionForCurrentCake = latestVersionForCurrentCake.NuGetPackageVersion;
+							loadReference.LatestVersionForNextCake = latestVersionForNextCake.NuGetPackageVersion;
+							loadReference.LatestVersionForLatestCake = latestVersionForLatestCake.NuGetPackageVersion;
 						}
 
 						var nugetPackageMetadataClient = context.NugetRepository.GetResource<PackageMetadataResource>();
