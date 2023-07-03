@@ -66,7 +66,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var latestCakeRecipeVersion = SemVersion.Parse(cakeRecipeAddin == null ? "0.0.0" : cakeRecipeAddin.NuGetPackageVersion);
 
 			await context.Addins
-				.Where(addin => !addin.Analyzed || context.Options.AnalyzeAllAddins)
+				.Where(addin => !addin.Analyzed)
 				.ForEachAsync(
 					async addin =>
 					{

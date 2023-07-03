@@ -1,6 +1,7 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -17,6 +18,12 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
+			if (context.Options.AnalyzeAllAddins)
+			{
+				context.Addins = Array.Empty<AddinMetadata>();
+				return;
+			}
+
 			string previousAnalysisContent;
 
 			if (File.Exists(context.AnalysisResultSaveLocation))
