@@ -116,10 +116,25 @@ Task("Clean")
 	CleanDirectories($"{sourceFolder}*/bin/{configuration}");
 	CleanDirectories($"{sourceFolder}*/obj/{configuration}");
 
-	// Clean previous artifacts
+	// Clean previous artifacts (except downloaded packages).
+	// Do not use Cake's "CleanDirectories" alias because there
+	// is no way to exclude a sub folder which prevents us from
+	// exluding the "packages" subfolder.
 	Information("Cleaning {0}", outputDir);
-	if (DirectoryExists(outputDir)) CleanDirectories(MakeAbsolute(Directory(outputDir)).FullPath);
-	else CreateDirectory(outputDir);
+	if (DirectoryExists(outputDir))
+	{
+		foreach (var directory in GetDirectories(outputDir))
+		{
+			if (!directory.FullPath.EndsWith("packages"))
+			{
+				DeleteFiles($"{directory.FullPath}/*.*");
+			}
+		}
+	}
+	else
+	{
+		CreateDirectory(outputDir);
+	}
 });
 
 Task("Restore-NuGet-Packages")
