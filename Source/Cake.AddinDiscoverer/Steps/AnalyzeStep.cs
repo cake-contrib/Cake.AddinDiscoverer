@@ -30,6 +30,8 @@ namespace Cake.AddinDiscoverer.Steps
 		// https://github.com/dotnet/roslyn/blob/b3cbe7abce7633e45d7dd468bde96bfe24ccde47/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L18
 		private static readonly Guid SourceLinkCustomDebugInfoGuid = new("CC110556-A091-4D38-9FEC-25AB9A351A6A");
 
+		private static Octokit.User _cakecontribUser;
+
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
 		public string GetDescription(DiscoveryContext context) => "Analyze addins";
@@ -78,10 +80,15 @@ namespace Cake.AddinDiscoverer.Steps
 						// Set the owners of the NuGet package
 						DeterminePackageOwners(packageOwners, addin);
 
+						// Get maintainer information such as profile URL and avatar
+						await GetMaintainerInfo(context, addin).ConfigureAwait(false);
+
 						// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
 						// points to the original repo. This step corrects the URL to ensure it points to the right repo.
-						// Also, this step forces HTTPS for github URLs.
 						await ValidateUrls(context, addin, cakeContribRepositories).ConfigureAwait(false);
+
+						// Force HTTPS for github URLs.
+						StandardizeGitHubURLs(context, addin);
 
 						// Check if this addin is using Cake.Recipe
 						await CheckUsingCakeRecipe(context, addin, latestCakeRecipeVersion).ConfigureAwait(false);
@@ -594,6 +601,43 @@ namespace Cake.AddinDiscoverer.Steps
 			return (null, null, Array.Empty<MethodInfo>(), string.Empty, Array.Empty<string>());
 		}
 
+		private static async Task GetMaintainerInfo(DiscoveryContext context, AddinMetadata addin)
+		{
+			Octokit.User maintainerUser = null;
+
+			if (!string.IsNullOrEmpty(addin.Maintainer) && !addin.Maintainer.EqualsIgnoreCase(Constants.CAKE_CONTRIB_REPO_OWNER))
+			{
+				try
+				{
+					maintainerUser = await context.GithubClient.User.Get(addin.Maintainer).ConfigureAwait(false);
+				}
+				catch (NotFoundException) { }
+			}
+
+			if (maintainerUser == null && Misc.DeriveGitHubRepositoryInfo(addin.RepositoryUrl ?? addin.ProjectUrl, out string maintainerName, out string _))
+			{
+				try
+				{
+					if (maintainerName.EqualsIgnoreCase(Constants.CAKE_CONTRIB_REPO_OWNER))
+					{
+						_cakecontribUser ??= await context.GithubClient.User.Get(maintainerName).ConfigureAwait(false);
+						maintainerUser = _cakecontribUser;
+					}
+					else
+					{
+						maintainerUser = await context.GithubClient.User.Get(maintainerName).ConfigureAwait(false);
+					}
+				}
+				catch (NotFoundException) { }
+			}
+
+			if (maintainerUser != null)
+			{
+				addin.MaintainerAvatarUrl = new Uri(maintainerUser.AvatarUrl);
+				addin.MaintainerProfileUrl = new Uri(maintainerUser.HtmlUrl);
+			}
+		}
+
 		private static async Task ValidateUrls(DiscoveryContext context, AddinMetadata addin, IReadOnlyList<Octokit.Repository> cakeContribRepositories)
 		{
 			// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
@@ -646,12 +690,6 @@ namespace Cake.AddinDiscoverer.Steps
 				{
 					addin.ProjectUrl = null;
 				}
-#pragma warning disable CS0168 // Variable is declared but never used
-				catch (Exception e)
-#pragma warning restore CS0168 // Variable is declared but never used
-				{
-					throw;
-				}
 			}
 
 			// Validate non-GitHub URL
@@ -663,11 +701,15 @@ namespace Cake.AddinDiscoverer.Steps
 					addin.ProjectUrl = null;
 				}
 			}
+		}
 
-			// Standardize GitHub URLs
+		private static void StandardizeGitHubURLs(DiscoveryContext context, AddinMetadata addin)
+		{
 			addin.InferredRepositoryUrl = Misc.StandardizeGitHubUri(addin.InferredRepositoryUrl);
 			addin.RepositoryUrl = Misc.StandardizeGitHubUri(addin.RepositoryUrl);
 			addin.ProjectUrl = Misc.StandardizeGitHubUri(addin.ProjectUrl);
+			addin.MaintainerProfileUrl = Misc.StandardizeGitHubUri(addin.MaintainerProfileUrl);
+			addin.MaintainerAvatarUrl = Misc.StandardizeGitHubUri(addin.MaintainerAvatarUrl);
 		}
 
 		private static void AnalyzeAddin(DiscoveryContext context, AddinMetadata addin, byte[] cakeContribIcon, KeyValuePair<AddinType, byte[]>[] fancyIcons)

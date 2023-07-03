@@ -57,6 +57,10 @@ namespace Cake.AddinDiscoverer.Models
 		/// </remarks>
 		public Uri InferredRepositoryUrl { get; set; }
 
+		public Uri MaintainerProfileUrl { get; set; }
+
+		public Uri MaintainerAvatarUrl { get; set; }
+
 		[JsonIgnore]
 		public PullRequest AuditPullRequest { get; set; }
 
