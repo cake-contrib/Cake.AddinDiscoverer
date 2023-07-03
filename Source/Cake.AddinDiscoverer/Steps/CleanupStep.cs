@@ -22,7 +22,7 @@ namespace Cake.AddinDiscoverer.Steps
 			await DeleteBranches(context, log).ConfigureAwait(false);
 		}
 
-		private async Task ClearCacheAndOutputFolders(DiscoveryContext context, TextWriter log)
+		private static async Task ClearCacheAndOutputFolders(DiscoveryContext context, TextWriter log)
 		{
 			if (context.Options.ClearCache && Directory.Exists(context.TempFolder))
 			{
@@ -59,7 +59,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private async Task DeleteBranches(DiscoveryContext context, TextWriter log)
+		private static async Task DeleteBranches(DiscoveryContext context, TextWriter log)
 		{
 			var sensitiveBranches = new[]
 			{
@@ -91,7 +91,7 @@ namespace Cake.AddinDiscoverer.Steps
 			await DeleteMergedBranches(context, otherBranches, log).ConfigureAwait(false);
 		}
 
-		private async Task DeleteDryRunBranches(DiscoveryContext context, IEnumerable<Branch> branches, TextWriter log)
+		private static async Task DeleteDryRunBranches(DiscoveryContext context, IEnumerable<Branch> branches, TextWriter log)
 		{
 			// Delete dry runs after a "reasonable" amount of time (60 days seems reasonable to me).
 			foreach (var branch in branches)
@@ -113,7 +113,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private async Task DeleteMergedBranches(DiscoveryContext context, IEnumerable<Branch> branches, TextWriter log)
+		private static async Task DeleteMergedBranches(DiscoveryContext context, IEnumerable<Branch> branches, TextWriter log)
 		{
 			// Delete branches when their corresponding PR has been merged
 			foreach (var branch in branches)
