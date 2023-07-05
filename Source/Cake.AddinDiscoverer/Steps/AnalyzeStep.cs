@@ -9,6 +9,7 @@ using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using Octokit;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -30,7 +31,7 @@ namespace Cake.AddinDiscoverer.Steps
 		// https://github.com/dotnet/roslyn/blob/b3cbe7abce7633e45d7dd468bde96bfe24ccde47/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L18
 		private static readonly Guid SourceLinkCustomDebugInfoGuid = new("CC110556-A091-4D38-9FEC-25AB9A351A6A");
 
-		private static Octokit.User _cakecontribUser;
+		private static ConcurrentDictionary<string, Task<Octokit.User>> _maintainers = new(StringComparer.OrdinalIgnoreCase);
 
 		public bool PreConditionIsMet(DiscoveryContext context) => true;
 
@@ -603,32 +604,27 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static async Task GetMaintainerInfo(DiscoveryContext context, AddinMetadata addin)
 		{
-			Octokit.User maintainerUser = null;
-
-			if (!string.IsNullOrEmpty(addin.Maintainer) && !addin.Maintainer.EqualsIgnoreCase(Constants.CAKE_CONTRIB_REPO_OWNER))
+			Func<string, Task<Octokit.User>> getGitHubUser = async (name) =>
 			{
 				try
 				{
-					maintainerUser = await context.GithubClient.User.Get(addin.Maintainer).ConfigureAwait(false);
+					return await context.GithubClient.User.Get(name).ConfigureAwait(false);
 				}
-				catch (NotFoundException) { }
+				catch (NotFoundException)
+				{
+					return null;
+				}
+			};
+
+			Octokit.User maintainerUser = null;
+			if (!string.IsNullOrEmpty(addin.Maintainer))
+			{
+				maintainerUser = await _maintainers.GetOrAddAsync(addin.Maintainer, getGitHubUser).ConfigureAwait(false);
 			}
 
 			if (maintainerUser == null && Misc.DeriveGitHubRepositoryInfo(addin.RepositoryUrl ?? addin.ProjectUrl, out string maintainerName, out string _))
 			{
-				try
-				{
-					if (maintainerName.EqualsIgnoreCase(Constants.CAKE_CONTRIB_REPO_OWNER))
-					{
-						_cakecontribUser ??= await context.GithubClient.User.Get(maintainerName).ConfigureAwait(false);
-						maintainerUser = _cakecontribUser;
-					}
-					else
-					{
-						maintainerUser = await context.GithubClient.User.Get(maintainerName).ConfigureAwait(false);
-					}
-				}
-				catch (NotFoundException) { }
+				maintainerUser = await _maintainers.GetOrAddAsync(maintainerName, getGitHubUser).ConfigureAwait(false);
 			}
 
 			if (maintainerUser != null)
