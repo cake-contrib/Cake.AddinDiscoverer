@@ -8,6 +8,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Cake.AddinDiscoverer.Utilities
@@ -237,6 +238,15 @@ namespace Cake.AddinDiscoverer.Utilities
 		public static Task RandomGithubDelayAsync()
 		{
 			return Task.Delay(RandomNumberGenerator.GetInt32(1000, 2000));
+		}
+
+		public static JsonSerializerOptions GetJsonOptions(bool indented = true)
+		{
+			return new JsonSerializerOptions
+			{
+				WriteIndented = indented,
+				Converters = { new Json.NuGetVersionConverter() }
+			};
 		}
 	}
 }

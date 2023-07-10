@@ -81,8 +81,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// Sort the addins for convenience
 			context.Addins = context.Addins
-				.OrderBy(a => a.Name) // Sort alphabetically
-				.ThenByDescending(a => a.PublishedOn) // Sort chronologically
+				.SortForAddinDisco()
 				.ToArray();
 		}
 
@@ -136,7 +135,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 							NuGetPackageUrl = new Uri($"https://www.nuget.org/packages/{packageName}/"),
 							NuGetPackageOwners = packageOwners,
-							NuGetPackageVersion = package.Identity.Version.ToNormalizedString(),
+							NuGetPackageVersion = package.Identity.Version,
 							IsDeprecated = false,
 							IsPrerelease = package.Identity.Version.IsPrerelease,
 							HasPrereleaseDependencies = false,

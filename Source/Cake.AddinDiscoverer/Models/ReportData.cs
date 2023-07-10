@@ -53,8 +53,7 @@ namespace Cake.AddinDiscoverer.Models
 						var comparisonResult = targetedCakeVersion.CompareTo(cakeVersion);
 						return strict ? comparisonResult == 0 : comparisonResult <= 0;
 					})
-					.OrderBy(addinVersion => addinVersion.IsPrerelease ? 1 : 0) // Stable versions are sorted first, prerelease versions sorted second)
-					.ThenByDescending(addinVersion => addinVersion.PublishedOn)
+					.SortForAddinDisco()
 					.FirstOrDefault();
 		}
 	}
