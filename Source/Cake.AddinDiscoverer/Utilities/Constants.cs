@@ -108,7 +108,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				ExcelHorizontalAlignment.Center,
 				(addin) => addin.NuGetPackageVersion,
 				(addin, cakeVersion) => Color.Empty,
-				(addin) => addin.NuGetPackageUrl == null ? null : new Uri(addin.NuGetPackageUrl, addin.NuGetPackageVersion),
+				(addin) => addin.NuGetPackageUrl == null ? null : new Uri(addin.NuGetPackageUrl, addin.NuGetPackageVersion.ToNormalizedString()),
 				AddinType.All,
 				DataDestination.Excel
 			),
