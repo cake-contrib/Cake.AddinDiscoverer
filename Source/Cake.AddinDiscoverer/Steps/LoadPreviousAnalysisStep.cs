@@ -1,7 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
-using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -18,31 +17,28 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
-			if (context.Options.AnalyzeAllAddins)
-			{
-				context.Addins = Array.Empty<AddinMetadata>();
-				return;
-			}
+			var previousAnalysisContent = string.Empty;
 
-			string previousAnalysisContent;
-
-			if (File.Exists(context.AnalysisResultSaveLocation))
+			if (!context.Options.AnalyzeAllAddins)
 			{
-				previousAnalysisContent = await File.ReadAllTextAsync(context.AnalysisResultSaveLocation, cancellationToken).ConfigureAwait(false);
-			}
-			else
-			{
-				// Load the result of previous analysis
-				var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.AnalysisResultSaveLocation)).ConfigureAwait(false);
+				if (File.Exists(context.AnalysisResultSaveLocation))
+				{
+					previousAnalysisContent = await File.ReadAllTextAsync(context.AnalysisResultSaveLocation, cancellationToken).ConfigureAwait(false);
+				}
+				else
+				{
+					// Load the result of previous analysis
+					var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.AnalysisResultSaveLocation)).ConfigureAwait(false);
 
-				// The file is too large to be retrieved from the GitHub API. We must issue a HTTP GET to the download URL
-				previousAnalysisContent = await context.HttpClient.GetStringAsync(contents[0].DownloadUrl).ConfigureAwait(false);
+					// The file is too large to be retrieved from the GitHub API. We must issue a HTTP GET to the download URL
+					previousAnalysisContent = await context.HttpClient.GetStringAsync(contents[0].DownloadUrl).ConfigureAwait(false);
+				}
 			}
 
 			// Deseralize the content of the previous analysis
 			if (!string.IsNullOrEmpty(previousAnalysisContent))
 			{
-				context.Addins = JsonSerializer.Deserialize<AddinMetadata[]>(previousAnalysisContent, default(JsonSerializerOptions));
+				context.Addins = JsonSerializer.Deserialize<AddinMetadata[]>(previousAnalysisContent, Misc.GetJsonOptions(true));
 			}
 
 			// Load individual analysis results (which are present if the previous analysis was interrupted)
@@ -50,7 +46,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.Select(fileName =>
 				{
 					using FileStream fileStream = File.OpenRead(fileName);
-					var deserializedAddin = JsonSerializer.Deserialize<AddinMetadata>(fileStream);
+					var deserializedAddin = JsonSerializer.Deserialize<AddinMetadata>(fileStream, Misc.GetJsonOptions(true));
 					return deserializedAddin;
 				})
 				.ToArray();
