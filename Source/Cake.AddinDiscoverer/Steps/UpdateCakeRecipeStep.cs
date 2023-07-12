@@ -125,20 +125,23 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							addinReference.LatestVersionForCurrentCake = addins[currentCakeVersion]
 								.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
-								.NuGetPackageVersion;
+								.NuGetPackageVersion
+								.ToSemVersion();
 
 							if (nextCakeVersion != null)
 							{
 								addinReference.LatestVersionForNextCake = addins[nextCakeVersion]
 									.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
-									.NuGetPackageVersion;
+									.NuGetPackageVersion
+									.ToSemVersion();
 							}
 
 							if (latestCakeVersion != null)
 							{
 								addinReference.LatestVersionForLatestCake = addins[latestCakeVersion]
 									.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
-									.NuGetPackageVersion;
+									.NuGetPackageVersion
+									.ToSemVersion();
 							}
 						}
 
@@ -155,9 +158,9 @@ namespace Cake.AddinDiscoverer.Steps
 							var latestVersionForLatestCake = addins[latestCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
 							latestVersionForLatestCake ??= allVersions.FirstOrDefault();
 
-							loadReference.LatestVersionForCurrentCake = latestVersionForCurrentCake.NuGetPackageVersion;
-							loadReference.LatestVersionForNextCake = latestVersionForNextCake.NuGetPackageVersion;
-							loadReference.LatestVersionForLatestCake = latestVersionForLatestCake.NuGetPackageVersion;
+							loadReference.LatestVersionForCurrentCake = latestVersionForCurrentCake.NuGetPackageVersion.ToSemVersion();
+							loadReference.LatestVersionForNextCake = latestVersionForNextCake.NuGetPackageVersion.ToSemVersion();
+							loadReference.LatestVersionForLatestCake = latestVersionForLatestCake.NuGetPackageVersion.ToSemVersion();
 						}
 
 						var nugetPackageMetadataClient = context.NugetRepository.GetResource<PackageMetadataResource>();
@@ -345,10 +348,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (availableForNextCakeVersionCount == totalReferencesCount)
 			{
 				var yamlVersionConfigContents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.CAKE_VERSION_YML_PATH).ConfigureAwait(false);
-				var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
-					.WithTypeConverter(new SemVersionConverter())
-					.Build();
-				var yamlConfig = deserializer.Deserialize<CakeVersionYamlConfig>(yamlVersionConfigContents[0].Content);
+				var yamlConfig = yamlVersionConfigContents[0].Content.FromYamlString<CakeVersionYamlConfig>();
 				yamlConfig.TargetCakeVersion = nextCakeVersion.Version;
 
 				// Commit changes to a new branch and submit PR

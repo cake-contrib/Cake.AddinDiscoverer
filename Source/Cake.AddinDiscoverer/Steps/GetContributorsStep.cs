@@ -75,7 +75,7 @@ namespace Cake.AddinDiscoverer.Steps
 						var newContent = Path.GetExtension(fileName) switch
 						{
 							".yml" => contributors.ToYamlString("\n"),
-							".json" => JsonSerializer.Serialize(contributors, contributors.GetType(), new JsonSerializerOptions { WriteIndented = true }),
+							".json" => JsonSerializer.Serialize(contributors, contributors.GetType(), Misc.GetJsonOptions(true)),
 							_ => throw new Exception($"Don't know how to generate the content of {fileName}")
 						};
 

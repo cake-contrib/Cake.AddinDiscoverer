@@ -1,5 +1,7 @@
+using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
+using NuGet.Versioning;
 using Octokit;
 using System;
 using System.Collections.Generic;
@@ -365,6 +367,7 @@ namespace Cake.AddinDiscoverer
 			{
 				var serializer = new YamlDotNet.Serialization.SerializerBuilder()
 					.WithTypeConverter(new SemVersionConverter())
+					.WithTypeConverter(new NuGetVersionConverter())
 					.Build();
 				serializer.Serialize(sw, obj);
 			}
@@ -376,6 +379,21 @@ namespace Cake.AddinDiscoverer
 			}
 
 			return yamlContent;
+		}
+
+		/// <summary>
+		/// Deserialize a YAML string into an object.
+		/// </summary>
+		/// <param name="yamlContent">The YAML string.</param>
+		/// <returns>The object.<</returns>
+		public static T FromYamlString<T>(this string yamlContent)
+		{
+			var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+				.WithTypeConverter(new SemVersionConverter())
+				.WithTypeConverter(new NuGetVersionConverter())
+				.Build();
+			var obj = deserializer.Deserialize<T>(yamlContent);
+			return obj;
 		}
 
 		public static bool UnsortedSequencesEqual<T>(this IEnumerable<T> first, IEnumerable<T> second, IEqualityComparer<T> comparer)
@@ -405,6 +423,19 @@ namespace Cake.AddinDiscoverer
 			}
 
 			return counts.Count == 0;
+		}
+
+		public static IEnumerable<AddinMetadata> SortForAddinDisco(this IEnumerable<AddinMetadata> addins)
+		{
+			return addins
+				.OrderBy(a => a.Name) // Sort alphabetically
+				.ThenBy(a => a.IsPrerelease ? 1 : 0) // Stable versions are sorted first, prerelease versions sorted second)
+				.ThenByDescending(a => a.NuGetPackageVersion);
+		}
+
+		public static SemVersion ToSemVersion(this NuGetVersion nugetVersion)
+		{
+			return SemVersion.Parse(nugetVersion.ToNormalizedString());
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)

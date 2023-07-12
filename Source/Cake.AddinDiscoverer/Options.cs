@@ -57,5 +57,8 @@ namespace Cake.AddinDiscoverer
 
 		[Option('y', "proxy", Required = false, HelpText = "The URL of your proxy. For example, to proxy requests through Fiddler use: 'http://localhost:8888'.")]
 		public string ProxyUrl { get; set; }
+
+		[Option('z', "analyzealladdins", Default = false, HelpText = "Analyze all addins as opposed to only the new ones.")]
+		public bool AnalyzeAllAddins { get; set; }
 	}
 }

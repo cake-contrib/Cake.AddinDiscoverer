@@ -60,13 +60,13 @@ namespace Cake.AddinDiscoverer.Steps
 
 			var cakeRecipeAddin = context.Addins
 				.Where(a => a.Type == AddinType.Recipe)
-				.OrderByDescending(a => a.PublishedOn)
+				.SortForAddinDisco()
 				.FirstOrDefault(a => a.Name.EqualsIgnoreCase("Cake.Recipe"));
 
-			var latestCakeRecipeVersion = SemVersion.Parse(cakeRecipeAddin == null ? "0.0.0" : cakeRecipeAddin.NuGetPackageVersion);
+			var latestCakeRecipeVersion = cakeRecipeAddin == null ? Constants.VERSION_ZERO : cakeRecipeAddin.NuGetPackageVersion.ToNormalizedString();
 
 			await context.Addins
-				.Where(addin => !addin.Analyzed) // Analysis needs to be performed only on new addin versions
+				.Where(addin => !addin.Analyzed)
 				.ForEachAsync(
 					async addin =>
 					{
@@ -107,18 +107,18 @@ namespace Cake.AddinDiscoverer.Steps
 			var analysisFileName = Path.Combine(context.AnalysisFolder, $"{addin.Name}.{addin.NuGetPackageVersion}.json");
 			var jsonFilePath = Path.Combine(context.TempFolder, analysisFileName);
 			using FileStream jsonFileStream = File.Create(jsonFilePath);
-			JsonSerializer.Serialize(jsonFileStream, addin, new JsonSerializerOptions { WriteIndented = true });
+			JsonSerializer.Serialize(jsonFileStream, addin, Misc.GetJsonOptions(true));
 		}
 
 		private static async Task DownloadNugetPackage(DownloadResource nugetClient, DiscoveryContext context, AddinMetadata package)
 		{
-			var packageFileName = Path.Combine(context.PackagesFolder, $"{package.Name}.{package.NuGetPackageVersion}.nupkg");
+			var packageFileName = Path.Combine(context.PackagesFolder, $"{package.Name}.{package.NuGetPackageVersion.ToNormalizedString()}.nupkg");
 			if (!File.Exists(packageFileName))
 			{
 				// Download the package
 				using var sourceCacheContext = new SourceCacheContext() { NoCache = true };
 				var downloadContext = new PackageDownloadContext(sourceCacheContext, Path.GetTempPath(), true);
-				var packageIdentity = new PackageIdentity(package.Name, new NuGet.Versioning.NuGetVersion(package.NuGetPackageVersion));
+				var packageIdentity = new PackageIdentity(package.Name, package.NuGetPackageVersion);
 
 				using var result = await nugetClient.GetDownloadResourceResultAsync(packageIdentity, downloadContext, string.Empty, NullLogger.Instance, CancellationToken.None).ConfigureAwait(false);
 				switch (result.Status)
@@ -187,7 +187,7 @@ namespace Cake.AddinDiscoverer.Steps
 					var license = package.NuspecReader.GetMetadataValue("license");
 					var iconUrl = package.NuspecReader.GetIconUrl();
 					var projectUrl = package.NuspecReader.GetProjectUrl();
-					var packageVersion = package.NuspecReader.GetVersion().ToNormalizedString();
+					var packageVersion = package.NuspecReader.GetVersion();
 
 					// Only get TFM for lib folder. If there are other TFM used for other folders (tool, content, build, ...) we're not interested in it.
 					// Also filter out the "any" platform which is used when the platform is unknown

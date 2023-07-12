@@ -1,4 +1,5 @@
 using Cake.Incubator.StringExtensions;
+using NuGet.Versioning;
 using Octokit;
 using System;
 using System.Diagnostics;
@@ -30,7 +31,7 @@ namespace Cake.AddinDiscoverer.Models
 
 		public byte[] EmbeddedIcon { get; set; }
 
-		public string NuGetPackageVersion { get; set; }
+		public NuGetVersion NuGetPackageVersion { get; set; }
 
 		public Uri NuGetPackageUrl { get; set; }
 
@@ -56,8 +57,10 @@ namespace Cake.AddinDiscoverer.Models
 		/// </remarks>
 		public Uri InferredRepositoryUrl { get; set; }
 
+		[JsonIgnore]
 		public PullRequest AuditPullRequest { get; set; }
 
+		[JsonIgnore]
 		public Issue AuditIssue { get; set; }
 
 		public AddinType Type { get; set; }
