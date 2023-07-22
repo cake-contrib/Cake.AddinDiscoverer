@@ -59,7 +59,7 @@ namespace Cake.AddinDiscoverer.Steps
 				GenerateExcelWorksheetWithNotes(deprecatedAddins, "Deprecated", excel);
 
 				// XML documentation report
-				GenerateExcelWorksheetWithXmlDocumentationNotes(auditedAddins, "XML documentation", excel);
+				GenerateExcelWorksheetWithXmlDocumentationNotes(analyzedAddins, "XML documentation", excel);
 
 				// Save the Excel file
 				await excel.SaveAsync(cancellationToken).ConfigureAwait(false);

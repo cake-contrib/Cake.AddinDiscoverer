@@ -408,8 +408,8 @@ namespace Cake.AddinDiscoverer.Utilities
 			(
 				"XML Documentation",
 				ExcelHorizontalAlignment.Center,
-				(addin) => addin.AnalysisResult.XmlDocumentationAvailable.ToString().ToLower(),
-				(addin, cakeVersion) => addin.AnalysisResult.XmlDocumentationAvailable ? Color.LightGreen : Color.Red,
+				(addin) => (addin.XmlDocumentation != null).ToString().ToLower(),
+				(addin, cakeVersion) => (addin.XmlDocumentation == null) ? Color.Red : Color.LightGreen,
 				(addin) => null,
 				AddinType.Addin | AddinType.Module,
 				DataDestination.Excel
