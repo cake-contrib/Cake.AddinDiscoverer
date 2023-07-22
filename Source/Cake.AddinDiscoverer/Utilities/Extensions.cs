@@ -355,10 +355,10 @@ namespace Cake.AddinDiscoverer
 				}
 
 				using var fileStream = package.GetStream(cleanPath);
-				var seekableStream = new MemoryStream();
-				fileStream.CopyTo(seekableStream);
-				seekableStream.Position = 0;
-				return seekableStream;
+				var decompressedStream = new MemoryStream();
+				fileStream.CopyTo(decompressedStream);
+				decompressedStream.Position = 0;
+				return decompressedStream;
 			}
 			catch (FileLoadException e)
 			{

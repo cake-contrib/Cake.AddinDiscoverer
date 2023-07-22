@@ -1,6 +1,7 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
+using NuDoq;
 using NuGet.Common;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
@@ -72,6 +73,9 @@ namespace Cake.AddinDiscoverer.Steps
 						// Check if this addin is using Cake.Recipe
 						await CheckUsingCakeRecipe(context, addin, latestCakeRecipeVersion).ConfigureAwait(false);
 
+						// Analyze XML documentation
+						await AnalyzeXmlDocumentation(context, addin).ConfigureAwait(false);
+
 						// Determine if the addin meets the best practices
 						AnalyzeAddin(context, addin, cakeContribIcon, fancyIcons);
 
@@ -110,7 +114,7 @@ namespace Cake.AddinDiscoverer.Steps
 					case DownloadResourceResultStatus.Cancelled:
 						throw new OperationCanceledException();
 					case DownloadResourceResultStatus.NotFound:
-						throw new Exception($"Package '{package.Name} {package.NuGetPackageVersion}' not found");
+						throw new System.Exception($"Package '{package.Name} {package.NuGetPackageVersion}' not found");
 					default:
 						{
 							await using var fileStream = File.OpenWrite(packageFileName);
@@ -150,9 +154,9 @@ namespace Cake.AddinDiscoverer.Steps
 						await File.WriteAllTextAsync(packageNotFoundFileName, snupkgNotFound).ConfigureAwait(false);
 					}
 				}
-				catch (Exception e)
+				catch (System.Exception e)
 				{
-					throw new Exception($"An error occured while attempting to download symbol package for '{addin.Name} {addin.NuGetPackageVersion}'", e);
+					throw new System.Exception($"An error occured while attempting to download symbol package for '{addin.Name} {addin.NuGetPackageVersion}'", e);
 				}
 			}
 		}
@@ -349,13 +353,16 @@ namespace Cake.AddinDiscoverer.Steps
 					//--------------------------------------------------
 					// Find the XML documentation
 					var assemblyFolder = Path.GetDirectoryName(assemblyInfoToAnalyze.AssemblyPath);
-					var xmlDocumentation = package.GetFiles()
+					var xmlDocumentationPath = package.GetFiles()
 						.FirstOrDefault(f =>
 							Path.GetExtension(f).EqualsIgnoreCase(".xml") &&
 							Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase(addin.Name) &&
 							Path.GetDirectoryName(f).EqualsIgnoreCase(assemblyFolder));
 
-					addin.XmlDocumentationAvailable = !string.IsNullOrEmpty(xmlDocumentation);
+					if (!string.IsNullOrEmpty(xmlDocumentationPath))
+					{
+						addin.XmlDocumentation = package.LoadFile(xmlDocumentationPath);
+					}
 
 					//--------------------------------------------------
 					// Find the DLL references
@@ -391,7 +398,7 @@ namespace Cake.AddinDiscoverer.Steps
 							Path.GetFileNameWithoutExtension(f).EqualsIgnoreCase("cake-version"));
 					if (!string.IsNullOrEmpty(cakeVersionYamlFilePath))
 					{
-						using var cakeVersionYamlFileStream = LoadFileFromPackage(package, cakeVersionYamlFilePath);
+						using var cakeVersionYamlFileStream = package.LoadFile(cakeVersionYamlFilePath);
 						using TextReader ymlReader = new StreamReader(cakeVersionYamlFileStream);
 
 						var deserializer = new YamlDotNet.Serialization.Deserializer();
@@ -418,47 +425,24 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						try
 						{
-							using var iconFileContent = LoadFileFromPackage(package, iconInfo.Value);
+							using var iconFileContent = package.LoadFile(iconInfo.Value);
 							addin.EmbeddedIcon = iconFileContent.ToArray();
 						}
 						catch
 						{
-							throw new Exception($"Unable to find {iconInfo.Value} in the package");
+							throw new System.Exception($"Unable to find {iconInfo.Value} in the package");
 						}
 					}
 				}
 
 				if (addin.Type == AddinType.Unknown)
 				{
-					throw new Exception($"This addin does not contain any decorated method.{Environment.NewLine}");
+					throw new System.Exception($"This addin does not contain any decorated method.{Environment.NewLine}");
 				}
 			}
-			catch (Exception e)
+			catch (System.Exception e)
 			{
 				addin.AnalysisResult.Notes += $"AnalyzeNugetMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
-			}
-		}
-
-		private static MemoryStream LoadFileFromPackage(IPackageCoreReader package, string filePath)
-		{
-			try
-			{
-				var cleanPath = filePath.Replace('/', '\\');
-				if (cleanPath.IndexOf('%') > -1)
-				{
-					cleanPath = Uri.UnescapeDataString(cleanPath);
-				}
-
-				using var fileStream = package.GetStream(cleanPath);
-				var decompressedStream = new MemoryStream();
-				fileStream.CopyTo(decompressedStream);
-				decompressedStream.Position = 0;
-				return decompressedStream;
-			}
-			catch (FileLoadException e)
-			{
-				// Note: intentionally discarding the original exception because I want to ensure the following message is displayed in the 'Exceptions' report
-				throw new FileLoadException($"An error occured while loading {Path.GetFileName(filePath)} from the Nuget package. {e.Message}");
 			}
 		}
 
@@ -516,7 +500,7 @@ namespace Cake.AddinDiscoverer.Steps
 				var loadContext = new MetadataLoadContext(assemblyResolver);
 
 				// Load the assembly
-				var assemblyStream = LoadFileFromPackage(package, assemblyPath);
+				var assemblyStream = package.LoadFile(assemblyPath);
 				var assembly = loadContext.LoadFromStream(assemblyStream);
 
 				var isModule = assembly
@@ -633,7 +617,7 @@ namespace Cake.AddinDiscoverer.Steps
 					addin.ProjectUrl = null;
 				}
 #pragma warning disable CS0168 // Variable is declared but never used
-				catch (Exception e)
+				catch (System.Exception e)
 #pragma warning restore CS0168 // Variable is declared but never used
 				{
 					throw;
@@ -803,6 +787,53 @@ namespace Cake.AddinDiscoverer.Steps
 					// This is to ensure we don't issue requests too quickly and therefore trigger Github's abuse detection
 					await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
 				}
+			}
+		}
+
+		private static async Task AnalyzeXmlDocumentation(DiscoveryContext context, AddinMetadata addin)
+		{
+			var tempFileName = Path.GetTempFileName();
+
+			try
+			{
+				if (addin.XmlDocumentation != null)
+				{
+					// Create a temporary copy of the xml file because NuDoq cannot read a stream.
+					await using (FileStream fs = File.OpenWrite(tempFileName))
+					{
+						await addin.XmlDocumentation.CopyToAsync(fs).ConfigureAwait(false);
+					}
+
+					// Read the XML documentation file
+					var documentedMembers = DocReader.Read(tempFileName);
+
+					// Map types and members to IDs that can be used for searching the XML documentation
+					var map = new MemberIdMap();
+					map.AddRange(addin.DecoratedMethods.Select(dm => dm.DeclaringType));
+
+					// Analyze the decorated methods
+					foreach (var decoratedMethod in addin.DecoratedMethods)
+					{
+						var methodId = map.FindId(decoratedMethod);
+
+						var member = documentedMembers.Elements
+							.OfType<Member>()
+							.FirstOrDefault(x => x.Id == methodId);
+
+						if (member == null)
+						{
+							addin.AnalysisResult.XmlDocumentationAnalysisNotes.Add($"{methodId} is not documented");
+						}
+					}
+				}
+			}
+			catch (System.Exception e)
+			{
+				addin.AnalysisResult.Notes += $"AnalyzeXmlDocumentation: {e.GetBaseException().Message}{Environment.NewLine}";
+			}
+			finally
+			{
+				File.Delete(tempFileName);
 			}
 		}
 	}

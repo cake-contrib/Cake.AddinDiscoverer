@@ -2,7 +2,7 @@
   "profiles": {
     "Cake.AddinDiscoverer": {
       "commandName": "Project",
-      "commandLineArgs": "-d -e -m -s -w -t \"D:\\_build\\Cake.AddinDiscoverer\\artifacts\" -y http://127.0.0.1:8888"
+      "commandLineArgs": "-d -e -m -s -w -t \"D:\\_build\\Cake.AddinDiscoverer\\artifacts\" -y http://127.0.0.1:8888 -z"
     }
   }
 }
