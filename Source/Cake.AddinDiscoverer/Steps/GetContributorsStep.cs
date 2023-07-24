@@ -23,7 +23,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// Get all the public repositories
 			var repos = await context.GithubClient.Repository.GetAllForOrg("cake-build", apiOptions).ConfigureAwait(false);
-			var publicRepos = repos.Where(repo => !repo.Private).ToArray();
+			var publicRepos = repos.Where(repo => !repo.Private && !repo.Fork).ToArray();
 
 			// Get the contributors for each repository
 			var allContributors = new List<RepositoryContributor>(250);
