@@ -22,8 +22,9 @@ namespace Cake.AddinDiscoverer.Steps
 			var apiOptions = new Octokit.ApiOptions() { PageSize = 500 };
 
 			// Get all the public repositories
-			var repos = await context.GithubClient.Repository.GetAllForOrg("cake-build", apiOptions).ConfigureAwait(false);
-			var publicRepos = repos.Where(repo => !repo.Private && !repo.Fork).ToArray();
+			var cakeRepos = await context.GithubClient.Repository.GetAllForOrg(Constants.CAKE_REPO_OWNER, apiOptions).ConfigureAwait(false);
+			var cakecontribRepos = await context.GithubClient.Repository.GetAllForOrg(Constants.CAKE_CONTRIB_REPO_OWNER, apiOptions).ConfigureAwait(false);
+			var publicRepos = cakeRepos.Union(cakecontribRepos).Where(repo => !repo.Private && !repo.Fork).ToArray();
 
 			// Get the contributors for each repository
 			var allContributors = new List<RepositoryContributor>(250);
