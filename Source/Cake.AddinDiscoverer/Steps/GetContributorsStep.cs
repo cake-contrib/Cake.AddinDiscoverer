@@ -22,27 +22,33 @@ namespace Cake.AddinDiscoverer.Steps
 			var apiOptions = new Octokit.ApiOptions() { PageSize = 500 };
 
 			// Get all the public repositories
-			var repos = await context.GithubClient.Repository.GetAllForOrg("cake-build", apiOptions).ConfigureAwait(false);
-			var publicRepos = repos.Where(repo => !repo.Private && !repo.Fork).ToArray();
+			var cakeRepos = await context.GithubClient.Repository.GetAllForOrg(Constants.CAKE_REPO_OWNER, apiOptions).ConfigureAwait(false);
+			var cakecontribRepos = await context.GithubClient.Repository.GetAllForOrg(Constants.CAKE_CONTRIB_REPO_OWNER, apiOptions).ConfigureAwait(false);
+			var publicRepos = cakeRepos.Union(cakecontribRepos).Where(repo => !repo.Private && !repo.Fork).ToArray();
 
 			// Get the contributors for each repository
-			var allContributors = new List<RepositoryContributor>(250);
+			var allContributors = new Dictionary<Repository, IEnumerable<RepositoryContributor>>(250);
 			foreach (var publicRepo in publicRepos)
 			{
 				var repoContributors = await context.GithubClient.Repository.GetAllContributors(publicRepo.Id, false, apiOptions).ConfigureAwait(false);
-				allContributors.AddRange(repoContributors);
+				allContributors[publicRepo] = repoContributors;
 			}
 
-			// Remove duplicates and sort alphabetically
+			// Sort alphabetically and extract the data that we want in the YAML and JSON files
 			var contributors = allContributors
-				.DistinctBy(contributor => contributor.Id)
-				.OrderBy(contributor => contributor.Login)
-				.Select(contributor => new
-				{
-					Name = contributor.Login,
-					contributor.AvatarUrl,
-					contributor.HtmlUrl,
-				})
+				.SelectMany(kvp => kvp.Value.Select(author => (Author: author, Repo: kvp.Key)))
+				.GroupBy(
+					x => x.Author,  // keySelector
+					x => x.Repo,    // elementSelector
+					(author, repos) => new
+					{
+						Name = author.Login,
+						author.AvatarUrl,
+						author.HtmlUrl,
+						Repositories = repos.Select(repo => repo.FullName).ToArray()
+					},  // resultSelector
+					new KeyEqualityComparer<RepositoryContributor, int>(x => x.Id)) // comparer
+				.OrderBy(x => x.Name)
 				.ToArray();
 
 			// Ensure the fork is up-to-date
@@ -55,7 +61,7 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "contributors").ConfigureAwait(false);
 			}
-			catch (Octokit.NotFoundException)
+			catch (NotFoundException)
 			{
 				directoryContent = Array.Empty<RepositoryContent>();
 			}
