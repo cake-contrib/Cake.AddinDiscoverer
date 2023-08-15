@@ -1,5 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
+using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
@@ -36,18 +37,21 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// Sort alphabetically and extract the data that we want in the YAML and JSON files
 			var contributors = allContributors
-				.SelectMany(kvp => kvp.Value.Select(author => (Author: author, Repo: kvp.Key)))
+				.SelectMany(kvp => kvp.Value
+					.Where(contributor => !contributor.Type.EqualsIgnoreCase("Bot")) // Ignore bots
+					.Where(contributor => !context.ExcludedContributors.Contains(contributor.Login, StringComparer.OrdinalIgnoreCase)) // Ignore contributors on the exclusion list
+					.Select(contributor => (Contributor: contributor, Repo: kvp.Key)))
 				.GroupBy(
-					x => x.Author,  // keySelector
+					x => x.Contributor,  // keySelector
 					x => x.Repo,    // elementSelector
-					(author, repos) => new
+					(contributor, repos) => new
 					{
-						Name = author.Login,
-						author.AvatarUrl,
-						author.HtmlUrl,
+						Name = contributor.Login,
+						contributor.AvatarUrl,
+						contributor.HtmlUrl,
 						Repositories = repos.Select(repo => repo.FullName).ToArray()
 					},  // resultSelector
-					new KeyEqualityComparer<RepositoryContributor, int>(x => x.Id)) // comparer
+					new KeyEqualityComparer<RepositoryContributor, int>(contributor => contributor.Id)) // comparer
 				.OrderBy(x => x.Name)
 				.ToArray();
 
