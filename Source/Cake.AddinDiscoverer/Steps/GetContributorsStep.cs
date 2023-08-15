@@ -39,6 +39,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var contributors = allContributors
 				.SelectMany(kvp => kvp.Value
 					.Where(contributor => !contributor.Type.EqualsIgnoreCase("Bot")) // Ignore bots
+					.Where(contributor => !context.ExcludedContributors.Contains(contributor.Login, StringComparer.OrdinalIgnoreCase)) // Ignore contributors on the exclusion list
 					.Select(contributor => (Contributor: contributor, Repo: kvp.Key)))
 				.GroupBy(
 					x => x.Contributor,  // keySelector
