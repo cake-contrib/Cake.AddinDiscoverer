@@ -76,7 +76,6 @@
     "codetriage-readme-bot",
     "dependabot-support",
     "gitter-badger",
-    "renovate-bot",
-    "renovate-presets"
+    "renovate-bot"
   ]
 }
