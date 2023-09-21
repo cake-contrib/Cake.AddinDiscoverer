@@ -22,10 +22,14 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			var apiOptions = new Octokit.ApiOptions() { PageSize = 500 };
 
-			// Get all the public repositories
+			// Get the public repositories
 			var cakeRepos = await context.GithubClient.Repository.GetAllForOrg(Constants.CAKE_REPO_OWNER, apiOptions).ConfigureAwait(false);
 			var cakecontribRepos = await context.GithubClient.Repository.GetAllForOrg(Constants.CAKE_CONTRIB_REPO_OWNER, apiOptions).ConfigureAwait(false);
-			var publicRepos = cakeRepos.Union(cakecontribRepos).Where(repo => !repo.Private && !repo.Fork).ToArray();
+			var publicRepos = cakeRepos
+				.Union(cakecontribRepos)
+				.Where(repo => !repo.Private && !repo.Fork)
+				.Where(repo => !context.ExcludedRepositories.Contains(repo.FullName)) // Ignore repositories on the exclusion list
+				.ToArray();
 
 			// Get the contributors for each repository
 			var allContributors = new Dictionary<Repository, IEnumerable<RepositoryContributor>>(250);

@@ -72,5 +72,13 @@
     "Cake-Recipe"
   ],
   "contributors": [
+    "cake-contrib-bot",
+    "codetriage-readme-bot",
+    "dependabot-support",
+    "gitter-badger",
+    "renovate-bot"
+  ],
+  "repositories": [
+    "cake-contrib/renovate-presets"
   ]
 }
