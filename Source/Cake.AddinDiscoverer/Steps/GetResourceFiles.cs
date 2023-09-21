@@ -23,6 +23,7 @@ namespace Cake.AddinDiscoverer.Steps
 			context.ExcludedAddins = exclusionListAsJObject.Property("packages")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
 			context.ExcludedTags = exclusionListAsJObject.Property("labels")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
 			context.ExcludedContributors = exclusionListAsJObject.Property("contributors")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
+			context.ExcludedRepositories = exclusionListAsJObject.Property("repositories")?.Value.ToObject<string[]>() ?? Array.Empty<string>();
 
 			// Load inclusion list
 			var inclusionListContent = await GetResourceFileContentAsync(context, "inclusionlist.json").ConfigureAwait(false);

@@ -77,5 +77,8 @@
     "dependabot-support",
     "gitter-badger",
     "renovate-bot"
+  ],
+  "repositories": [
+    "cake-contrib/renovate-presets"
   ]
 }

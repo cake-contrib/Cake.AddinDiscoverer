@@ -47,6 +47,11 @@ namespace Cake.AddinDiscoverer.Models
 		public string[] ExcludedContributors { get; set; }
 
 		/// <summary>
+		/// Gets or sets the list of GitHub repositories to be filtered out when generating the list of contributors.
+		/// </summary>
+		public string[] ExcludedRepositories { get; set; }
+
+		/// <summary>
 		/// Gets or sets the list of issues created by the current user.
 		/// </summary>
 		public IList<Issue> IssuesCreatedByCurrentUser { get; set; }
