@@ -27,11 +27,14 @@ var sourceFolder = "./Source/";
 var outputDir = "./artifacts/";
 var publishDir = $"{outputDir}Publish/";
 
+var buildBranch = Context.GetBuildBranch();
+var repoName = Context.GetRepoName();
+
 var versionInfo = GitVersion(new GitVersionSettings() { OutputType = GitVersionOutput.Json });
 var cakeVersion = typeof(ICakeContext).Assembly.GetName().Version.ToString();
 var isLocalBuild = BuildSystem.IsLocalBuild;
-var isMainBranch = StringComparer.OrdinalIgnoreCase.Equals("main", BuildSystem.AppVeyor.Environment.Repository.Branch);
-var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals($"{gitHubUserName}/{gitHubRepo}", BuildSystem.AppVeyor.Environment.Repository.Name);
+var isMainBranch = StringComparer.OrdinalIgnoreCase.Equals("main", buildBranch);
+var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals($"{gitHubUserName}/{gitHubRepo}", repoName);
 var isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
 var isTagged = (
 	BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag &&
@@ -45,7 +48,7 @@ var isTagged = (
 
 Setup(context =>
 {
-	if (!isLocalBuild && (context.Log.Verbosity != Verbosity.Diagnostic))
+	if (!isLocalBuild && context.Log.Verbosity != Verbosity.Diagnostic)
 	{
 		Information("Increasing verbosity to diagnostic.");
 		context.Log.Verbosity = Verbosity.Diagnostic;
@@ -256,3 +259,71 @@ Task("Default")
 ///////////////////////////////////////////////////////////////////////////////
 
 RunTarget(target);
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// PRIVATE METHODS
+///////////////////////////////////////////////////////////////////////////////
+private static string TrimStart(this string source, string value, StringComparison comparisonType)
+{
+	if (source == null)
+	{
+		throw new ArgumentNullException(nameof(source));
+	}
+
+	int valueLength = value.Length;
+	int startIndex = 0;
+	while (source.IndexOf(value, startIndex, comparisonType) == startIndex)
+	{
+		startIndex += valueLength;
+	}
+
+	return source.Substring(startIndex);
+}
+
+private static List<string> ExecuteCommand(this ICakeContext context, FilePath exe, string args)
+{
+    context.StartProcess(exe, new ProcessSettings { Arguments = args, RedirectStandardOutput = true }, out var redirectedOutput);
+
+    return redirectedOutput.ToList();
+}
+
+private static List<string> ExecGitCmd(this ICakeContext context, string cmd)
+{
+    var gitExe = context.Tools.Resolve(context.IsRunningOnWindows() ? "git.exe" : "git");
+    return context.ExecuteCommand(gitExe, cmd);
+}
+
+private static string GetBuildBranch(this ICakeContext context)
+{
+    var buildSystem = context.BuildSystem();
+    string repositoryBranch = null;
+
+    if (buildSystem.IsRunningOnAppVeyor) repositoryBranch = buildSystem.AppVeyor.Environment.Repository.Branch;
+    else if (buildSystem.IsRunningOnAzurePipelines) repositoryBranch = buildSystem.AzurePipelines.Environment.Repository.SourceBranchName;
+    else if (buildSystem.IsRunningOnBamboo) repositoryBranch = buildSystem.Bamboo.Environment.Repository.Branch;
+    else if (buildSystem.IsRunningOnBitbucketPipelines) repositoryBranch = buildSystem.BitbucketPipelines.Environment.Repository.Branch;
+    else if (buildSystem.IsRunningOnBitrise) repositoryBranch = buildSystem.Bitrise.Environment.Repository.GitBranch;
+    else if (buildSystem.IsRunningOnGitHubActions) repositoryBranch = buildSystem.GitHubActions.Environment.Workflow.Ref.Replace("refs/heads/", "");
+    else if (buildSystem.IsRunningOnGitLabCI) repositoryBranch = buildSystem.GitLabCI.Environment.Build.RefName;
+    else if (buildSystem.IsRunningOnTeamCity) repositoryBranch = buildSystem.TeamCity.Environment.Build.BranchName;
+    else if (buildSystem.IsRunningOnTravisCI) repositoryBranch = buildSystem.TravisCI.Environment.Build.Branch;
+	else repositoryBranch = ExecGitCmd(context, "rev-parse --abbrev-ref HEAD").Single();
+
+    return repositoryBranch;
+}
+
+public static string GetRepoName(this ICakeContext context)
+{
+    var buildSystem = context.BuildSystem();
+
+    if (buildSystem.IsRunningOnAppVeyor) return buildSystem.AppVeyor.Environment.Repository.Name;
+    else if (buildSystem.IsRunningOnAzurePipelines) return buildSystem.AzurePipelines.Environment.Repository.RepoName;
+    else if (buildSystem.IsRunningOnTravisCI) return buildSystem.TravisCI.Environment.Repository.Slug;
+    else if (buildSystem.IsRunningOnGitHubActions) return buildSystem.GitHubActions.Environment.Workflow.Repository;
+
+	var originUrl = ExecGitCmd(context, "config --get remote.origin.url").Single();
+	var parts = originUrl.Split('/', StringSplitOptions.RemoveEmptyEntries);
+	return $"{parts[parts.Length - 2]}/{parts[parts.Length - 1].Replace(".git", "")}";
+}
