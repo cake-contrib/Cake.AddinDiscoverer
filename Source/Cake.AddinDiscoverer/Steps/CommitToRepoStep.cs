@@ -25,7 +25,7 @@ namespace Cake.AddinDiscoverer.Steps
 			// Create the blobs corresponding to the reports and add them to the tree
 			foreach (var excelReport in Directory.EnumerateFiles(context.TempFolder, $"*.xlsx"))
 			{
-				var excelBinary = await File.ReadAllBytesAsync(excelReport).ConfigureAwait(false);
+				var excelBinary = await File.ReadAllBytesAsync(excelReport, cancellationToken).ConfigureAwait(false);
 				var excelReportBlob = new NewBlob
 				{
 					Encoding = EncodingType.Base64,
@@ -46,7 +46,7 @@ namespace Cake.AddinDiscoverer.Steps
 				var makdownReportBlob = new NewBlob
 				{
 					Encoding = EncodingType.Utf8,
-					Content = await File.ReadAllTextAsync(markdownReport).ConfigureAwait(false)
+					Content = await File.ReadAllTextAsync(markdownReport, cancellationToken).ConfigureAwait(false)
 				};
 				var makdownReportBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, makdownReportBlob).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
@@ -63,7 +63,7 @@ namespace Cake.AddinDiscoverer.Steps
 				var statsBlob = new NewBlob
 				{
 					Encoding = EncodingType.Utf8,
-					Content = await File.ReadAllTextAsync(context.StatsSaveLocation).ConfigureAwait(false)
+					Content = await File.ReadAllTextAsync(context.StatsSaveLocation, cancellationToken).ConfigureAwait(false)
 				};
 				var statsBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, statsBlob).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
@@ -77,7 +77,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (File.Exists(context.GraphSaveLocation))
 			{
-				var graphBinary = await File.ReadAllBytesAsync(context.GraphSaveLocation).ConfigureAwait(false);
+				var graphBinary = await File.ReadAllBytesAsync(context.GraphSaveLocation, cancellationToken).ConfigureAwait(false);
 				var graphBlob = new NewBlob
 				{
 					Encoding = EncodingType.Base64,
@@ -98,7 +98,7 @@ namespace Cake.AddinDiscoverer.Steps
 				var analysisResultBlob = new NewBlob
 				{
 					Encoding = EncodingType.Utf8,
-					Content = await File.ReadAllTextAsync(context.AnalysisResultSaveLocation).ConfigureAwait(false)
+					Content = await File.ReadAllTextAsync(context.AnalysisResultSaveLocation, cancellationToken).ConfigureAwait(false)
 				};
 				var analysisResultBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, analysisResultBlob).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
