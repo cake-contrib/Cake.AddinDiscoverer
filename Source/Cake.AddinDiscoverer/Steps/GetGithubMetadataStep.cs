@@ -74,7 +74,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private async Task<int> GetRecordsCount(DiscoveryContext context, string type, string repositoryOwner, string repositoryName)
+		private static async Task<int> GetRecordsCount(DiscoveryContext context, string type, string repositoryOwner, string repositoryName)
 		{
 			// Send a HTTP request to Github for issues with only one issue per page (notice "per_page=1", this is important).
 			// The response will include a header called "Link" containing URLs for the "next" page and also for the "last" page.
