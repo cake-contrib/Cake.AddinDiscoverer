@@ -1,13 +1,12 @@
 using Cake.AddinDiscoverer.Utilities;
 using System.Linq;
-using System.Text.Json.Serialization;
 
 namespace Cake.AddinDiscoverer.Models
 {
 	/// <summary>
 	/// Contains the result of the analysis of a given addin.
 	/// </summary>
-	internal class AddinAnalysisResult
+	internal class AddinVersionAnalysisResult
 	{
 		/// <summary>
 		/// Gets or sets the version of Cake.Core referenced by this addin or a null value if the addin does not reference Cake.Core.
@@ -58,18 +57,6 @@ namespace Cake.AddinDiscoverer.Models
 		/// Gets or sets notes (such as error messages).
 		/// </summary>
 		public string Notes { get; set; }
-
-		/// <summary>
-		/// Gets or sets the number of open issues in the github repository.
-		/// </summary>
-		[JsonIgnore]
-		public int? OpenIssuesCount { get; set; }
-
-		/// <summary>
-		/// Gets or sets the number of open pull requests in the github repository.
-		/// </summary>
-		[JsonIgnore]
-		public int? OpenPullRequestsCount { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether a Cake.Recipe is used to build this addin.

@@ -434,6 +434,21 @@ namespace Cake.AddinDiscoverer
 				.ThenByDescending(a => a.NuGetPackageVersion);
 		}
 
+		public static bool TryGetAddinByName(this IDictionary<AddinMetadata, AddinVersionMetadata[]> allAddins, string name, out (AddinMetadata Addin, AddinVersionMetadata[] AddinVersions) addinInfo)
+		{
+			var addinKey = allAddins.Keys.SingleOrDefault(key => key.Name == name);
+			if (addinKey == null)
+			{
+				addinInfo = (null, null);
+				return false;
+			}
+			else
+			{
+				addinInfo = (addinKey, allAddins[addinKey]);
+				return true;
+			}
+		}
+
 		public static SemVersion ToSemVersion(this NuGetVersion nugetVersion)
 		{
 			return SemVersion.Parse(nugetVersion.ToNormalizedString());

@@ -27,7 +27,7 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string Version { get; set; }
 
-		public AddinMetadata[] Addins { get; set; }
+		public IDictionary<AddinMetadata, AddinVersionMetadata[]> Addins { get; set; }
 
 		/// <summary>
 		/// Gets or sets the list of addins that we specifically want to include in our reports

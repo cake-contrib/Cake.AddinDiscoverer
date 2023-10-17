@@ -34,7 +34,7 @@ namespace Cake.AddinDiscoverer.Models
 			return AllPackages
 				.GroupBy(addin => addin.Name, StringComparer.OrdinalIgnoreCase)
 				.Select(group => MostRecentAddinVersion(group, cakeVersion, comparison))
-				.Where(addin => addin != null); // this condition filters out packages that were not publicly avaiable
+				.Where(addin => addin != null); // this condition filters out packages that were not publicly available
 		}
 
 		// Returns the most recent version of an addin that is compatible with a given version of Cake

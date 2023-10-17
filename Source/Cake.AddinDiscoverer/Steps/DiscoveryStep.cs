@@ -64,7 +64,7 @@ namespace Cake.AddinDiscoverer.Steps
 					Constants.MAX_NUGET_CONCURENCY)
 				.ConfigureAwait(false);
 
-			// Filter out the addins that were previously analysed
+			// Filter out the addins that were previously analyzed
 			var newAddins = metadata
 				.SelectMany(item => item) // Flatten the array of arrays
 				.Where(item => !context.Addins.Any(a => a.Name.EqualsIgnoreCase(item.Name) && a.NuGetPackageVersion == item.NuGetPackageVersion))
@@ -107,7 +107,7 @@ namespace Cake.AddinDiscoverer.Steps
 						var addinMetadata = new AddinMetadata()
 						{
 							Analyzed = false,
-							AnalysisResult = new AddinAnalysisResult()
+							AnalysisResult = new AddinVersionAnalysisResult()
 							{
 								CakeRecipeIsUsed = false,
 								CakeRecipeVersion = null,

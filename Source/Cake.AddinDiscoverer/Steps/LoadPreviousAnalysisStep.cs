@@ -1,6 +1,5 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
-using Cake.Incubator.StringExtensions;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -35,10 +34,15 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 			}
 
-			// Deseralize the content of the previous analysis
+			// Deserialize the content of the previous analysis
 			if (!string.IsNullOrEmpty(previousAnalysisContent))
 			{
-				context.Addins = JsonSerializer.Deserialize<AddinMetadata[]>(previousAnalysisContent, Misc.GetJsonOptions(true));
+				var addinVersions = JsonSerializer.Deserialize<AddinVersionMetadata[]>(previousAnalysisContent, Misc.GetJsonOptions(true));
+				context.Addins = addinVersions
+					.GroupBy(addinVersion => addinVersion.Name)
+					.ToDictionary(
+						grp => new AddinMetadata() { Name = grp.Key },
+						grp => grp.ToArray());
 			}
 
 			// Load individual analysis results (which are present if the previous analysis was interrupted)
@@ -46,17 +50,28 @@ namespace Cake.AddinDiscoverer.Steps
 				.Select(fileName =>
 				{
 					using FileStream fileStream = File.OpenRead(fileName);
-					var deserializedAddin = JsonSerializer.Deserialize<AddinMetadata>(fileStream, Misc.GetJsonOptions(true));
+					var deserializedAddin = JsonSerializer.Deserialize<AddinVersionMetadata>(fileStream, Misc.GetJsonOptions(true));
 					return deserializedAddin;
 				})
 				.ToArray();
 
 			if (deserializedAddins.Length > 0)
 			{
-				var addinsList = context.Addins.ToList();
-				addinsList.RemoveAll(addin => deserializedAddins.Any(d => d.Name.EqualsIgnoreCase(addin.Name) && d.NuGetPackageVersion == addin.NuGetPackageVersion));
-				addinsList.AddRange(deserializedAddins);
-				context.Addins = addinsList.ToArray();
+				foreach (var addin in deserializedAddins)
+				{
+					if (context.Addins.TryGetAddinByName(addin.Name, out (AddinMetadata Addin, AddinVersionMetadata[] AddinVersions) addinInfo))
+					{
+						addinInfo.AddinVersions = addinInfo.AddinVersions.
+							ToList()
+							.Where(addinVersion => addinVersion.NuGetPackageVersion != addin.NuGetPackageVersion)
+							.Union(new[] { addin })
+							.ToArray();
+					}
+					else
+					{
+						context.Addins.Add(new AddinMetadata() { Name = addin.Name }, new[] { addin });
+					}
+				}
 			}
 		}
 	}
