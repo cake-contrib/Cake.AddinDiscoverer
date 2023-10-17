@@ -42,10 +42,7 @@ namespace Cake.AddinDiscoverer.Models
 						var targetedCakeVersion = addinVersion.AnalysisResult?.GetCakeVersion();
 
 						// If the addin does not reference Care.Core or Cake.Common (most likely this means the addin is a recipe), fallback on the cake-version.yml
-						if (targetedCakeVersion == null)
-						{
-							targetedCakeVersion = Constants.CAKE_VERSIONS.SingleOrDefault(cv => cv.Version == addinVersion.CakeVersionYaml?.TargetCakeVersion);
-						}
+						targetedCakeVersion ??= Constants.CAKE_VERSIONS.SingleOrDefault(cv => cv.Version == addinVersion.CakeVersionYaml?.TargetCakeVersion);
 
 						// If still unable to determine the targeted version of Cake (most likely this means the addin is a recipe lacking cake-version.yml), we assume this addin targets Cake pre-1.0.0
 						targetedCakeVersion ??= cakeVersionZero;

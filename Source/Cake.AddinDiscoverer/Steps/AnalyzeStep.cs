@@ -503,10 +503,10 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static (Stream AssemblyStream, Assembly Assembly, MethodInfo[] DecoratedMethods, string AssemblyPath, string[] AliasCategories) FindAssemblyToAnalyze(IPackageCoreReader package, string[] assembliesPath)
 		{
+			var runtimeAssemblies = Directory.GetFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll");
+
 			foreach (var assemblyPath in assembliesPath)
 			{
-				var runtimeAssemblies = Directory.GetFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll");
-
 				// The assembly resolver makes the assemblies referenced by THIS APPLICATION (i.e.: the AddinDiscoverer) available
 				// for resolving types when looping through custom attributes. As of this writing, there is one addin written in
 				// FSharp which was causing 'Could not find FSharp.Core' when looping through its custom attributes. To solve this
@@ -529,14 +529,38 @@ namespace Cake.AddinDiscoverer.Steps
 				// the '.GetExportedTypes' and the '.GetCustomAttributes' methods because the latter will instantiate the custom
 				// attributes which, in our case, will cause exceptions because they are defined in dependencies which are most
 				// likely not available in the load context.
-				var decoratedMethods = assembly
+				var methodsWithCustomAttributes = assembly
 					.ExportedTypes
 					.SelectMany(type => type.GetTypeInfo().DeclaredMethods)
-					.Where(method =>
-						method.CustomAttributes.Any(a =>
-							a.AttributeType.Namespace == "Cake.Core.Annotations" &&
-							(a.AttributeType.Name == "CakeMethodAliasAttribute" || a.AttributeType.Name == "CakePropertyAliasAttribute")))
+					.Where(method => method.CustomAttributes.Any())
 					.ToArray();
+
+				var decoratedMethods = new List<MethodInfo>();
+				foreach (var method in methodsWithCustomAttributes)
+				{
+					var decorated = false;
+					foreach (var attribute in method.CustomAttributes)
+					{
+						try
+						{
+							if (attribute.AttributeType.Namespace == "Cake.Core.Annotations" &&
+								(attribute.AttributeType.Name == "CakeMethodAliasAttribute" || attribute.AttributeType.Name == "CakePropertyAliasAttribute"))
+							{
+								decorated = true;
+								break; // <- We determined the method was decorate with a Cake attribute; no point looking at the remaining attributes
+							}
+						}
+						catch
+						{
+							// Intentionally ignore exception when looping through attributes
+							// For instance, an exception would occur when a method is decorated with
+							// an attribute from a NuGet package such as the `[Delete("blablabla")]`
+							// attribute from the Refit nuget package
+						}
+					}
+
+					if (decorated) decoratedMethods.Add(method);
+				}
 
 				// Search for alias categories
 				var aliasCategories = assembly
@@ -550,7 +574,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 				if (isModule || decoratedMethods.Any())
 				{
-					return (assemblyStream, assembly, decoratedMethods, assemblyPath, aliasCategories);
+					return (assemblyStream, assembly, decoratedMethods.ToArray(), assemblyPath, aliasCategories);
 				}
 			}
 
