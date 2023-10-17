@@ -31,7 +31,7 @@ namespace Cake.AddinDiscoverer.Steps
 					var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.AnalysisResultSaveLocation)).ConfigureAwait(false);
 
 					// The file is too large to be retrieved from the GitHub API. We must issue a HTTP GET to the download URL
-					previousAnalysisContent = await context.HttpClient.GetStringAsync(contents[0].DownloadUrl).ConfigureAwait(false);
+					previousAnalysisContent = await context.HttpClient.GetStringAsync(contents[0].DownloadUrl, cancellationToken).ConfigureAwait(false);
 				}
 			}
 
