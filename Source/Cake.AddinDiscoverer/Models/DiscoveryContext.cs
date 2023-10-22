@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Utilities;
 using NuGet.Protocol.Core.Types;
 using Octokit;
 using Octokit.Internal;
@@ -18,6 +19,8 @@ namespace Cake.AddinDiscoverer.Models
 		public IHttpClient GithubHttpClient { get; set; }
 
 		public HttpClient HttpClient { get; set; }
+
+		public CachedRepositoryValidator RepositoryValidator { get; set; }
 
 		public SourceRepository NugetRepository { get; set; }
 

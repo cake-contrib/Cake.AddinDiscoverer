@@ -8,13 +8,11 @@ using NuGet.Packaging.Core;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using Octokit;
-using Octokit.Internal;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
@@ -140,7 +138,9 @@ namespace Cake.AddinDiscoverer.Steps
 		private static async Task DownloadSymbolsPackage(DiscoveryContext context, AddinMetadata addin)
 		{
 			var packageFileName = Path.Combine(context.PackagesFolder, $"{addin.Name}.{addin.NuGetPackageVersion}.snupkg");
-			if (!File.Exists(packageFileName))
+			var packageNotFoundFileName = Path.Combine(context.PackagesFolder, $"{addin.Name}.{addin.NuGetPackageVersion} SNUPKG Not Found.txt");
+
+			if (!File.Exists(packageFileName) && !File.Exists(packageNotFoundFileName))
 			{
 				// Download the symbols package
 				try
@@ -154,6 +154,14 @@ namespace Cake.AddinDiscoverer.Steps
 						await using var getStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 						await using var fileStream = File.OpenWrite(packageFileName);
 						await getStream.CopyToAsync(fileStream).ConfigureAwait(false);
+					}
+					else if (response.StatusCode == HttpStatusCode.NotFound)
+					{
+						// The purpose of creating this text file is simply to avoid attempting to download the snupkg repeatedly when running on my machine.
+						// When debugging on my machine, I sometimes analyze the same version of an addin over and over again.
+						// This is not a concern when running in ApVeyor because we analyze a given version of an addin only once.
+						const string snupkgNotFound = "Symbol package not found";
+						await File.WriteAllTextAsync(packageNotFoundFileName, snupkgNotFound).ConfigureAwait(false);
 					}
 				}
 				catch (Exception e)
@@ -612,7 +620,7 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				try
 				{
-					var repository = await context.GithubClient.Repository.Get(repoOwner, repoName).ConfigureAwait(false);
+					var repository = await context.RepositoryValidator.ValidateGithubRepoAsync(repoOwner, repoName).ConfigureAwait(false);
 
 					// Only overwrite GitHub and Bitbucket URLs and preserve custom URLs such as 'https://cakeissues.net/' for example.
 					if (addin.ProjectUrl.IsGithubUrl(false) || addin.ProjectUrl.IsBitbucketUrl())
@@ -644,17 +652,8 @@ namespace Cake.AddinDiscoverer.Steps
 			// Validate non-GitHub URL
 			if (addin.ProjectUrl != null && !addin.ProjectUrl.IsGithubUrl(false))
 			{
-				var githubRequest = new Request()
-				{
-					BaseAddress = new UriBuilder(addin.ProjectUrl.Scheme, addin.ProjectUrl.Host, addin.ProjectUrl.Port).Uri,
-					Endpoint = new Uri(addin.ProjectUrl.PathAndQuery, UriKind.Relative),
-					Method = HttpMethod.Head,
-				};
-				githubRequest.Headers.Add("User-Agent", ((Connection)context.GithubClient.Connection).UserAgent);
-
-				var response = await SendRequestWithRetries(githubRequest, context.GithubHttpClient).ConfigureAwait(false);
-
-				if (response.StatusCode == HttpStatusCode.NotFound)
+				var validationResult = await context.RepositoryValidator.ValidateUrlAsync(addin.ProjectUrl).ConfigureAwait(false);
+				if (validationResult == HttpStatusCode.NotFound)
 				{
 					addin.ProjectUrl = null;
 				}
@@ -664,28 +663,6 @@ namespace Cake.AddinDiscoverer.Steps
 			addin.InferredRepositoryUrl = Misc.StandardizeGitHubUri(addin.InferredRepositoryUrl);
 			addin.RepositoryUrl = Misc.StandardizeGitHubUri(addin.RepositoryUrl);
 			addin.ProjectUrl = Misc.StandardizeGitHubUri(addin.ProjectUrl);
-		}
-
-		private static async Task<IResponse> SendRequestWithRetries(IRequest request, IHttpClient httpClient)
-		{
-			IResponse response = null;
-			const int maxRetry = 3;
-			for (int retryCount = 0; retryCount < maxRetry; retryCount++)
-			{
-				response = await httpClient.Send(request, CancellationToken.None).ConfigureAwait(false);
-
-				if (response.StatusCode == HttpStatusCode.TooManyRequests && retryCount < maxRetry - 1)
-				{
-					response.Headers.TryGetValue("Retry-After", out string retryAfter);
-					await Task.Delay(1000 * int.Parse(retryAfter ?? "60")).ConfigureAwait(false);
-				}
-				else
-				{
-					break;
-				}
-			}
-
-			return response;
 		}
 
 		private static void AnalyzeAddin(DiscoveryContext context, AddinMetadata addin, byte[] cakeContribIcon, KeyValuePair<AddinType, byte[]>[] fancyIcons)
@@ -788,7 +765,7 @@ namespace Cake.AddinDiscoverer.Steps
 				try
 				{
 					// Get all files from the repo
-					var repoContent = await Misc.GetRepoContentAsync(context, addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
+					var repoContent = await context.RepositoryValidator.GetRepoContentAsync(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 
 					// Get the cake files
 					var repoItems = repoContent

@@ -38,7 +38,7 @@ namespace Cake.AddinDiscoverer.Steps
 							!string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
 							var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
-							var repoContent = await Misc.GetRepoContentAsync(context, addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
+							var repoContent = await context.RepositoryValidator.GetRepoContentAsync(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
 
 							await FixNuspec(context, addin, repoContent, recommendedCakeVersion, commits).ConfigureAwait(false);
 							await FixCsproj(context, addin, repoContent, recommendedCakeVersion, commits).ConfigureAwait(false);
