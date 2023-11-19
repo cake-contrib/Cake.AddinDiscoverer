@@ -57,6 +57,8 @@ namespace Cake.AddinDiscoverer.Utilities
 			var repo = await _repoValidationCache.GetOrAddAsync(cacheKey, async cacheKey =>
 			{
 				var parts = cacheKey.Split('/');
+				var cacheKeyRepoOwner = parts[0];
+				var cacheKeyRepoName = parts[1];
 				var repository = await _context.GithubClient.Repository.Get(parts[0], parts[1]).ConfigureAwait(false);
 				return repository;
 			}).ConfigureAwait(false);
@@ -78,11 +80,11 @@ namespace Cake.AddinDiscoverer.Utilities
 					var repocontent = await _repoContentCache.GetOrAddAsync(tagCacheKey, async cacheKey =>
 					{
 						var parts = cacheKey.Split('/');
-						var keyRepoName = parts[0];
-						var keyRepoOwner = parts[1];
+						var cacheKeyRepoOwner = parts[0];
+						var cacheKeyRepoName = parts[1];
 						var keyTag = parts.Length == 3 ? parts[2] : null;
 
-						var zipArchiveFileName = Path.Combine(_context.ZipArchivesFolder, $"{keyRepoName}.{keyTag}.bin");
+						var zipArchiveFileName = Path.Combine(_context.ZipArchivesFolder, $"{cacheKeyRepoName}.{keyTag}.bin");
 
 						if (File.Exists(zipArchiveFileName))
 						{
@@ -106,11 +108,11 @@ namespace Cake.AddinDiscoverer.Utilities
 			var repoContent = await _repoContentCache.GetOrAddAsync(cacheKey, async cacheKey =>
 			{
 				var parts = cacheKey.Split('/');
-				var keyRepoName = parts[0];
-				var keyRepoOwner = parts[1];
+				var cacheKeyRepoOwner = parts[0];
+				var cacheKeyRepoName = parts[1];
 				var keyTag = parts.Length == 3 ? parts[2] : null;
 
-				var zipArchive = await _context.GithubClient.Repository.Content.GetArchive(keyRepoName, keyRepoOwner, ArchiveFormat.Zipball).ConfigureAwait(false);
+				var zipArchive = await _context.GithubClient.Repository.Content.GetArchive(cacheKeyRepoOwner, cacheKeyRepoName, ArchiveFormat.Zipball).ConfigureAwait(false);
 				return UnzipArchive(zipArchive);
 			}).ConfigureAwait(false);
 
@@ -124,10 +126,10 @@ namespace Cake.AddinDiscoverer.Utilities
 			var repoTags = await _repoTagsCache.GetOrAddAsync(cacheKey, async cacheKey =>
 			{
 				var parts = cacheKey.Split('/');
-				var keyRepoName = parts[0];
-				var keyRepoOwner = parts[1];
+				var cacheKeyRepoOwner = parts[0];
+				var cacheKeyRepoName = parts[1];
 
-				return await _context.GithubClient.Repository.GetAllTags(keyRepoName, keyRepoOwner).ConfigureAwait(false);
+				return await _context.GithubClient.Repository.GetAllTags(cacheKeyRepoOwner, cacheKeyRepoName).ConfigureAwait(false);
 			}).ConfigureAwait(false);
 
 			return repoTags;
