@@ -1,3 +1,4 @@
+using Cake.AddinDiscoverer.Utilities;
 using NuGet.Protocol.Core.Types;
 using Octokit;
 using Octokit.Internal;
@@ -18,6 +19,8 @@ namespace Cake.AddinDiscoverer.Models
 		public IHttpClient GithubHttpClient { get; set; }
 
 		public HttpClient HttpClient { get; set; }
+
+		public CachedRepositoryValidator RepositoryValidator { get; set; }
 
 		public SourceRepository NugetRepository { get; set; }
 
@@ -64,6 +67,8 @@ namespace Cake.AddinDiscoverer.Models
 		public string AnalysisFolder => Path.Combine(this.TempFolder, "analysis");
 
 		public string PackagesFolder => Path.Combine(this.TempFolder, "packages");
+
+		public string ZipArchivesFolder => Path.Combine(this.TempFolder, "archives");
 
 		public string ExcelReportPath => Path.Combine(this.TempFolder, "Audit.xlsx");
 

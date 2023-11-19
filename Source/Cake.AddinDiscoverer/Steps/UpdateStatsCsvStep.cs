@@ -40,7 +40,8 @@ namespace Cake.AddinDiscoverer.Steps
 					var addins = reportData
 						.GetAddinsForCakeVersion(cakeVersion, false)
 						.Where(a => a.Type.IsFlagSet(AddinType.Addin | AddinType.Module))
-						.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
+						.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes))
+						.Where(a => a.AnalysisResult.CakeCoreVersion != null || a.AnalysisResult.CakeCommonVersion != null);
 
 					var summary = new AddinProgressSummary
 					{

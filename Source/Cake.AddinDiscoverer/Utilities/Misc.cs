@@ -3,8 +3,6 @@ using Cake.Incubator.StringExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -151,32 +149,6 @@ namespace Cake.AddinDiscoverer.Utilities
 			var pullRequest = await context.GithubClient.PullRequest.Create(upstream.Owner.Login, upstream.Name, newPullRequest).ConfigureAwait(false);
 
 			return pullRequest;
-		}
-
-		public static async Task<IDictionary<string, Stream>> GetRepoContentAsync(DiscoveryContext context, string repoOwner, string repoName)
-		{
-			IDictionary<string, Stream> repoContent;
-
-			var zipArchive = await context.GithubClient.Repository.Content.GetArchive(repoOwner, repoName, ArchiveFormat.Zipball).ConfigureAwait(false);
-			using (var data = new MemoryStream(zipArchive))
-			{
-				using var archive = new ZipArchive(data);
-
-				repoContent = archive.Entries
-					.ToDictionary(
-						item => item.FullName,
-						item =>
-						{
-							var ms = new MemoryStream();
-
-							item.Open().CopyTo(ms);
-
-							ms.Position = 0;
-							return (Stream)ms;
-						});
-			}
-
-			return repoContent;
 		}
 
 		public static bool DeriveGitHubRepositoryInfo(Uri url, out string owner, out string name)

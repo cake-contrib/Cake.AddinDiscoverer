@@ -42,6 +42,12 @@ namespace Cake.AddinDiscoverer.Steps
 				await Task.Delay(500).ConfigureAwait(false);
 			}
 
+			if (!Directory.Exists(context.ZipArchivesFolder))
+			{
+				Directory.CreateDirectory(context.ZipArchivesFolder);
+				await Task.Delay(500).ConfigureAwait(false);
+			}
+
 			if (!Directory.Exists(context.AnalysisFolder))
 			{
 				Directory.CreateDirectory(context.AnalysisFolder);

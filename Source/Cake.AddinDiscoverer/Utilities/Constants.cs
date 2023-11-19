@@ -79,6 +79,12 @@ namespace Cake.AddinDiscoverer.Utilities
 				Version = new SemVersion(3, 0, 0),
 				RequiredFrameworks = new[] { "net6.0", "net7.0" },
 				OptionalFrameworks = Array.Empty<string>()
+			},
+			new CakeVersion
+			{
+				Version = new SemVersion(4, 0, 0),
+				RequiredFrameworks = new[] { "net6.0", "net7.0", "net8.0" },
+				OptionalFrameworks = Array.Empty<string>()
 			}
 		};
 
@@ -343,6 +349,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				(addin, cakeVersion) =>
 				{
 					if (!addin.AnalysisResult.CakeRecipeIsUsed) return Color.Empty;
+					else if (addin.AnalysisResult.CakeRecipeVersion == null) return Color.Red;
 					else if (addin.AnalysisResult.CakeRecipeIsPrerelease) return Color.Red;
 					else if (addin.AnalysisResult.CakeRecipeVersion.Major == 0) return Color.Red;
 					else if (addin.AnalysisResult.CakeRecipeIsLatest) return Color.LightGreen;

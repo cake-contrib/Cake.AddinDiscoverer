@@ -4,6 +4,7 @@ using Cake.Incubator.StringExtensions;
 using NuGet.Versioning;
 using Octokit;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -436,6 +437,39 @@ namespace Cake.AddinDiscoverer
 		public static SemVersion ToSemVersion(this NuGetVersion nugetVersion)
 		{
 			return SemVersion.Parse(nugetVersion.ToNormalizedString());
+		}
+
+		/// <summary>
+		/// Returns an existing task from the concurrent dictionary, or adds a new task
+		/// using the specified asynchronous factory method. Concurrent invocations for
+		/// the same key are prevented, unless the task is removed before the completion
+		/// of the delegate. Failed tasks are evicted from the concurrent dictionary.
+		/// </summary>
+		public static Task<TValue> GetOrAddAsync<TKey, TValue>(this ConcurrentDictionary<TKey, Task<TValue>> source, TKey key, Func<TKey, Task<TValue>> valueFactory)
+		{
+			ArgumentNullException.ThrowIfNull(source);
+			ArgumentNullException.ThrowIfNull(valueFactory);
+
+			if (source.TryGetValue(key, out Task<TValue> currentTask)) return currentTask;
+
+			Task<Task<TValue>> newTaskTask = new(() => valueFactory(key));
+			Task<TValue> newTask = null;
+			newTask = newTaskTask.Unwrap().ContinueWith(
+				task =>
+				{
+					if (!task.IsCompletedSuccessfully)
+						source.TryRemove(KeyValuePair.Create(key, newTask));
+					return task;
+				},
+				default,
+				TaskContinuationOptions.DenyChildAttach | TaskContinuationOptions.ExecuteSynchronously,
+				TaskScheduler.Default).Unwrap();
+
+			currentTask = source.GetOrAdd(key, newTask);
+			if (ReferenceEquals(currentTask, newTask))
+				newTaskTask.RunSynchronously(TaskScheduler.Default);
+
+			return currentTask;
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)
