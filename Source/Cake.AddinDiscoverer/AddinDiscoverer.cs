@@ -116,9 +116,11 @@ namespace Cake.AddinDiscoverer
 				Version = typeof(AddinDiscoverer).GetTypeInfo().Assembly.GetName().Version.ToString(3)
 			};
 
+			_context.HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd(Constants.PRODUCT_NAME);
+
 			// Setup a validator that will cache the result of certains calls (such as when we validate a URL, when we retrieve the files in a GitHub repo, etc)
-			// to avaid repeatedly requesting the same data over and over again. This is particularly useful in conjuction with the "AnalyzeAllAddins" option.
-			_context.RepositoryValidator = new CachedRepositoryValidator(connection.UserAgent, _context.GithubHttpClient, _context.GithubClient);
+			// to avoid requesting the same data over and over again. This is particularly useful in conjuction with the "AnalyzeAllAddins" option.
+			_context.RepositoryValidator = new CachedRepositoryValidator(_context);
 		}
 
 		public async Task<ResultCode> LaunchDiscoveryAsync()

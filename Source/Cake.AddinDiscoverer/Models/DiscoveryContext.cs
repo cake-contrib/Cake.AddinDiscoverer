@@ -68,6 +68,8 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string PackagesFolder => Path.Combine(this.TempFolder, "packages");
 
+		public string ZipArchivesFolder => Path.Combine(this.TempFolder, "archives");
+
 		public string ExcelReportPath => Path.Combine(this.TempFolder, "Audit.xlsx");
 
 		public string MarkdownReportPath => Path.Combine(this.TempFolder, "Audit.md");

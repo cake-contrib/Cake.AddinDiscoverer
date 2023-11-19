@@ -764,8 +764,10 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				try
 				{
-					// Get all files from the repo
-					var repoContent = await context.RepositoryValidator.GetRepoContentAsync(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
+					// Get all files from the repo.
+					// We try to locate a "tag" in the GitHub repo that corresponds to the addin version.
+					// If we find such a tag, we get the tagged repo content otherwise we simply get the most recent files.
+					var repoContent = await context.RepositoryValidator.GetRepoContentAsync(addin.RepositoryOwner, addin.RepositoryName, addin.NuGetPackageVersion.ToNormalizedString()).ConfigureAwait(false);
 
 					// Get the cake files
 					var repoItems = repoContent
