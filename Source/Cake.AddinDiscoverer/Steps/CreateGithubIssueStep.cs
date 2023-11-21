@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static Cake.AddinDiscoverer.Models.ReportData;
 
 namespace Cake.AddinDiscoverer.Steps
 {
@@ -25,7 +26,8 @@ namespace Cake.AddinDiscoverer.Steps
 				.First();
 
 			var reportData = new ReportData(context.Addins);
-			var addins = reportData.GetAddinsForCakeVersion(recommendedCakeVersion, false);
+
+			var addins = reportData.GetAddinsForCakeVersion(recommendedCakeVersion, CakeVersionComparison.LessThanOrEqual);
 
 			addins = await addins
 				.ForEachAsync(

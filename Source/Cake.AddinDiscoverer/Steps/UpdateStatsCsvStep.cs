@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static Cake.AddinDiscoverer.Models.ReportData;
 
 namespace Cake.AddinDiscoverer.Steps
 {
@@ -38,7 +39,7 @@ namespace Cake.AddinDiscoverer.Steps
 				foreach (var cakeVersion in cakeVersionsForReport)
 				{
 					var addins = reportData
-						.GetAddinsForCakeVersion(cakeVersion, false)
+						.GetAddinsForCakeVersion(cakeVersion, CakeVersionComparison.LessThanOrEqual)
 						.Where(a => a.Type.IsFlagSet(AddinType.Addin | AddinType.Module))
 						.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes))
 						.Where(a => a.AnalysisResult.CakeCoreVersion != null || a.AnalysisResult.CakeCommonVersion != null);

@@ -7,6 +7,15 @@ namespace Cake.AddinDiscoverer.Models
 {
 	internal class ReportData
 	{
+		internal enum CakeVersionComparison
+		{
+			LessThan,
+			LessThanOrEqual,
+			Equal,
+			GreaterThan,
+			GreaterThanOrEqual
+		}
+
 		public IEnumerable<AddinMetadata> AllPackages { get; private set; }
 
 		public ReportData(IEnumerable<AddinMetadata> packages)
@@ -20,16 +29,16 @@ namespace Cake.AddinDiscoverer.Models
 		/// </summary>
 		/// <param name="cakeVersion">The desired Cake version.</param>
 		/// <returns>An enumeration of Addins.<returns>
-		public IEnumerable<AddinMetadata> GetAddinsForCakeVersion(CakeVersion cakeVersion, bool strict)
+		public IEnumerable<AddinMetadata> GetAddinsForCakeVersion(CakeVersion cakeVersion, CakeVersionComparison comparison)
 		{
 			return AllPackages
 				.GroupBy(addin => addin.Name, StringComparer.OrdinalIgnoreCase)
-				.Select(group => MostRecentAddinVersion(group, cakeVersion, strict))
+				.Select(group => MostRecentAddinVersion(group, cakeVersion, comparison))
 				.Where(addin => addin != null); // this condition filters out packages that were not publicly avaiable
 		}
 
 		// Returns the most recent version of an addin that is compatible with a given version of Cake
-		private static AddinMetadata MostRecentAddinVersion(IEnumerable<AddinMetadata> addinVersions, CakeVersion cakeVersion, bool strict)
+		private static AddinMetadata MostRecentAddinVersion(IEnumerable<AddinMetadata> addinVersions, CakeVersion cakeVersion, CakeVersionComparison comparison)
 		{
 			var cakeVersionZero = Constants.CAKE_VERSIONS.Single(cv => cv.Version == Constants.VERSION_ZERO);
 
@@ -48,7 +57,15 @@ namespace Cake.AddinDiscoverer.Models
 						targetedCakeVersion ??= cakeVersionZero;
 
 						var comparisonResult = targetedCakeVersion.CompareTo(cakeVersion);
-						return strict ? comparisonResult == 0 : comparisonResult <= 0;
+						return comparison switch
+						{
+							CakeVersionComparison.LessThan => comparisonResult < 0,
+							CakeVersionComparison.LessThanOrEqual => comparisonResult <= 0,
+							CakeVersionComparison.Equal => comparisonResult == 0,
+							CakeVersionComparison.GreaterThan => comparisonResult > 0,
+							CakeVersionComparison.GreaterThanOrEqual => comparisonResult >= 0,
+							_ => throw new Exception("Unknown comparison")
+						};
 					})
 					.SortForAddinDisco()
 					.FirstOrDefault();
