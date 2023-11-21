@@ -12,12 +12,18 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static Cake.AddinDiscoverer.Models.ReportData;
 using Constants = Cake.AddinDiscoverer.Utilities.Constants;
 
 namespace Cake.AddinDiscoverer.Steps
 {
 	internal class UpdateCakeRecipeStep : IStep
 	{
+		// This is a bogus version that is intended to represent any version of Cake greather than nextCakeVersion
+		// For example: if Cake 2.0 is the next version of Cake, this bogus version would represent Cake 3.0 and 4.0
+		// and any subsequent release of Cake
+		private static CakeVersion _subsequentCakeVersion = new CakeVersion() { Version = new SemVersion(-1) };
+
 		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.UpdateCakeRecipeReferences;
 
 		public string GetDescription(DiscoveryContext context) => "Update Cake.Recipe";
@@ -73,10 +79,9 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			var currentCakeVersion = Constants.CAKE_VERSIONS.Where(v => v.Version <= cakeVersionUsedInRecipe).Max();
 			var nextCakeVersion = Constants.CAKE_VERSIONS.Where(v => v.Version > cakeVersionUsedInRecipe).Min();
-			var latestCakeVersion = Constants.CAKE_VERSIONS.Where(v => v.Version > cakeVersionUsedInRecipe).Max();
 
 			// Get the ".cake" files
-			var recipeFiles = await GetRecipeFilesAsync(context, currentCakeVersion, nextCakeVersion, latestCakeVersion).ConfigureAwait(false);
+			var recipeFiles = await GetRecipeFilesAsync(context, currentCakeVersion, nextCakeVersion).ConfigureAwait(false);
 
 			// Submit a PR if any addin reference is outdated
 			await UpdateOutdatedRecipeFilesAsync(context, recipeFiles).ConfigureAwait(false);
@@ -88,7 +93,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private static async Task<RecipeFile[]> GetRecipeFilesAsync(DiscoveryContext context, CakeVersion currentCakeVersion, CakeVersion nextCakeVersion, CakeVersion latestCakeVersion)
+		private static async Task<RecipeFile[]> GetRecipeFilesAsync(DiscoveryContext context, CakeVersion currentCakeVersion, CakeVersion nextCakeVersion)
 		{
 			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, "Source/Cake.Recipe/Content").ConfigureAwait(false);
 			var cakeFiles = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.File) && c.Name.EndsWith(".cake", StringComparison.OrdinalIgnoreCase));
@@ -96,11 +101,14 @@ namespace Cake.AddinDiscoverer.Steps
 			var reportData = new ReportData(context.Addins);
 			var addins = new Dictionary<CakeVersion, IEnumerable<AddinMetadata>>
 			{
-				{ currentCakeVersion, reportData.GetAddinsForCakeVersion(currentCakeVersion, true) }
+				{ currentCakeVersion, reportData.GetAddinsForCakeVersion(currentCakeVersion, CakeVersionComparison.Equal) }
 			};
 
-			if (nextCakeVersion != null && !addins.ContainsKey(nextCakeVersion)) addins.Add(nextCakeVersion, reportData.GetAddinsForCakeVersion(nextCakeVersion, true));
-			if (latestCakeVersion != null && !addins.ContainsKey(latestCakeVersion)) addins.Add(latestCakeVersion, reportData.GetAddinsForCakeVersion(latestCakeVersion, true));
+			if (nextCakeVersion != null)
+			{
+				addins.Add(nextCakeVersion, reportData.GetAddinsForCakeVersion(nextCakeVersion, CakeVersionComparison.Equal));
+				addins.Add(_subsequentCakeVersion, reportData.GetAddinsForCakeVersion(nextCakeVersion, CakeVersionComparison.GreaterThan));
+			}
 
 			// Local functions that indicates if an addin corresponds to the reference
 			static bool AddinIsEqualToReference(AddinMetadata addin, AddinReference addinReference)
@@ -134,11 +142,8 @@ namespace Cake.AddinDiscoverer.Steps
 									.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
 									.NuGetPackageVersion
 									.ToSemVersion();
-							}
 
-							if (latestCakeVersion != null)
-							{
-								addinReference.LatestVersionForLatestCake = addins[latestCakeVersion]
+								addinReference.LatestVersionForLatestCake = addins[_subsequentCakeVersion]
 									.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
 									.NuGetPackageVersion
 									.ToSemVersion();
@@ -155,7 +160,7 @@ namespace Cake.AddinDiscoverer.Steps
 							var latestVersionForNextCake = addins[nextCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
 							latestVersionForNextCake ??= allVersions.FirstOrDefault(addin => addin.CakeVersionYaml == null || addin.CakeVersionYaml.TargetCakeVersion < nextCakeVersion.Version);
 
-							var latestVersionForLatestCake = addins[latestCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
+							var latestVersionForLatestCake = addins[_subsequentCakeVersion].SingleOrDefault(addin => AddinIsEqualToReference(addin, loadReference));
 							latestVersionForLatestCake ??= allVersions.FirstOrDefault();
 
 							loadReference.LatestVersionForCurrentCake = latestVersionForCurrentCake.NuGetPackageVersion.ToSemVersion();

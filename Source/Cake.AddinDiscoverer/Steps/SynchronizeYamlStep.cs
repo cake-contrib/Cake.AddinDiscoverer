@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
+using static Cake.AddinDiscoverer.Models.ReportData;
 
 namespace Cake.AddinDiscoverer.Steps
 {
@@ -30,7 +31,7 @@ namespace Cake.AddinDiscoverer.Steps
 			// The content of the YAML files is based on the most recent version of the addins
 			var latestCakeVersion = Constants.CAKE_VERSIONS.OrderByDescending(cv => cv.Version).First();
 			var reportData = new ReportData(context.Addins);
-			var addins = reportData.GetAddinsForCakeVersion(latestCakeVersion, false);
+			var addins = reportData.GetAddinsForCakeVersion(latestCakeVersion, CakeVersionComparison.LessThanOrEqual);
 
 			// Local functions that indicate if the YAML file for a given addin should be created/updated/deleted
 			bool ShouldDeleteYamlFile(AddinMetadata addin)

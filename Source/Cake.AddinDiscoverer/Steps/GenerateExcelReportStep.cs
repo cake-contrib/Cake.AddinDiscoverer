@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static Cake.AddinDiscoverer.Models.ReportData;
 
 namespace Cake.AddinDiscoverer.Steps
 {
@@ -26,7 +27,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var latestCakeVersion = cakeVersionsForReport.Max();
 
 			var reportData = new ReportData(context.Addins);
-			var mostRecentAddins = reportData.GetAddinsForCakeVersion(latestCakeVersion, false);
+			var mostRecentAddins = reportData.GetAddinsForCakeVersion(latestCakeVersion, CakeVersionComparison.LessThanOrEqual);
 			var analyzedAddins = mostRecentAddins.Where(a => !a.IsDeprecated && string.IsNullOrEmpty(a.AnalysisResult.Notes));
 			var exceptionAddins = mostRecentAddins.Where(a => !a.IsDeprecated && !string.IsNullOrEmpty(a.AnalysisResult.Notes));
 			var deprecatedAddins = mostRecentAddins.Where(a => a.IsDeprecated);
@@ -40,7 +41,7 @@ namespace Cake.AddinDiscoverer.Steps
 				// One worksheet per version of Cake (reverse order so first tab in excel shows data for most recent version of Cake)
 				foreach (var cakeVersion in cakeVersionsForReport.OrderByDescending(v => v.Version))
 				{
-					var addins = reportData.GetAddinsForCakeVersion(cakeVersion, false)
+					var addins = reportData.GetAddinsForCakeVersion(cakeVersion, CakeVersionComparison.LessThanOrEqual)
 						.Where(addin => !addin.IsDeprecated)
 						.Where(addin => string.IsNullOrEmpty(addin.AnalysisResult.Notes))
 						.ToArray();

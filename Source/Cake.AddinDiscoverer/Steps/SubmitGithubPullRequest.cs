@@ -24,7 +24,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.First();
 
 			var reportData = new ReportData(context.Addins);
-			var addins = reportData.GetAddinsForCakeVersion(recommendedCakeVersion, false);
+			var addins = reportData.GetAddinsForCakeVersion(recommendedCakeVersion, ReportData.CakeVersionComparison.LessThanOrEqual);
 
 			addins = await addins
 				.OrderBy(a => a.Name)
