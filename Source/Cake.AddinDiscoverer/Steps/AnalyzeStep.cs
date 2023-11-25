@@ -511,14 +511,19 @@ namespace Cake.AddinDiscoverer.Steps
 
 		private static (Stream AssemblyStream, Assembly Assembly, MethodInfo[] DecoratedMethods, string AssemblyPath, string[] AliasCategories) FindAssemblyToAnalyze(IPackageCoreReader package, string[] assembliesPath)
 		{
-			var runtimeAssemblies = Directory.GetFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll");
+			// The .NET assemblies are necessary to load the assemblies
+			var systemAssemblies = Directory.GetFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll");
+
+			// Some assemblies reference additional assemblies (such as Cake,Core and Cake.Common for example).
+			// Additionaly, some assemblies reference FSharp.Core. That's why I added a reference to Fsharp to
+			// AddinDiscoverer and I am making the assemblies referenced AddinDiscoverer available for resolving
+			// types when looping through custom attributes.
+			var appAssemblies = Directory.GetFiles(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "*.dll");
+
+			var runtimeAssemblies = systemAssemblies.Union(appAssemblies).ToArray();
 
 			foreach (var assemblyPath in assembliesPath)
 			{
-				// The assembly resolver makes the assemblies referenced by THIS APPLICATION (i.e.: the AddinDiscoverer) available
-				// for resolving types when looping through custom attributes. As of this writing, there is one addin written in
-				// FSharp which was causing 'Could not find FSharp.Core' when looping through its custom attributes. To solve this
-				// problem, I added a reference to FSharp.Core in Cake.AddinDiscoverer.csproj
 				var assemblyResolver = new PathAssemblyResolver(runtimeAssemblies);
 
 				// It's important to create a new load context for each assembly to ensure one addin does not interfere with another

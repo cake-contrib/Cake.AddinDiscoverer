@@ -1,6 +1,5 @@
-
 // Install tools.
-#tool nuget:?package=GitVersion.CommandLine&version=5.12.0
+#tool dotnet:?package=GitVersion.Tool&version=5.12.0
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -30,16 +29,14 @@ var publishDir = $"{outputDir}Publish/";
 var buildBranch = Context.GetBuildBranch();
 var repoName = Context.GetRepoName();
 
-var versionInfo = GitVersion(new GitVersionSettings() { OutputType = GitVersionOutput.Json });
+var versionInfo = (GitVersion)null; // Will be calculated in SETUP
+
 var cakeVersion = typeof(ICakeContext).Assembly.GetName().Version.ToString();
 var isLocalBuild = BuildSystem.IsLocalBuild;
 var isMainBranch = StringComparer.OrdinalIgnoreCase.Equals("main", buildBranch);
 var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals($"{gitHubUserName}/{gitHubRepo}", repoName);
 var isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
-var isTagged = (
-	BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag &&
-	!string.IsNullOrWhiteSpace(BuildSystem.AppVeyor.Environment.Repository.Tag.Name)
-);
+var isTagged = BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag && !string.IsNullOrWhiteSpace(BuildSystem.AppVeyor.Environment.Repository.Tag.Name);
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -53,6 +50,9 @@ Setup(context =>
 		Information("Increasing verbosity to diagnostic.");
 		context.Log.Verbosity = Verbosity.Diagnostic;
 	}
+
+	Information("Calculating version info...");
+	versionInfo = GitVersion(new GitVersionSettings() { OutputType = GitVersionOutput.Json });
 
 	Information("Building version {0} of {1} ({2}, {3}) using version {4} of Cake",
 		versionInfo.LegacySemVerPadded,
@@ -147,7 +147,7 @@ Task("Restore-NuGet-Packages")
 	DotNetRestore(sourceFolder, new DotNetRestoreSettings
 	{
 		Sources = new [] {
-			"https://api.nuget.org/v3/index.json"
+			"https://api.nuget.org/v3/index.json",
 		}
 	});
 });
