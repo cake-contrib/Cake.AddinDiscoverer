@@ -151,6 +151,7 @@ Task("Publish")
 	DotNetPublish($"{sourceFolder}{appName}.sln", new DotNetPublishSettings
 	{
 		Configuration = configuration,
+		OutputDirectory = publishDir,
 		NoBuild = false,
 		NoRestore = true,
 		PublishSingleFile = true,
