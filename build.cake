@@ -137,6 +137,7 @@ Task("Restore-NuGet-Packages")
 {
 	DotNetRestore(sourceFolder, new DotNetRestoreSettings
 	{
+		Runtime = "win-x64",
 		Sources = new [] { "https://api.nuget.org/v3/index.json", }
 	});
 });
@@ -154,7 +155,7 @@ Task("Publish")
 		NoRestore = true,
 		PublishSingleFile = true,
 		SelfContained = true,
-		ArgumentCustomization = args => args.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
+		ArgumentCustomization = args => args.Append($"-p:SemVer={versionInfo.LegacySemVerPadded}")
 	});
 });
 
