@@ -2,6 +2,7 @@ using Cake.AddinDiscoverer.Utilities;
 using NuGet.Protocol.Core.Types;
 using Octokit;
 using Octokit.Internal;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
@@ -79,5 +80,7 @@ namespace Cake.AddinDiscoverer.Models
 		public string GraphSaveLocation => Path.Combine(this.TempFolder, "Audit_progress.png");
 
 		public string AnalysisResultSaveLocation => Path.Combine(this.TempFolder, "Analysis_result.json");
+
+		public string ExecutionLocation => AppContext.BaseDirectory;
 	}
 }
