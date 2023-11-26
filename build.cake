@@ -151,12 +151,13 @@ Task("Publish")
 	DotNetPublish($"{sourceFolder}{appName}.sln", new DotNetPublishSettings
 	{
 		Configuration = configuration,
-		OutputDirectory = publishDir,
 		NoBuild = false,
 		NoRestore = true,
 		PublishSingleFile = true,
 		SelfContained = true,
-		ArgumentCustomization = args => args.Append($"-p:SemVer={versionInfo.LegacySemVerPadded}")
+		ArgumentCustomization = args => args
+			.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
+			.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
 	});
 });
 
