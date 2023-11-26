@@ -137,35 +137,24 @@ Task("Restore-NuGet-Packages")
 {
 	DotNetRestore(sourceFolder, new DotNetRestoreSettings
 	{
-		Sources = new [] {
-			"https://api.nuget.org/v3/index.json",
-		}
+		Sources = new [] { "https://api.nuget.org/v3/index.json", }
 	});
 });
 
-Task("Build")
-	.IsDependentOn("Restore-NuGet-Packages")
-	.Does(() =>
-{
-	DotNetBuild($"{sourceFolder}{appName}.sln", new DotNetBuildSettings
-	{
-		Configuration = configuration,
-		NoRestore = true,
-		ArgumentCustomization = args => args.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
-	});
-});
-
+// Combining "build" and "publish" in a single task otherwise you get exeption from dotnet due to publishing to a single file.
+// More details here: https://github.com/orgs/cake-build/discussions/4280
 Task("Publish")
-	.IsDependentOn("Build")
+	.IsDependentOn("Restore-NuGet-Packages")
 	.Does(() =>
 {
 	DotNetPublish($"{sourceFolder}{appName}.sln", new DotNetPublishSettings
 	{
 		Configuration = configuration,
-		NoBuild = true,
+		NoBuild = false,
 		NoRestore = true,
-		ArgumentCustomization = args => args
-			.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
+		PublishSingleFile = true,
+		SelfContained = true,
+		ArgumentCustomization = args => args.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
 	});
 });
 
