@@ -119,20 +119,11 @@ Task("Clean")
 	CleanDirectories($"{sourceFolder}*/bin/{configuration}");
 	CleanDirectories($"{sourceFolder}*/obj/{configuration}");
 
-	// Clean previous artifacts (except downloaded packages).
-	// Do not use Cake's "CleanDirectories" alias because there
-	// is no way to exclude a sub folder which prevents us from
-	// exluding the "packages" subfolder.
+	// Clean previous artifacts
 	Information("Cleaning {0}", outputDir);
 	if (DirectoryExists(outputDir))
 	{
-		foreach (var directory in GetDirectories(outputDir))
-		{
-			if (!directory.FullPath.EndsWith("packages"))
-			{
-				DeleteFiles($"{directory.FullPath}/*.*");
-			}
-		}
+		SafeCleanDirectory(outputDir, false);
 	}
 	else
 	{
@@ -326,4 +317,40 @@ public static string GetRepoName(this ICakeContext context)
 	var originUrl = ExecGitCmd(context, "config --get remote.origin.url").Single();
 	var parts = originUrl.Split('/', StringSplitOptions.RemoveEmptyEntries);
 	return $"{parts[parts.Length - 2]}/{parts[parts.Length - 1].Replace(".git", "")}";
+}
+
+// Clean previous artifacts and  make sure to preserve the content
+// of folders that are used as caches (such as "packages", "analysis"
+// and "archives"). Do not use Cake's "CleanDirectories" alias because
+// there is no way to exclude a sub folder which prevents us from
+// exluding the subfolders we want to preserve.
+private void SafeCleanDirectory(string directoryPath, bool deleteFiles)
+{
+	foreach (var directory in System.IO.Directory.EnumerateDirectories(directoryPath))
+	{
+		// Check if this folder is used for caching purposes
+		if (directory.EndsWith("packages") || directory.EndsWith("analysis") || directory.EndsWith("archives"))
+		{
+			Information(" -> Skipping {0}", directory);
+		}
+		else
+		{
+			Information(" -> Cleaning {0}", directory);
+
+			// Delete files in this folder
+			if (deleteFiles) 
+			{
+				DeleteFiles($"{directory}/*.*");
+			}
+
+			// Clean the subfolders
+			SafeCleanDirectory(directory, true);
+
+			// Delete this folder if it's empty
+			if (!System.IO.Directory.EnumerateFileSystemEntries(directory).Any())
+			{
+				System.IO.Directory.Delete(directory, false);
+			}
+		}
+	}
 }
