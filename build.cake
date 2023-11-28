@@ -1,6 +1,5 @@
-
 // Install tools.
-#tool nuget:?package=GitVersion.CommandLine&version=5.12.0
+#tool dotnet:?package=GitVersion.Tool&version=5.12.0
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -30,16 +29,14 @@ var publishDir = $"{outputDir}Publish/";
 var buildBranch = Context.GetBuildBranch();
 var repoName = Context.GetRepoName();
 
-var versionInfo = GitVersion(new GitVersionSettings() { OutputType = GitVersionOutput.Json });
+var versionInfo = (GitVersion)null; // Will be calculated in SETUP
+
 var cakeVersion = typeof(ICakeContext).Assembly.GetName().Version.ToString();
 var isLocalBuild = BuildSystem.IsLocalBuild;
 var isMainBranch = StringComparer.OrdinalIgnoreCase.Equals("main", buildBranch);
 var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals($"{gitHubUserName}/{gitHubRepo}", repoName);
 var isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
-var isTagged = (
-	BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag &&
-	!string.IsNullOrWhiteSpace(BuildSystem.AppVeyor.Environment.Repository.Tag.Name)
-);
+var isTagged = BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag && !string.IsNullOrWhiteSpace(BuildSystem.AppVeyor.Environment.Repository.Tag.Name);
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -53,6 +50,9 @@ Setup(context =>
 		Information("Increasing verbosity to diagnostic.");
 		context.Log.Verbosity = Verbosity.Diagnostic;
 	}
+
+	Information("Calculating version info...");
+	versionInfo = GitVersion(new GitVersionSettings() { OutputType = GitVersionOutput.Json });
 
 	Information("Building version {0} of {1} ({2}, {3}) using version {4} of Cake",
 		versionInfo.LegacySemVerPadded,
@@ -119,20 +119,11 @@ Task("Clean")
 	CleanDirectories($"{sourceFolder}*/bin/{configuration}");
 	CleanDirectories($"{sourceFolder}*/obj/{configuration}");
 
-	// Clean previous artifacts (except downloaded packages).
-	// Do not use Cake's "CleanDirectories" alias because there
-	// is no way to exclude a sub folder which prevents us from
-	// exluding the "packages" subfolder.
+	// Clean previous artifacts
 	Information("Cleaning {0}", outputDir);
 	if (DirectoryExists(outputDir))
 	{
-		foreach (var directory in GetDirectories(outputDir))
-		{
-			if (!directory.FullPath.EndsWith("packages"))
-			{
-				DeleteFiles($"{directory.FullPath}/*.*");
-			}
-		}
+		SafeCleanDirectory(outputDir, false);
 	}
 	else
 	{
@@ -146,35 +137,27 @@ Task("Restore-NuGet-Packages")
 {
 	DotNetRestore(sourceFolder, new DotNetRestoreSettings
 	{
-		Sources = new [] {
-			"https://api.nuget.org/v3/index.json"
-		}
+		Runtime = "win-x64",
+		Sources = new [] { "https://api.nuget.org/v3/index.json", }
 	});
 });
 
-Task("Build")
-	.IsDependentOn("Restore-NuGet-Packages")
-	.Does(() =>
-{
-	DotNetBuild($"{sourceFolder}{appName}.sln", new DotNetBuildSettings
-	{
-		Configuration = configuration,
-		NoRestore = true,
-		ArgumentCustomization = args => args.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
-	});
-});
-
+// Combining "build" and "publish" in a single task otherwise you get exeption from dotnet due to publishing to a single file.
+// More details here: https://github.com/orgs/cake-build/discussions/4280
 Task("Publish")
-	.IsDependentOn("Build")
+	.IsDependentOn("Restore-NuGet-Packages")
 	.Does(() =>
 {
 	DotNetPublish($"{sourceFolder}{appName}.sln", new DotNetPublishSettings
 	{
 		Configuration = configuration,
-		NoBuild = true,
+		NoBuild = false,
 		NoRestore = true,
+		PublishSingleFile = true,
+		SelfContained = true,
 		ArgumentCustomization = args => args
 			.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
+			.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
 	});
 });
 
@@ -326,4 +309,40 @@ public static string GetRepoName(this ICakeContext context)
 	var originUrl = ExecGitCmd(context, "config --get remote.origin.url").Single();
 	var parts = originUrl.Split('/', StringSplitOptions.RemoveEmptyEntries);
 	return $"{parts[parts.Length - 2]}/{parts[parts.Length - 1].Replace(".git", "")}";
+}
+
+// Clean previous artifacts and  make sure to preserve the content
+// of folders that are used as caches (such as "packages", "analysis"
+// and "archives"). Do not use Cake's "CleanDirectories" alias because
+// there is no way to exclude a sub folder which prevents us from
+// exluding the subfolders we want to preserve.
+private void SafeCleanDirectory(string directoryPath, bool deleteFiles)
+{
+	foreach (var directory in System.IO.Directory.EnumerateDirectories(directoryPath))
+	{
+		// Check if this folder is used for caching purposes
+		if (directory.EndsWith("packages") || directory.EndsWith("analysis") || directory.EndsWith("archives"))
+		{
+			Information(" -> Skipping {0}", directory);
+		}
+		else
+		{
+			Information(" -> Cleaning {0}", directory);
+
+			// Delete files in this folder
+			if (deleteFiles) 
+			{
+				DeleteFiles($"{directory}/*.*");
+			}
+
+			// Clean the subfolders
+			SafeCleanDirectory(directory, true);
+
+			// Delete this folder if it's empty
+			if (!System.IO.Directory.EnumerateFileSystemEntries(directory).Any())
+			{
+				System.IO.Directory.Delete(directory, false);
+			}
+		}
+	}
 }

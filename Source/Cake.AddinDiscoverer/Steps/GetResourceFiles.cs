@@ -3,7 +3,6 @@ using Cake.AddinDiscoverer.Utilities;
 using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,7 +34,7 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			if (context.Options.UseLocalResources)
 			{
-				return GetLocalResourceContent(resourceName);
+				return GetLocalResourceContent(context, resourceName);
 			}
 			else
 			{
@@ -57,11 +56,11 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private static async Task<string> GetLocalResourceContent(string resourceName)
+		private static async Task<string> GetLocalResourceContent(DiscoveryContext context, string resourceName)
 		{
 			try
 			{
-				var currentPath = new Uri(Assembly.GetExecutingAssembly().Location).LocalPath;
+				var currentPath = new Uri(context.ExecutionLocation).LocalPath;
 				var currentFolder = Path.GetDirectoryName(currentPath);
 				var filePath = Path.Combine(currentFolder, resourceName);
 

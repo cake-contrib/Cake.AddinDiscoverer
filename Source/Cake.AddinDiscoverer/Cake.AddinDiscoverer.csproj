@@ -1,10 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <Version>5.10.0</Version>
+    <Version>5.11.0</Version>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
@@ -17,22 +17,22 @@
 
   <ItemGroup>
     <PackageReference Include="Ben.Demystifier" Version="0.4.1" />
-    <PackageReference Include="Cake.Common" Version="3.1.0" />
-    <PackageReference Include="Cake.Core" Version="3.1.0" />
+    <PackageReference Include="Cake.Common" Version="4.0.0" />
+    <PackageReference Include="Cake.Core" Version="4.0.0" />
     <PackageReference Include="Cake.Incubator" Version="8.0.0" />
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="CsvHelper" Version="30.0.1" />
-    <PackageReference Include="EPPlus" Version="7.0.0" />
-    <PackageReference Include="FSharp.Core" Version="7.0.401" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
+    <PackageReference Include="EPPlus" Version="7.0.2" />
+    <PackageReference Include="FSharp.Core" Version="8.0.100" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="NuGet.Protocol" Version="6.7.0" />
+    <PackageReference Include="NuGet.Protocol" Version="6.8.0" />
     <PackageReference Include="Octokit" Version="9.0.0" />
     <PackageReference Include="OxyPlot.WindowsForms" Version="2.1.2" />
-    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.435">
+    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.507">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="System.Memory" Version="4.5.5" />
-    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="7.0.0" />
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="8.0.0" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
     <PackageReference Include="YamlDotNet" Version="13.7.1" />
   </ItemGroup>
