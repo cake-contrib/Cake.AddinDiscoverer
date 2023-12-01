@@ -185,8 +185,8 @@ Task("Run")
 		args.Append("-m"); // "Generate the Markdown report and write to a file."
 	}
 
-	IEnumerable<string> redirectedStandardOutput;
-	IEnumerable<string> redirectedError;
+	IEnumerable<string> redirectedStandardOutput = new List<string>();
+	IEnumerable<string> redirectedError = new List<string>();
 
 	// Execute the command
 	try
