@@ -153,8 +153,6 @@ Task("Publish")
 		Configuration = configuration,
 		NoBuild = false,
 		NoRestore = true,
-		PublishSingleFile = true,
-		SelfContained = true,
 		ArgumentCustomization = args => args
 			.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
 			.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
