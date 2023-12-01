@@ -6,7 +6,6 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Version>5.11.0</Version>
     <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup>
