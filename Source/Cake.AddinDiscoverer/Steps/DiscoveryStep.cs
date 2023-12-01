@@ -3,6 +3,7 @@ using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
+using NuGet.Versioning;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -83,6 +84,9 @@ namespace Cake.AddinDiscoverer.Steps
 			context.Addins = context.Addins
 				.SortForAddinDisco()
 				.ToArray();
+
+			// FOR DEBUGGING PURPOSES
+			context.Addins.Single(a => a.Name == "Cake.7zip" && a.NuGetPackageVersion == new NuGetVersion(4, 0, 0)).Analyzed = false;
 		}
 
 		private static Task<AddinMetadata[]> ConvertPackageMetadataToAddinMetadataAsync(IEnumerable<IPackageSearchMetadata> packageMetadata, string packageName)

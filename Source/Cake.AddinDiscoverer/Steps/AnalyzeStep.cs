@@ -450,6 +450,7 @@ namespace Cake.AddinDiscoverer.Steps
 			catch (Exception e)
 			{
 				addin.AnalysisResult.Notes += $"AnalyzeNugetMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
+				throw;
 			}
 		}
 
