@@ -185,19 +185,40 @@ Task("Run")
 		args.Append("-m"); // "Generate the Markdown report and write to a file."
 	}
 
+	IEnumerable<string> redirectedStandardOutput;
+	IEnumerable<string> redirectedError;
+
 	// Execute the command
-	using (DiagnosticVerbosity())
+	try
 	{
-		var processResult = StartProcess(
-			new FilePath($"{publishDir}{appName}.exe"),
-			new ProcessSettings()
-			{
-				Arguments = args
-			});
-		if (processResult != 0)
+		using (DiagnosticVerbosity())
 		{
-			throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
+			var processResult = StartProcess(
+				new FilePath($"{publishDir}{appName}.exe"),
+				new ProcessSettings()
+				{
+					Arguments = args,
+					RedirectStandardOutput = true,
+					RedirectStandardError= true
+				},
+				out redirectedStandardOutput,
+				out redirectedError
+			);
+			if (processResult != 0)
+			{
+				throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
+			}
 		}
+	}
+	catch (Exception e)
+	{
+		Information("AN ERROR OCCURED: {0}", e.Message);
+		throw;
+	}
+	finally
+	{
+		Information("Standard output: {0}", string.Join("\r\n", redirectedStandardOutput));
+		Information("Standard error: {0}", string.Join("\r\n", redirectedError));
 	}
 });
 
