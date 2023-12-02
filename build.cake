@@ -142,20 +142,29 @@ Task("Restore-NuGet-Packages")
 	});
 });
 
-// Combining "build" and "publish" in a single task otherwise you get exeption from dotnet due to publishing to a single file.
-// More details here: https://github.com/orgs/cake-build/discussions/4280
-Task("Publish")
+Task("Build")
 	.IsDependentOn("Restore-NuGet-Packages")
+	.Does(() =>
+{
+	DotNetBuild($"{sourceFolder}{appName}.sln", new DotNetBuildSettings
+	{
+		Configuration = configuration,
+		NoRestore = true,
+		ArgumentCustomization = args => args.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
+	});
+});
+
+Task("Publish")
+	.IsDependentOn("Build")
 	.Does(() =>
 {
 	DotNetPublish($"{sourceFolder}{appName}.sln", new DotNetPublishSettings
 	{
 		Configuration = configuration,
-		NoBuild = false,
+		NoBuild = true,
 		NoRestore = true,
-		ArgumentCustomization = args => args
-			.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
-			.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
+		PublishSingleFile = false, // It's important NOT to publish to single file otherwise some assemblies such as Cake.Core and Cake.common would not be available to the MetadataLoadContext in the Analyze step
+		ArgumentCustomization = args => args.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
 	});
 });
 
