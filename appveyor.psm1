@@ -49,16 +49,17 @@ function Invoke-AppVeyorInstall {
                 # Therefore this workaround seems like a permanent solution.
 
                 sudo bash dotnet-install.sh --version $desiredDotNetCoreSDKVersion --install-dir /usr/share/dotnet
+
+                [Environment]::SetEnvironmentVariable("DOTNET_ROOT", "/home/appveyor/.dotnet")
             }
             else {
                 Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile dotnet-install.ps1
                 .\dotnet-install.ps1 -Version $desiredDotNetCoreSDKVersion
+
+                [Environment]::SetEnvironmentVariable("DOTNET_ROOT", "C:\\Users\\appveyor\\AppData\\Local\\Microsoft\\dotnet")
             }
         }
         finally {
-            $DOTNET_ROOT = [System.Environment]::GetEnvironmentVariable("DOTNET_ROOT")
-            Write-Verbose -Verbose "DOTNET root: $DOTNET_ROOT"
-
             [Net.ServicePointManager]::SecurityProtocol = $originalSecurityProtocol
             Remove-Item .\dotnet-install.*
         }
