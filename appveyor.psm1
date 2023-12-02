@@ -43,20 +43,22 @@ function Invoke-AppVeyorInstall {
                 # I was able to come up with is to install in the default location (which is /usr/share/dotnet)
                 # using 'sudo' because you need admin privileges to access the default install location.
                 #
-                # November 2022: I tried removing this workaround since GetVersion.Tool was updated more
+                # November 2023: I tried removing this workaround since GetVersion.Tool was updated more
                 # than 2 years ago but it led to another problem: https://ci.appveyor.com/project/Jericho/zoomnet/builds/48579496/job/pymt60j9b53ayxta#L78
                 #
                 # Therefore this workaround seems like a permanent solution.
 
                 sudo bash dotnet-install.sh --version $desiredDotNetCoreSDKVersion --install-dir /usr/share/dotnet
-
-                [Environment]::SetEnvironmentVariable("DOTNET_ROOT", "/home/appveyor/.dotnet")
             }
             else {
                 Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile dotnet-install.ps1
                 .\dotnet-install.ps1 -Version $desiredDotNetCoreSDKVersion
 
-                [Environment]::SetEnvironmentVariable("DOTNET_ROOT", "C:\\Users\\appveyor\\AppData\\Local\\Microsoft\\dotnet")
+                # This is important for platform dependant builds (i.e.: "<TargetFramework>net8.0-windows</TargetFramework>", notice '-windows' in the target framework)
+                # Without this environment variable, platform dependant applications such as AddinDiscoverer would look for .NET in the default install location of %ProgramFiles%\dotnet
+                # Which means that the newly installed .NET SDK would not be detected. This behavior is new as of .NET 7 and is described here:
+                # https://learn.microsoft.com/en-us/dotnet/core/compatibility/deployment/7.0/multilevel-lookup#new-behavior
+                [Environment]::SetEnvironmentVariable("DOTNET_ROOT", "$env:USERPROFILE\\AppData\\Local\\Microsoft\\dotnet")
             }
         }
         finally {
