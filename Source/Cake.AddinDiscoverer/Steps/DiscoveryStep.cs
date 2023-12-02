@@ -87,6 +87,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// FOR DEBUGGING PURPOSES
 			context.Addins.Single(a => a.Name == "Cake.7zip" && a.NuGetPackageVersion == new NuGetVersion(4, 0, 0)).Analyzed = false;
+			context.Addins.Single(a => a.Name == "Cake.AsciiDoctorJ" && a.NuGetPackageVersion == new NuGetVersion(5, 0, 0)).Analyzed = false;
 		}
 
 		private static Task<AddinMetadata[]> ConvertPackageMetadataToAddinMetadataAsync(IEnumerable<IPackageSearchMetadata> packageMetadata, string packageName)
