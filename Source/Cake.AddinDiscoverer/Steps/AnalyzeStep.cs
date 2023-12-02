@@ -514,12 +514,14 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			// The .NET assemblies are necessary to load the assemblies
 			var systemAssemblies = Directory.GetFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll");
+			var systemAssembliesName = systemAssemblies.Select(f => Path.GetFileName(f));
 
 			// Some assemblies reference additional assemblies (such as Cake,Core and Cake.Common for example).
 			// Additionaly, some assemblies reference FSharp.Core. That's why I added a reference to Fsharp to
 			// AddinDiscoverer and I am making the assemblies referenced AddinDiscoverer available for resolving
 			// types when looping through custom attributes.
-			var appAssemblies = Directory.GetFiles(context.ExecutionLocation, "*.dll");
+			var appAssemblies = Directory.GetFiles(context.ExecutionLocation, "*.dll")
+				.Where(f => !systemAssembliesName.Contains(Path.GetFileName(f))); // Exclude system assemblies
 
 			var runtimeAssemblies = systemAssemblies.Union(appAssemblies).ToArray();
 
