@@ -51,17 +51,14 @@ function Invoke-AppVeyorInstall {
                 sudo bash dotnet-install.sh --version $desiredDotNetCoreSDKVersion --install-dir /usr/share/dotnet
             }
             else {
-                $OLDPATH = [System.Environment]::GetEnvironmentVariable("PATH")
-                Write-Verbose -Verbose "PATH before: $OLDPATH"
-
                 Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile dotnet-install.ps1
                 .\dotnet-install.ps1 -Version $desiredDotNetCoreSDKVersion
-
-                $NEWPATH = [System.Environment]::GetEnvironmentVariable("PATH")
-                Write-Verbose -Verbose "PATH after: $NEWPATH"
             }
         }
         finally {
+            $DOTNET_ROOT = [System.Environment]::GetEnvironmentVariable("DOTNET_ROOT")
+            Write-Verbose -Verbose "DOTNET root: $DOTNET_ROOT"
+
             [Net.ServicePointManager]::SecurityProtocol = $originalSecurityProtocol
             Remove-Item .\dotnet-install.*
         }
