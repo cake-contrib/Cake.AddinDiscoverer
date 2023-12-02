@@ -142,22 +142,29 @@ Task("Restore-NuGet-Packages")
 	});
 });
 
-// Combining "build" and "publish" in a single task otherwise you get exeption from dotnet due to publishing to a single file.
-// More details here: https://github.com/orgs/cake-build/discussions/4280
-Task("Publish")
+Task("Build")
 	.IsDependentOn("Restore-NuGet-Packages")
+	.Does(() =>
+{
+	DotNetBuild($"{sourceFolder}{appName}.sln", new DotNetBuildSettings
+	{
+		Configuration = configuration,
+		NoRestore = true,
+		ArgumentCustomization = args => args.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
+	});
+});
+
+Task("Publish")
+	.IsDependentOn("Build")
 	.Does(() =>
 {
 	DotNetPublish($"{sourceFolder}{appName}.sln", new DotNetPublishSettings
 	{
 		Configuration = configuration,
-		NoBuild = false,
+		NoBuild = true,
 		NoRestore = true,
-		PublishSingleFile = true,
-		SelfContained = true,
-		ArgumentCustomization = args => args
-			.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
-			.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
+		PublishSingleFile = false, // It's important NOT to publish to single file otherwise some assemblies such as Cake.Core and Cake.common would not be available to the MetadataLoadContext in the Analyze step
+		ArgumentCustomization = args => args.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
 	});
 });
 
@@ -187,19 +194,37 @@ Task("Run")
 		args.Append("-m"); // "Generate the Markdown report and write to a file."
 	}
 
+	IEnumerable<string> redirectedStandardOutput = new List<string>();
+	IEnumerable<string> redirectedError = new List<string>();
+
 	// Execute the command
-	using (DiagnosticVerbosity())
+	try
 	{
-		var processResult = StartProcess(
-			new FilePath($"{publishDir}{appName}.exe"),
-			new ProcessSettings()
-			{
-				Arguments = args
-			});
-		if (processResult != 0)
+		using (DiagnosticVerbosity())
 		{
-			throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
+			var processResult = StartProcess(
+				new FilePath($"{publishDir}{appName}.exe"),
+				new ProcessSettings()
+				{
+					Arguments = args,
+					RedirectStandardOutput = true,
+					RedirectStandardError= true
+				},
+				out redirectedStandardOutput,
+				out redirectedError
+			);
+			if (processResult != 0)
+			{
+				throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
+			}
 		}
+	}
+	catch (Exception e)
+	{
+		Information("AN ERROR OCCURED: {0}", e.Message);
+		Information("Standard output: {0}", string.Join("\r\n", redirectedStandardOutput));
+		Information("Standard error: {0}", string.Join("\r\n", redirectedError));
+		throw;
 	}
 });
 

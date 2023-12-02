@@ -52,7 +52,7 @@ namespace Cake.AddinDiscoverer.Steps
 			markdown.AppendLine($"  - {analizedAddins.Count(a => a.Type == AddinType.Module)} are modules");
 			markdown.AppendLine($"  - {analizedAddins.Count(a => a.Type == AddinType.Recipe)} are recipes");
 			markdown.AppendLine($"  - {deprecatedAddins.Count()} are marked as deprecated");
-			markdown.AppendLine($"  - {exceptionAddins.Count()} could not be audied (see the 'Exceptions' section)");
+			markdown.AppendLine($"  - {exceptionAddins.Count()} could not be audited (see the 'Exceptions' section)");
 			markdown.AppendLine($"- Of the {analizedAddins.Count()} successfully analyzed packages:");
 			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.RawgitUrl)} are using the cake-contrib icon on the rawgit CDN (which has been shutdown since October 2019)");
 			markdown.AppendLine($"  - {analizedAddins.Count(addin => addin.AnalysisResult.Icon == IconAnalysisResult.JsDelivrUrl)} are using the cake-contrib icon on the jsDelivr CDN (which was our preferred CDN to replace rawgit)");
