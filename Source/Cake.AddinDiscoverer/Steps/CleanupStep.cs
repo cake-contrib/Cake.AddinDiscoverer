@@ -18,40 +18,40 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
-			await ClearCacheAndOutputFolders(context, log).ConfigureAwait(false);
+			await ClearCacheAndOutputFolders(context, log, cancellationToken).ConfigureAwait(false);
 			await DeleteBranches(context, log).ConfigureAwait(false);
 		}
 
-		private static async Task ClearCacheAndOutputFolders(DiscoveryContext context, TextWriter log)
+		private static async Task ClearCacheAndOutputFolders(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			if (context.Options.ClearCache && Directory.Exists(context.TempFolder))
 			{
 				Directory.Delete(context.TempFolder, true);
-				await Task.Delay(500).ConfigureAwait(false);
+				await Task.Delay(500, cancellationToken).ConfigureAwait(false);
 			}
 
 			if (!Directory.Exists(context.TempFolder))
 			{
 				Directory.CreateDirectory(context.TempFolder);
-				await Task.Delay(500).ConfigureAwait(false);
+				await Task.Delay(500, cancellationToken).ConfigureAwait(false);
 			}
 
 			if (!Directory.Exists(context.PackagesFolder))
 			{
 				Directory.CreateDirectory(context.PackagesFolder);
-				await Task.Delay(500).ConfigureAwait(false);
+				await Task.Delay(500, cancellationToken).ConfigureAwait(false);
 			}
 
 			if (!Directory.Exists(context.ZipArchivesFolder))
 			{
 				Directory.CreateDirectory(context.ZipArchivesFolder);
-				await Task.Delay(500).ConfigureAwait(false);
+				await Task.Delay(500, cancellationToken).ConfigureAwait(false);
 			}
 
 			if (!Directory.Exists(context.AnalysisFolder))
 			{
 				Directory.CreateDirectory(context.AnalysisFolder);
-				await Task.Delay(500).ConfigureAwait(false);
+				await Task.Delay(500, cancellationToken).ConfigureAwait(false);
 			}
 
 			if (File.Exists(context.ExcelReportPath)) File.Delete(context.ExcelReportPath);
