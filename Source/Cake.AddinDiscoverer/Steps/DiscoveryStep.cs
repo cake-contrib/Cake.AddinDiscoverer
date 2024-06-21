@@ -26,39 +26,49 @@ namespace Cake.AddinDiscoverer.Steps
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var nugetPackageMetadataClient = await context.NugetRepository.GetResourceAsync<PackageMetadataResource>().ConfigureAwait(false);
+			var nugetPackageSearchClient = await context.NugetRepository.GetResourceAsync<PackageMetadataResource>().ConfigureAwait(false);
 
 			// Discover all the existing addins
-			var packageNames = new List<string>();
+			var packagesInfo = new List<(string Name, IPackageSearchMetadata Metadata)>();
 			if (!string.IsNullOrEmpty(context.Options.AddinName))
 			{
-				packageNames.Add(context.Options.AddinName);
+				packagesInfo.Add((context.Options.AddinName, null));
 			}
 			else
 			{
 				// Get all the packages matching the naming convention (regardless of the stable/prerelease status)
 				await foreach (var packageMetadata in SearchForPackages(context.NugetRepository, "Cake", true, CancellationToken.None))
 				{
-					packageNames.Add(packageMetadata.Identity.Id);
+					packagesInfo.Add((packageMetadata.Identity.Id, packageMetadata));
 				}
 
 				// Add the "white listed" packages
-				packageNames.AddRange(context.IncludedAddins);
+				packagesInfo.AddRange(context.IncludedAddins.Select(name => (name, (IPackageSearchMetadata)null)));
 
 				// Remove the "black listed" packages
-				packageNames.RemoveAll(packageName => context.ExcludedAddins.Any(excludedAddinName => packageName.IsMatch(excludedAddinName)));
+				packagesInfo.RemoveAll(pkgInfo => context.ExcludedAddins.Any(excludedAddinName => pkgInfo.Name.IsMatch(excludedAddinName)));
 			}
 
 			// Sort the package names alphabetically, for convenience
-			packageNames.Sort();
+			packagesInfo.Sort((x, y) => x.Name.CompareTo(y.Name));
 
 			// Retrieve the metadata from each version of the package
-			var metadata = await packageNames
-				.Distinct()
+			var metadata = await packagesInfo
+				.DistinctBy(pkgInfo => pkgInfo.Name)
 				.ForEachAsync(
-					async packageName =>
+					async pkgInfo =>
 					{
-						var packageMetadata = await FetchPackageMetadata(nugetPackageMetadataClient, packageName).ConfigureAwait(false);
-						var addinMetadata = await ConvertPackageMetadataToAddinMetadataAsync(packageMetadata, packageName).ConfigureAwait(false);
+						var packageMetadata = await nugetPackageMetadataClient.GetMetadataAsync(pkgInfo.Name, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None);
+
+						// We used to determine package ownership by looking up this information in a large JSON file which was available on Azure storage.
+						// However, this file disapeared in June 2024 which means that we must now rely on the 'Owners' metadata value returned from NuGet.
+						// But there's a twist: the ownership information is returned from NuGet only when searching for a single package;
+						// it is not included in the metadata returned from nugetPackageMetadataClient.GetMetadataAsync.
+						// See this discussion: https://github.com/NuGet/NuGetGallery/issues/5647
+						pkgInfo.Metadata ??= await SearchForPackage(context.NugetRepository, pkgInfo.Name, true, CancellationToken.None).ConfigureAwait(false);
+
+						var addinMetadata = await ConvertPackageMetadataToAddinMetadataAsync(packageMetadata, pkgInfo.Name, pkgInfo.Metadata?.Owners).ConfigureAwait(false);
+
 						return addinMetadata;
 					},
 					Constants.MAX_NUGET_CONCURENCY)
@@ -85,16 +95,13 @@ namespace Cake.AddinDiscoverer.Steps
 				.ToArray();
 		}
 
-		private static Task<AddinMetadata[]> ConvertPackageMetadataToAddinMetadataAsync(IEnumerable<IPackageSearchMetadata> packageMetadata, string packageName)
+		private static Task<AddinMetadata[]> ConvertPackageMetadataToAddinMetadataAsync(IEnumerable<IPackageSearchMetadata> packageMetadata, string packageName, string owners)
 		{
 			return packageMetadata
 				.ForEachAsync(
 					async package =>
 					{
-						// As of June 2019, the 'Owners' metadata value returned from NuGet is always null.
-						// This code is just in case they add this information to the metadata and don't let us know.
-						// See feature request: https://github.com/NuGet/NuGetGallery/issues/5647
-						var packageOwners = package.Owners?
+						var packageOwners = (package.Owners ?? owners)?
 							.Split(',', StringSplitOptions.RemoveEmptyEntries)
 							.Select(owner => owner.Trim())
 							.ToArray() ?? Array.Empty<string>();
@@ -180,11 +187,6 @@ namespace Cake.AddinDiscoverer.Steps
 					Constants.MAX_GITHUB_CONCURENCY);
 		}
 
-		private static Task<IEnumerable<IPackageSearchMetadata>> FetchPackageMetadata(PackageMetadataResource nugetPackageMetadataClient, string name)
-		{
-			return nugetPackageMetadataClient.GetMetadataAsync(name, true, false, new SourceCacheContext(), NullLogger.Instance, CancellationToken.None);
-		}
-
 		private static async IAsyncEnumerable<IPackageSearchMetadata> SearchForPackages(SourceRepository nugetRepository, string searchTerm, bool includePrerelease, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 		{
 			// The max value allowed by the NuGet search API is 1000.
@@ -219,6 +221,26 @@ namespace Cake.AddinDiscoverer.Steps
 					}
 				}
 			}
+		}
+
+		private static async Task<IPackageSearchMetadata> SearchForPackage(SourceRepository nugetRepository, string name, bool includePrerelease, CancellationToken cancellationToken = default)
+		{
+			// The max value allowed by the NuGet search API is 1000.
+			// This large value is important to ensure results fit in a single page therefore avoiding the problem with duplicates.
+			// For more details, see: https://github.com/NuGet/NuGetGallery/issues/7494
+			const int take = 1000;
+
+			var skip = 0;
+			var filters = new SearchFilter(includePrerelease)
+			{
+				IncludeDelisted = false,
+				OrderBy = SearchOrderBy.Id
+			};
+
+			var nugetSearchClient = await nugetRepository.GetResourceAsync<PackageSearchResource>().ConfigureAwait(false);
+			var searchResult = await nugetSearchClient.SearchAsync($"packageid:{name}", filters, skip, take, NullLogger.Instance, cancellationToken).ConfigureAwait(false);
+
+			return searchResult.FirstOrDefault();
 		}
 	}
 }
