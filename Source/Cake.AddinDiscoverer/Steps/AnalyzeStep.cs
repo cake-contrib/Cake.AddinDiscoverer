@@ -1,7 +1,6 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
-using Newtonsoft.Json.Linq;
 using NuGet.Common;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
@@ -25,8 +24,6 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class AnalyzeStep : IStep
 	{
-		private const string PackageOwnersJsonFileUri = "https://nugetprod0.blob.core.windows.net/ng-search-data/owners.json";
-
 		// https://github.com/dotnet/roslyn/blob/b3cbe7abce7633e45d7dd468bde96bfe24ccde47/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L18
 		private static readonly Guid SourceLinkCustomDebugInfoGuid = new("CC110556-A091-4D38-9FEC-25AB9A351A6A");
 
@@ -37,15 +34,7 @@ namespace Cake.AddinDiscoverer.Steps
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
 			var nugetPackageDownloadClient = context.NugetRepository.GetResource<DownloadResource>();
-
-			var ownersFileJsonContent = await context.HttpClient.GetStringAsync(PackageOwnersJsonFileUri, cancellationToken).ConfigureAwait(false);
-			var packageOwners = JArray.Parse(ownersFileJsonContent)
-				.ToDictionary(
-					e => e[0].Value<string>(),
-					e => e[1].Values<string>().ToArray());
-
 			var cakeContribRepositories = await context.GithubClient.Repository.GetAllForUser(Constants.CAKE_CONTRIB_REPO_OWNER).ConfigureAwait(false);
-
 			var cakeContribIcon = await context.HttpClient.GetByteArrayAsync(Constants.NEW_CAKE_CONTRIB_ICON_URL, cancellationToken).ConfigureAwait(false);
 			var fancyIcons = new[]
 			{
@@ -74,9 +63,6 @@ namespace Cake.AddinDiscoverer.Steps
 
 						// Analyze the metadata in the downloaded nuget package
 						AnalyzeNuGet(context, addin);
-
-						// Set the owners of the NuGet package
-						DeterminePackageOwners(packageOwners, addin);
 
 						// Some addins were moved to the cake-contrib organization but the URL in their package metadata still
 						// points to the original repo. This step corrects the URL to ensure it points to the right repo.
