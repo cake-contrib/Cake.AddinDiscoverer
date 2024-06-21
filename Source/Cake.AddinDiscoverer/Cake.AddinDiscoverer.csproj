@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <Version>5.13.0</Version>
+    <Version>5.14.0</Version>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
