@@ -19,7 +19,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE = "Support Cake {0}";
 		public const int MAX_GITHUB_CONCURENCY = 10;
 		public const int MAX_NUGET_CONCURENCY = 25; // I suspect nuget allows a much large number of concurrent connections but 25 seems like a safe value.
-		public const string GREEN_EMOJI = ":heavy_check_mark: ";
+		public const string GREEN_EMOJI = ":white_check_mark: ";
 		public const string RED_EMOJI = ":x: ";
 		public const string YELLOW_EMOJI = ":warning: ";
 		public const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
