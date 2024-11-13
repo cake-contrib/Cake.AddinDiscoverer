@@ -85,6 +85,12 @@ namespace Cake.AddinDiscoverer.Utilities
 				Version = new SemVersion(4, 0, 0),
 				RequiredFrameworks = new[] { "net6.0", "net7.0", "net8.0" },
 				OptionalFrameworks = Array.Empty<string>()
+			},
+			new CakeVersion
+			{
+				Version = new SemVersion(5, 0, 0),
+				RequiredFrameworks = new[] { "net8.0", "net9.0" },
+				OptionalFrameworks = Array.Empty<string>()
 			}
 		};
 
