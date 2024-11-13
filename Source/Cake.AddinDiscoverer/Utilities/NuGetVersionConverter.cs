@@ -10,13 +10,13 @@ namespace Cake.AddinDiscoverer.Utilities
 	{
 		public bool Accepts(Type type) => type == typeof(NuGetVersion);
 
-		public object ReadYaml(IParser parser, Type type)
+		public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
 		{
 			var versionAsString = parser.Consume<Scalar>().Value;
 			return NuGetVersion.Parse(versionAsString);
 		}
 
-		public void WriteYaml(IEmitter emitter, object value, Type type)
+		public void WriteYaml(IEmitter emitter, object value, Type type, ObjectSerializer serializer)
 		{
 			var nugetVersion = (NuGetVersion)value;
 			emitter.Emit(new Scalar(nugetVersion.ToNormalizedString()));
