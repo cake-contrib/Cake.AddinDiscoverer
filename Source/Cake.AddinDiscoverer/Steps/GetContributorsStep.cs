@@ -55,7 +55,7 @@ namespace Cake.AddinDiscoverer.Steps
 						contributor.HtmlUrl,
 						Repositories = repos.Select(repo => repo.FullName).ToArray()
 					},  // resultSelector
-					new KeyEqualityComparer<RepositoryContributor, int>(contributor => contributor.Id)) // comparer
+					new KeyEqualityComparer<RepositoryContributor, long>(contributor => contributor.Id)) // comparer
 				.OrderBy(x => x.Name)
 				.ToArray();
 
