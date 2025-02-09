@@ -105,7 +105,7 @@ namespace Cake.AddinDiscoverer.Steps
 				var analysisResultBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, analysisResultBlob).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
 				{
-					Path = Path.GetFileName(context.AnalysisResultSaveLocation),
+					Path = Path.GetFileName(context.CompressedAnalysisResultSaveLocation),
 					Mode = Constants.FILE_MODE,
 					Type = TreeType.Blob,
 					Sha = analysisResultBlobRef.Sha
