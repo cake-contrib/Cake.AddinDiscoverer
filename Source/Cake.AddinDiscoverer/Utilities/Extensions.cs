@@ -472,6 +472,35 @@ namespace Cake.AddinDiscoverer
 			return currentTask;
 		}
 
+		public static async Task WriteJoinAsync<T>(this TextWriter writer, string separator, IEnumerable<T> values)
+		{
+			if (values is null) throw new ArgumentNullException(nameof(values));
+
+			separator ??= string.Empty;
+
+			using (IEnumerator<T> en = values.GetEnumerator())
+			{
+				if (en.MoveNext())
+				{
+					T value = en.Current;
+					if (value != null)
+					{
+						await writer.WriteAsync(value.ToString()).ConfigureAwait(false);
+					}
+
+					while (en.MoveNext())
+					{
+						await writer.WriteAsync(separator).ConfigureAwait(false);
+						value = en.Current;
+						if (value != null)
+						{
+							await writer.WriteAsync(value.ToString()).ConfigureAwait(false);
+						}
+					}
+				}
+			}
+		}
+
 		private static void CheckIsEnum<T>(bool withFlags)
 		{
 			if (!typeof(T).IsEnum)

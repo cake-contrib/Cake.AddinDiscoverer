@@ -1,8 +1,12 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
+using Octokit;
+using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,17 +25,66 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (!context.Options.AnalyzeAllAddins)
 			{
-				if (File.Exists(context.AnalysisResultSaveLocation))
+				// Load the result of previous analysis
+
+				// Please note that the analysis result file is compressed since February 2025 because it has gotten
+				// too large for Octokit resulting in the following exception:
+				// Octokit.ApiValidationException: Sorry, your input was too large to process.Consider creating the blob in a local clone of the repository and then pushing it to GitHub.
+
+				// First,  try to load previous analysis result from a ZIP on the local machine (when AddinDisco is running locally)
+				if (File.Exists(context.CompressedAnalysisResultSaveLocation))
+				{
+					using (var zipFile = ZipFile.OpenRead(context.CompressedAnalysisResultSaveLocation))
+					{
+						previousAnalysisContent = new string(
+							new StreamReader(
+								zipFile.Entries
+									.Where(x => x.Name.Equals(Path.GetFileName(context.AnalysisResultSaveLocation), StringComparison.InvariantCulture))
+									.FirstOrDefault()
+									.Open(),
+								Encoding.UTF8)
+							.ReadToEnd()
+							.ToArray());
+					}
+				}
+
+				// Second, try to load previous analysis result from a JSON on the local machine (when AddinDisco is running locally)
+				else if (File.Exists(context.AnalysisResultSaveLocation))
 				{
 					previousAnalysisContent = await File.ReadAllTextAsync(context.AnalysisResultSaveLocation, cancellationToken).ConfigureAwait(false);
 				}
+
+				// Third, try to load previous analysis result from a ZIP from the GitHub repo
 				else
 				{
-					// Load the result of previous analysis
-					var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.AnalysisResultSaveLocation)).ConfigureAwait(false);
+					try
+					{
+						var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.CompressedAnalysisResultSaveLocation)).ConfigureAwait(false);
 
-					// The file is too large to be retrieved from the GitHub API. We must issue a HTTP GET to the download URL
-					previousAnalysisContent = await context.HttpClient.GetStringAsync(contents[0].DownloadUrl, cancellationToken).ConfigureAwait(false);
+						// The ZIP file is probably small enough to be retrieved using Octokit, but just to be safe let's issue a HTTP GET to the download URL
+						var zippedContent = await context.HttpClient.GetByteArrayAsync(contents[0].DownloadUrl, cancellationToken).ConfigureAwait(false);
+
+						// Unzip the file
+						var zipFile = new ZipArchive(new MemoryStream(zippedContent));
+
+						previousAnalysisContent = new string(
+							new StreamReader(
+								zipFile.Entries
+									.Where(x => x.Name.Equals(Path.GetFileName(context.AnalysisResultSaveLocation), StringComparison.InvariantCulture))
+									.FirstOrDefault()
+									.Open(),
+								Encoding.UTF8)
+							.ReadToEnd()
+							.ToArray());
+					}
+					catch (NotFoundException)
+					{
+						// When all else fails, try to load previous analysis result from a JSON from the GitHub repo
+						var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.AnalysisResultSaveLocation)).ConfigureAwait(false);
+
+						// The file is too large to be retrieved from the GitHub API. We must issue a HTTP GET to the download URL
+						previousAnalysisContent = await context.HttpClient.GetStringAsync(contents[0].DownloadUrl, cancellationToken).ConfigureAwait(false);
+					}
 				}
 			}
 
