@@ -81,6 +81,8 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string AnalysisResultSaveLocation => Path.Combine(this.TempFolder, "Analysis_result.json");
 
+		public string CompressedAnalysisResultSaveLocation => Path.Combine(this.TempFolder, "Analysis_result.zip");
+
 		public string ExecutionLocation => AppContext.BaseDirectory;
 	}
 }

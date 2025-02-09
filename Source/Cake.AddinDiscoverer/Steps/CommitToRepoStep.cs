@@ -93,12 +93,14 @@ namespace Cake.AddinDiscoverer.Steps
 				});
 			}
 
-			if (File.Exists(context.AnalysisResultSaveLocation))
+			// Since February 2025 we ZIP the analysis result beause the JSON is so large that Octokit throws: "Octokit.ApiValidationException: Sorry, your input was too large to process."
+			if (File.Exists(context.CompressedAnalysisResultSaveLocation))
 			{
+				var analysisBinary = await File.ReadAllBytesAsync(context.CompressedAnalysisResultSaveLocation, cancellationToken).ConfigureAwait(false);
 				var analysisResultBlob = new NewBlob
 				{
-					Encoding = EncodingType.Utf8,
-					Content = await File.ReadAllTextAsync(context.AnalysisResultSaveLocation, cancellationToken).ConfigureAwait(false)
+					Encoding = EncodingType.Base64,
+					Content = Convert.ToBase64String(analysisBinary)
 				};
 				var analysisResultBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, analysisResultBlob).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
