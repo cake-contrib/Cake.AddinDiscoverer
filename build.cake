@@ -236,8 +236,8 @@ Task("Upload-Artifacts")
 	var artifacts = new string[]
 	{
 		 "Audit.xlsx",
-		 "Audit.md",
-		 "Analysis_result.json"
+		 "Analysis_result.json",
+		 "Analysis_result.zip"
 	};
 
 	foreach (var artifact in artifacts)
