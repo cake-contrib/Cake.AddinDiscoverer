@@ -222,9 +222,15 @@ Task("Run")
 	catch (Exception e)
 	{
 		Information("AN ERROR OCCURED: {0}", e.Message);
-		Information("Standard output: {0}", string.Join("\r\n", redirectedStandardOutput));
-		Information("Standard error: {0}", string.Join("\r\n", redirectedError));
 		throw;
+	}
+	finally
+	{
+		Information(string.Join("\r\n", redirectedStandardOutput));
+		if (redirectedError.Count() > 0) 
+		{
+			Information("\r\nStandard error:\r\n{0}", string.Join("\r\n", redirectedError));
+		}
 	}
 });
 
