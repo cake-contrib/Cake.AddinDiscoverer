@@ -51,7 +51,7 @@ namespace Cake.AddinDiscoverer.Steps
 					(contributor, repos) => new
 					{
 						Name = contributor.Login,
-						AvatarUrl = $"https://github.com/user_avatars/{contributor.Id}", // https://github.com/cake-contrib/Cake.AddinDiscoverer/issues/236
+						AvatarUrl = $"https://avatars.githubusercontent.com/u/{contributor.Id}", // https://github.com/cake-contrib/Cake.AddinDiscoverer/issues/236
 						contributor.HtmlUrl,
 						Repositories = repos.Select(repo => repo.FullName).ToArray()
 					},  // resultSelector
