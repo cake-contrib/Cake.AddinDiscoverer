@@ -198,38 +198,22 @@ Task("Run")
 	IEnumerable<string> redirectedError = new List<string>();
 
 	// Execute the command
-	try
+	using (DiagnosticVerbosity())
 	{
-		using (DiagnosticVerbosity())
-		{
-			var processResult = StartProcess(
-				new FilePath($"{publishDir}{appName}.exe"),
-				new ProcessSettings()
-				{
-					Arguments = args,
-					RedirectStandardOutput = true,
-					RedirectStandardError= true
-				},
-				out redirectedStandardOutput,
-				out redirectedError
-			);
-			if (processResult != 0)
+		var processResult = StartProcess(
+			new FilePath($"{publishDir}{appName}.exe"),
+			new ProcessSettings()
 			{
-				throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
-			}
-		}
-	}
-	catch (Exception e)
-	{
-		Information("AN ERROR OCCURED: {0}", e.Message);
-		throw;
-	}
-	finally
-	{
-		Information(string.Join("\r\n", redirectedStandardOutput));
-		if (redirectedError.Count() > 0) 
+				Arguments = args,
+				RedirectStandardOutput = true,
+				RedirectStandardError= true
+			},
+			out redirectedStandardOutput,
+			out redirectedError
+		);
+		if (processResult != 0)
 		{
-			Information("\r\nStandard error:\r\n{0}", string.Join("\r\n", redirectedError));
+			throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
 		}
 	}
 });
