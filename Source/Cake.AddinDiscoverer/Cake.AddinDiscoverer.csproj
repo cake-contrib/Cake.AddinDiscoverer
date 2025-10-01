@@ -21,19 +21,19 @@
     <PackageReference Include="Cake.Core" Version="5.0.0" />
     <PackageReference Include="Cake.Incubator" Version="8.0.0" />
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
-    <PackageReference Include="CsvHelper" Version="33.0.1" />
-    <PackageReference Include="EPPlus" Version="7.6.0" />
-    <PackageReference Include="FSharp.Core" Version="9.0.201" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="NuGet.Protocol" Version="6.13.1" />
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="EPPlus" Version="8.2.0" />
+    <PackageReference Include="FSharp.Core" Version="9.0.303" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="NuGet.Protocol" Version="6.14.0" />
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="OxyPlot.WindowsForms" Version="2.2.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.507">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
-    <PackageReference Include="System.Memory" Version="4.6.0" />
-    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="9.0.2" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.3" />
+    <PackageReference Include="System.Memory" Version="4.6.3" />
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="9.0.9" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
