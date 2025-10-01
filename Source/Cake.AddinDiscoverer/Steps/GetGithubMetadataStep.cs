@@ -35,9 +35,8 @@ namespace Cake.AddinDiscoverer.Steps
 							try
 							{
 								// Total count includes both issues and pull requests.
-								var totalCount = await GetRecordsCount(context, "issues", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
+								var issuesCount = await GetRecordsCount(context, "issues", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
 								var pullRequestsCount = await GetRecordsCount(context, "pulls", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
-								var issuesCount = totalCount - pullRequestsCount;
 
 								// Update all the addins for this repo
 								foreach (AddinMetadata addin in addinsGroup)
@@ -74,7 +73,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		private static async Task<int> GetRecordsCount(DiscoveryContext context, string type, string repositoryOwner, string repositoryName)
+		public static async Task<int> GetRecordsCount(DiscoveryContext context, string type, string repositoryOwner, string repositoryName)
 		{
 			// Send a HTTP request to Github for issues with only one issue per page (notice "per_page=1", this is important).
 			// The response will include a header called "Link" containing URLs for the "next" page and also for the "last" page.
