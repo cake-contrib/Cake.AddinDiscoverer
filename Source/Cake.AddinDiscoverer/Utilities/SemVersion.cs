@@ -51,7 +51,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public SemVersion(Version version)
 		{
 			if (version == null)
-				throw new ArgumentNullException("version");
+				throw new ArgumentNullException(nameof(version));
 
 			this.Major = version.Major;
 			this.Minor = version.Minor;
@@ -73,7 +73,7 @@ namespace Cake.AddinDiscoverer.Utilities
 
 			var match = PARSE_REGEX.Match(version);
 			if (!match.Success)
-				throw new ArgumentException("Invalid version.", "version");
+				throw new ArgumentException($"Invalid version: {version}", nameof(version));
 
 			var major = int.Parse(match.Groups["major"].Value, CultureInfo.InvariantCulture);
 
@@ -85,7 +85,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 			else if (strict)
 			{
-				throw new InvalidOperationException("Invalid version (no minor version given in strict mode)");
+				throw new InvalidOperationException($"Invalid version (no minor version given in strict mode): {version}");
 			}
 
 			var patchMatch = match.Groups["patch"];
@@ -96,7 +96,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 			else if (strict)
 			{
-				throw new InvalidOperationException("Invalid version (no patch version given in strict mode)");
+				throw new InvalidOperationException($"Invalid version (no patch version given in strict mode): {version}");
 			}
 
 			var prerelease = match.Groups["pre"].Value;
@@ -216,7 +216,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </returns>
 		public string ToString(int parts)
 		{
-			if (parts < 1 || parts > 4) throw new Exception("Number of parts must be between 1 and 4");
+			if (parts < 1 || parts > 4) throw new ArgumentOutOfRangeException(nameof(parts), "Number of parts must be between 1 and 4");
 
 			if (parts == 1) return $"{Major}";
 			else if (parts == 2) return $"{Major}.{Minor}";
