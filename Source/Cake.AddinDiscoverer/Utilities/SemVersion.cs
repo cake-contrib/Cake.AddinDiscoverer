@@ -13,7 +13,7 @@ namespace Cake.AddinDiscoverer.Utilities
 	internal sealed class SemVersion : IComparable<SemVersion>, IComparable
 	{
 		private static readonly Regex PARSE_REGEX =
-			new Regex(
+			new(
 				@"^(?<major>\d+)" +
 				@"(\.(?<minor>\d+))?" +
 				@"(\.(?<patch>\d+))?" +
@@ -53,8 +53,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </remarks>
 		public SemVersion(Version version)
 		{
-			if (version == null)
-				throw new ArgumentNullException(nameof(version));
+			ArgumentNullException.ThrowIfNull(version, nameof(version));
 
 			this.Major = version.Major;
 			this.Minor = version.Minor;
@@ -362,6 +361,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				int result = this.Major.GetHashCode();
 				result = (result * 31) + this.Minor.GetHashCode();
 				result = (result * 31) + this.Patch.GetHashCode();
+				if (this.Revision.HasValue) result = (result * 31) + this.Revision.Value.GetHashCode();
 				result = (result * 31) + this.Prerelease.GetHashCode();
 				result = (result * 31) + this.Build.GetHashCode();
 				return result;
