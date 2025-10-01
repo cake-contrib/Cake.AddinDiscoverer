@@ -24,6 +24,7 @@ namespace Cake.AddinDiscoverer.Json
 				var major = 0;
 				var minor = 0;
 				var patch = 0;
+				var revision = (int?)null;
 				var prerelease = string.Empty;
 				var build = string.Empty;
 
@@ -37,12 +38,13 @@ namespace Cake.AddinDiscoverer.Json
 						if (propertyName.EqualsIgnoreCase("Major")) major = reader.GetInt32();
 						else if (propertyName.EqualsIgnoreCase("Minor")) minor = reader.GetInt32();
 						else if (propertyName.EqualsIgnoreCase("Patch")) patch = reader.GetInt32();
+						else if (propertyName.EqualsIgnoreCase("Revision")) revision = reader.GetInt32();
 						else if (propertyName.EqualsIgnoreCase("Prerelease")) prerelease = reader.GetString();
 						else if (propertyName.EqualsIgnoreCase("build")) build = reader.GetString();
 					}
 				}
 
-				return new SemVersion(major, minor, patch, prerelease, build);
+				return new SemVersion(major, minor, patch, revision, prerelease, build);
 			}
 
 			throw new JsonException($"Unable to convert the content of the JSON node into a SemVersion value");

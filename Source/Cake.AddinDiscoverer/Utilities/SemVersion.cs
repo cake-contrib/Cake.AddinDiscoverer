@@ -17,6 +17,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				@"^(?<major>\d+)" +
 				@"(\.(?<minor>\d+))?" +
 				@"(\.(?<patch>\d+))?" +
+				@"(\.(?<revision>\d+))?" +
 				@"(\-(?<pre>[0-9A-Za-z\-\.]+))?" +
 				@"(\+(?<build>[0-9A-Za-z\-\.]+))?$",
 				RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture);
@@ -27,14 +28,16 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <param name="major">The major version.</param>
 		/// <param name="minor">The minor version.</param>
 		/// <param name="patch">The patch version.</param>
+		/// <param name="revision">The revision version.</param>
 		/// <param name="prerelease">The prerelease version (eg. "alpha").</param>
 		/// <param name="build">The build eg ("nightly.232").</param>
 		[JsonConstructor]
-		public SemVersion(int major, int minor = 0, int patch = 0, string prerelease = "", string build = "")
+		public SemVersion(int major, int minor = 0, int patch = 0, int? revision = null, string prerelease = "", string build = "")
 		{
 			this.Major = major;
 			this.Minor = minor;
 			this.Patch = patch;
+			this.Revision = revision;
 
 			this.Prerelease = prerelease ?? string.Empty;
 			this.Build = build ?? string.Empty;
@@ -102,7 +105,12 @@ namespace Cake.AddinDiscoverer.Utilities
 			var prerelease = match.Groups["pre"].Value;
 			var build = match.Groups["build"].Value;
 
-			return new SemVersion(major, minor, patch, prerelease, build);
+			// Handling a 'revision' deviates from strict SemVer 2.0.
+			// It was added in Sept 2025 to handle NuGet's 4-digit legacy version scheme.
+			// Here's an example of a NuGet package using the legacy versioning scheme: https://www.nuget.org/packages/JetBrains.ReSharper.CommandLineTools/2025.2.2.1
+			int? revision = int.TryParse(match.Groups["revision"].Value, out var tempVal) ? tempVal : null;
+
+			return new SemVersion(major, minor, patch, revision, prerelease, build);
 		}
 
 		/// <summary>
@@ -177,6 +185,15 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </value>
 		public int Patch { get; private set; }
 
+		/// <summary>Gets the revision version.</summary>
+		/// <value>The revision version.</value>
+		/// <remarks>
+		/// Handling a 'revision' deviates from strict SemVer 2.0.
+		/// It was added in Sept 2025 to handle NuGet's 4-digit legacy version scheme.
+		/// Here's an example of a NuGet package using the legacy scheme: https://www.nuget.org/packages/JetBrains.ReSharper.CommandLineTools/2025.2.2.1 .
+		/// </remarks>
+		public int? Revision { get; private set; }
+
 		/// <summary>
 		/// Gets the pre-release version.
 		/// </summary>
@@ -202,6 +219,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public override string ToString()
 		{
 			var version = $"{Major}.{Minor}.{Patch}";
+			if (Revision.HasValue) version += $".{Revision.Value}";
 			if (!string.IsNullOrEmpty(Prerelease)) version += $"-{Prerelease}";
 			if (!string.IsNullOrEmpty(Build)) version += $"+{Build}";
 			return version;
@@ -300,6 +318,9 @@ namespace Cake.AddinDiscoverer.Utilities
 			if (r != 0) return r;
 
 			r = this.Patch.CompareTo(other.Patch);
+			if (r != 0) return r;
+
+			r = CompareComponent(this.Revision, other.Revision);
 			if (r != 0) return r;
 
 			r = CompareComponent(this.Prerelease, other.Prerelease, true);
@@ -464,6 +485,14 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 
 			return aComps.Length.CompareTo(bComps.Length);
+		}
+
+		private static int CompareComponent(int? a, int? b)
+		{
+			if (a.HasValue && !b.HasValue) return 1;
+			else if (!a.HasValue && b.HasValue) return -1;
+			else if (!a.HasValue && !b.HasValue) return 0;
+			else return a.Value.CompareTo(b.Value);
 		}
 	}
 }
