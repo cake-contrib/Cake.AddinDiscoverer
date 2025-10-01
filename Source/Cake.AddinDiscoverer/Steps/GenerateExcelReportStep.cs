@@ -21,7 +21,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
-			ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+			ExcelPackage.License.SetNonCommercialOrganization("cake-contrib");
 
 			var cakeVersionsForReport = Constants.CAKE_VERSIONS.Where(cakeVersion => cakeVersion.Version != Constants.VERSION_ZERO).ToArray();
 			var latestCakeVersion = cakeVersionsForReport.Max();
