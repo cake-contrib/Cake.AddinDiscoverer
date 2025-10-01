@@ -26,9 +26,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				.Except(desiredCakeVersion.RequiredFrameworks, StringComparer.OrdinalIgnoreCase)
 				.Except(desiredCakeVersion.OptionalFrameworks, StringComparer.OrdinalIgnoreCase)
 				.ToArray();
-			if (unnecessaryFrameworks.Length == 0) return false;
-
-			return true;
+			return unnecessaryFrameworks.Length == 0;
 		}
 
 		public static async Task<Issue> FindGithubIssueAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)
