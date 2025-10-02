@@ -24,6 +24,8 @@
     <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="EPPlus" Version="8.2.0" />
     <PackageReference Include="FSharp.Core" Version="9.0.303" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
+    <PackageReference Include="GraphQL.Client" Version="6.1.0" />
+    <PackageReference Include="GraphQL.Client.Serializer.SystemTextJson" Version="6.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="NuGet.Protocol" Version="6.14.0" />
     <PackageReference Include="Octokit" Version="14.0.0" />
