@@ -283,7 +283,7 @@ RunTarget(target);
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE METHODS
 ///////////////////////////////////////////////////////////////////////////////
-private static string TrimStart(this string source, string value, StringComparison comparisonType)
+static string TrimStart(this string source, string value, StringComparison comparisonType)
 {
 	if (source == null)
 	{
@@ -300,20 +300,20 @@ private static string TrimStart(this string source, string value, StringComparis
 	return source.Substring(startIndex);
 }
 
-private static List<string> ExecuteCommand(this ICakeContext context, FilePath exe, string args)
+static List<string> ExecuteCommand(this ICakeContext context, FilePath exe, string args)
 {
     context.StartProcess(exe, new ProcessSettings { Arguments = args, RedirectStandardOutput = true }, out var redirectedOutput);
 
     return redirectedOutput.ToList();
 }
 
-private static List<string> ExecGitCmd(this ICakeContext context, string cmd)
+static List<string> ExecGitCmd(this ICakeContext context, string cmd)
 {
     var gitExe = context.Tools.Resolve(context.IsRunningOnWindows() ? "git.exe" : "git");
     return context.ExecuteCommand(gitExe, cmd);
 }
 
-private static string GetBuildBranch(this ICakeContext context)
+static string GetBuildBranch(this ICakeContext context)
 {
     var buildSystem = context.BuildSystem();
     string repositoryBranch = null;
@@ -332,7 +332,7 @@ private static string GetBuildBranch(this ICakeContext context)
     return repositoryBranch;
 }
 
-public static string GetRepoName(this ICakeContext context)
+static string GetRepoName(this ICakeContext context)
 {
     var buildSystem = context.BuildSystem();
 
@@ -351,7 +351,7 @@ public static string GetRepoName(this ICakeContext context)
 // and "archives"). Do not use Cake's "CleanDirectories" alias because
 // there is no way to exclude a sub folder which prevents us from
 // exluding the subfolders we want to preserve.
-private void SafeCleanDirectory(string directoryPath, bool deleteFiles)
+void SafeCleanDirectory(string directoryPath, bool deleteFiles)
 {
 	foreach (var directory in System.IO.Directory.EnumerateDirectories(directoryPath))
 	{
