@@ -22,7 +22,7 @@ namespace Cake.AddinDiscoverer.Steps
 		// This is a bogus version that is intended to represent any version of Cake greather than nextCakeVersion
 		// For example: if Cake 2.0 is the next version of Cake, this bogus version would represent Cake 3.0 and 4.0
 		// and any subsequent release of Cake
-		private static CakeVersion _subsequentCakeVersion = new CakeVersion() { Version = new SemVersion(-1) };
+		private static readonly CakeVersion _subsequentCakeVersion = new() { Version = new SemVersion(-1) };
 
 		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.UpdateCakeRecipeReferences;
 
@@ -206,7 +206,7 @@ namespace Cake.AddinDiscoverer.Steps
 						.Where(r => r.LatestVersionForCurrentCake != null && r.ReferencedVersion < r.LatestVersionForCurrentCake)
 					.Select(r => new { Recipe = recipeFile, Reference = (CakeReference)r, Type = "load", LatestVersion = r.LatestVersionForCurrentCake })))
 				.ToArray();
-			if (!outdatedReferences.Any()) return;
+			if (outdatedReferences.Length == 0) return;
 
 			// Ensure the fork is up-to-date
 			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
@@ -273,7 +273,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var recipeFilesWithAtLeastOneReference = recipeFiles
 				.Where(recipeFile => recipeFile.AddinReferences.Any() || recipeFile.LoadReferences.Any())
 				.ToArray();
-			if (!recipeFilesWithAtLeastOneReference.Any()) return;
+			if (recipeFilesWithAtLeastOneReference.Length == 0) return;
 
 			// Ensure the fork is up-to-date
 			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);

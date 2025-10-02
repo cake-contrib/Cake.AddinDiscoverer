@@ -38,6 +38,12 @@ var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals($"{gitHubUserName}/{git
 var isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
 var isTagged = BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag && !string.IsNullOrWhiteSpace(BuildSystem.AppVeyor.Environment.Repository.Tag.Name);
 
+// The terminal logger introduced but turned off by default in .NET8 and turned on by default in .NET9
+// doesn't work right on Linux and causes a lot of noise in the build log on Ubuntu in AppVeyor.
+// As of March 2025, the terminal logger doesn't seem to work right on Windows in AppVeyor either.
+// Therefore I am enabling it when building on my machine and turning it off in any other environment.
+var terminalLogger = (isLocalBuild && IsRunningOnWindows()) ? "on" : "off";
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // SETUP / TEARDOWN
@@ -138,7 +144,9 @@ Task("Restore-NuGet-Packages")
 	DotNetRestore(sourceFolder, new DotNetRestoreSettings
 	{
 		Runtime = "win-x64",
-		Sources = new [] { "https://api.nuget.org/v3/index.json", }
+		Sources = new[] { "https://api.nuget.org/v3/index.json", },
+		ArgumentCustomization = args => args
+			.Append($"-tl:{terminalLogger}")
 	});
 });
 
@@ -150,7 +158,17 @@ Task("Build")
 	{
 		Configuration = configuration,
 		NoRestore = true,
-		ArgumentCustomization = args => args.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
+		MSBuildSettings = new DotNetMSBuildSettings
+		{
+			Version = versionInfo.SemVer,
+			AssemblyVersion = versionInfo.MajorMinorPatch,
+			FileVersion = versionInfo.MajorMinorPatch,
+			InformationalVersion = versionInfo.InformationalVersion,
+			ContinuousIntegrationBuild = true
+		},
+		ArgumentCustomization = args => args
+			.Append($"/p:SemVer={versionInfo.LegacySemVerPadded}")
+			.Append($"-tl:{terminalLogger}")
 	});
 });
 
@@ -164,7 +182,9 @@ Task("Publish")
 		NoBuild = true,
 		NoRestore = true,
 		PublishSingleFile = false, // It's important NOT to publish to single file otherwise some assemblies such as Cake.Core and Cake.common would not be available to the MetadataLoadContext in the Analyze step
-		ArgumentCustomization = args => args.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
+		ArgumentCustomization = args => args
+			.Append($"/p:PublishDir={MakeAbsolute(Directory(publishDir)).FullPath}") // Avoid warning NETSDK1194: The "--output" option isn't supported when building a solution.
+			.Append($"-tl:{terminalLogger}")
 	});
 });
 
@@ -198,38 +218,22 @@ Task("Run")
 	IEnumerable<string> redirectedError = new List<string>();
 
 	// Execute the command
-	try
+	using (DiagnosticVerbosity())
 	{
-		using (DiagnosticVerbosity())
-		{
-			var processResult = StartProcess(
-				new FilePath($"{publishDir}{appName}.exe"),
-				new ProcessSettings()
-				{
-					Arguments = args,
-					RedirectStandardOutput = true,
-					RedirectStandardError= true
-				},
-				out redirectedStandardOutput,
-				out redirectedError
-			);
-			if (processResult != 0)
+		var processResult = StartProcess(
+			new FilePath($"{publishDir}{appName}.exe"),
+			new ProcessSettings()
 			{
-				throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
-			}
-		}
-	}
-	catch (Exception e)
-	{
-		Information("AN ERROR OCCURED: {0}", e.Message);
-		throw;
-	}
-	finally
-	{
-		Information(string.Join("\r\n", redirectedStandardOutput));
-		if (redirectedError.Count() > 0) 
+				Arguments = args,
+				RedirectStandardOutput = true,
+				RedirectStandardError= true
+			},
+			out redirectedStandardOutput,
+			out redirectedError
+		);
+		if (processResult != 0)
 		{
-			Information("\r\nStandard error:\r\n{0}", string.Join("\r\n", redirectedError));
+			throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
 		}
 	}
 });

@@ -16,7 +16,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public static bool IsFrameworkUpToDate(string[] currentFrameworks, CakeVersion desiredCakeVersion)
 		{
 			// Make sure the addin currently targets at least one framework
-			if (currentFrameworks == null || !currentFrameworks.Any()) return false;
+			if (currentFrameworks == null || currentFrameworks.Length == 0) return false;
 
 			// Check that all required frameworks are targeted
 			if (desiredCakeVersion.RequiredFrameworks.Except(currentFrameworks, StringComparer.OrdinalIgnoreCase).Any()) return false;
@@ -26,9 +26,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				.Except(desiredCakeVersion.RequiredFrameworks, StringComparer.OrdinalIgnoreCase)
 				.Except(desiredCakeVersion.OptionalFrameworks, StringComparer.OrdinalIgnoreCase)
 				.ToArray();
-			if (unnecessaryFrameworks.Any()) return false;
-
-			return true;
+			return unnecessaryFrameworks.Length == 0;
 		}
 
 		public static async Task<Issue> FindGithubIssueAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)

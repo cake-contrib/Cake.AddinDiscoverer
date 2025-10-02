@@ -13,10 +13,11 @@ namespace Cake.AddinDiscoverer.Utilities
 	internal sealed class SemVersion : IComparable<SemVersion>, IComparable
 	{
 		private static readonly Regex PARSE_REGEX =
-			new Regex(
+			new(
 				@"^(?<major>\d+)" +
 				@"(\.(?<minor>\d+))?" +
 				@"(\.(?<patch>\d+))?" +
+				@"(\.(?<revision>\d+))?" +
 				@"(\-(?<pre>[0-9A-Za-z\-\.]+))?" +
 				@"(\+(?<build>[0-9A-Za-z\-\.]+))?$",
 				RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture);
@@ -27,14 +28,16 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// <param name="major">The major version.</param>
 		/// <param name="minor">The minor version.</param>
 		/// <param name="patch">The patch version.</param>
+		/// <param name="revision">The revision version.</param>
 		/// <param name="prerelease">The prerelease version (eg. "alpha").</param>
 		/// <param name="build">The build eg ("nightly.232").</param>
 		[JsonConstructor]
-		public SemVersion(int major, int minor = 0, int patch = 0, string prerelease = "", string build = "")
+		public SemVersion(int major, int minor = 0, int patch = 0, int? revision = null, string prerelease = "", string build = "")
 		{
 			this.Major = major;
 			this.Minor = minor;
 			this.Patch = patch;
+			this.Revision = revision;
 
 			this.Prerelease = prerelease ?? string.Empty;
 			this.Build = build ?? string.Empty;
@@ -50,8 +53,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </remarks>
 		public SemVersion(Version version)
 		{
-			if (version == null)
-				throw new ArgumentNullException("version");
+			ArgumentNullException.ThrowIfNull(version, nameof(version));
 
 			this.Major = version.Major;
 			this.Minor = version.Minor;
@@ -73,7 +75,7 @@ namespace Cake.AddinDiscoverer.Utilities
 
 			var match = PARSE_REGEX.Match(version);
 			if (!match.Success)
-				throw new ArgumentException("Invalid version.", "version");
+				throw new ArgumentException($"Invalid version: {version}", nameof(version));
 
 			var major = int.Parse(match.Groups["major"].Value, CultureInfo.InvariantCulture);
 
@@ -85,7 +87,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 			else if (strict)
 			{
-				throw new InvalidOperationException("Invalid version (no minor version given in strict mode)");
+				throw new InvalidOperationException($"Invalid version (no minor version given in strict mode): {version}");
 			}
 
 			var patchMatch = match.Groups["patch"];
@@ -96,13 +98,18 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 			else if (strict)
 			{
-				throw new InvalidOperationException("Invalid version (no patch version given in strict mode)");
+				throw new InvalidOperationException($"Invalid version (no patch version given in strict mode): {version}");
 			}
 
 			var prerelease = match.Groups["pre"].Value;
 			var build = match.Groups["build"].Value;
 
-			return new SemVersion(major, minor, patch, prerelease, build);
+			// Handling a 'revision' deviates from strict SemVer 2.0.
+			// It was added in Sept 2025 to handle NuGet's 4-digit legacy version scheme.
+			// Here's an example of a NuGet package using the legacy versioning scheme: https://www.nuget.org/packages/JetBrains.ReSharper.CommandLineTools/2025.2.2.1
+			int? revision = int.TryParse(match.Groups["revision"].Value, out var tempVal) ? tempVal : null;
+
+			return new SemVersion(major, minor, patch, revision, prerelease, build);
 		}
 
 		/// <summary>
@@ -177,6 +184,15 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </value>
 		public int Patch { get; private set; }
 
+		/// <summary>Gets the revision version.</summary>
+		/// <value>The revision version.</value>
+		/// <remarks>
+		/// Handling a 'revision' deviates from strict SemVer 2.0.
+		/// It was added in Sept 2025 to handle NuGet's 4-digit legacy version scheme.
+		/// Here's an example of a NuGet package using the legacy scheme: https://www.nuget.org/packages/JetBrains.ReSharper.CommandLineTools/2025.2.2.1 .
+		/// </remarks>
+		public int? Revision { get; private set; }
+
 		/// <summary>
 		/// Gets the pre-release version.
 		/// </summary>
@@ -202,6 +218,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		public override string ToString()
 		{
 			var version = $"{Major}.{Minor}.{Patch}";
+			if (Revision.HasValue) version += $".{Revision.Value}";
 			if (!string.IsNullOrEmpty(Prerelease)) version += $"-{Prerelease}";
 			if (!string.IsNullOrEmpty(Build)) version += $"+{Build}";
 			return version;
@@ -216,7 +233,7 @@ namespace Cake.AddinDiscoverer.Utilities
 		/// </returns>
 		public string ToString(int parts)
 		{
-			if (parts < 1 || parts > 4) throw new Exception("Number of parts must be between 1 and 4");
+			if (parts < 1 || parts > 4) throw new ArgumentOutOfRangeException(nameof(parts), "Number of parts must be between 1 and 4");
 
 			if (parts == 1) return $"{Major}";
 			else if (parts == 2) return $"{Major}.{Minor}";
@@ -302,6 +319,9 @@ namespace Cake.AddinDiscoverer.Utilities
 			r = this.Patch.CompareTo(other.Patch);
 			if (r != 0) return r;
 
+			r = CompareComponent(this.Revision, other.Revision);
+			if (r != 0) return r;
+
 			r = CompareComponent(this.Prerelease, other.Prerelease, true);
 			return r;
 		}
@@ -341,6 +361,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				int result = this.Major.GetHashCode();
 				result = (result * 31) + this.Minor.GetHashCode();
 				result = (result * 31) + this.Patch.GetHashCode();
+				if (this.Revision.HasValue) result = (result * 31) + this.Revision.Value.GetHashCode();
 				result = (result * 31) + this.Prerelease.GetHashCode();
 				result = (result * 31) + this.Build.GetHashCode();
 				return result;
@@ -464,6 +485,14 @@ namespace Cake.AddinDiscoverer.Utilities
 			}
 
 			return aComps.Length.CompareTo(bComps.Length);
+		}
+
+		private static int CompareComponent(int? a, int? b)
+		{
+			if (a.HasValue && !b.HasValue) return 1;
+			else if (!a.HasValue && b.HasValue) return -1;
+			else if (!a.HasValue && !b.HasValue) return 0;
+			else return a.Value.CompareTo(b.Value);
 		}
 	}
 }
