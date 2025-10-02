@@ -35,8 +35,8 @@ namespace Cake.AddinDiscoverer.Steps
 							try
 							{
 								// Total count includes both issues and pull requests.
-								var issuesCount = await GetRecordsCount(context, "issues", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
-								var pullRequestsCount = await GetRecordsCount(context, "pulls", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
+								var issuesCount = await GetRecordsCount(context, "issue", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
+								var pullRequestsCount = await GetRecordsCount(context, "pr", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
 
 								// Update all the addins for this repo
 								foreach (AddinMetadata addin in addinsGroup)
@@ -82,7 +82,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var githubRequest = new Request()
 			{
 				BaseAddress = new Uri("https://api.github.com"),
-				Endpoint = new Uri($"/repos/{repositoryOwner}/{repositoryName}/{type}?state=open&per_page=1&page=1", UriKind.Relative),
+				Endpoint = new Uri($"/search/issues?q=repo:{repositoryOwner}/{repositoryName} is:{type} is:open&per_page=1&page=1", UriKind.Relative),
 				Method = HttpMethod.Get,
 			};
 			var connection = (Connection)context.GithubClient.Connection;
@@ -108,8 +108,8 @@ namespace Cake.AddinDiscoverer.Steps
 				// Check if there is a record in the content.
 				try
 				{
-					var records = JArray.Parse(githubResponse.Body.ToString());
-					recordsCount = records.Count;
+					var parsedResponse = JObject.Parse(githubResponse.Body.ToString());
+					recordsCount = (int)parsedResponse["total_count"];
 				}
 				catch
 				{
