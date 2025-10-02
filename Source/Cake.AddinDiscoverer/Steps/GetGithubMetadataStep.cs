@@ -1,14 +1,14 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
-using Newtonsoft.Json.Linq;
+using GraphQL.Client.Http;
+using GraphQL.Client.Serializer.SystemTextJson;
 using Octokit;
-using Octokit.Internal;
 using System;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,6 +16,19 @@ namespace Cake.AddinDiscoverer.Steps
 {
 	internal class GetGithubMetadataStep : IStep
 	{
+		private const string COUNT_OPEN_ISSUES_AND_PULLREQUESTS_GRAPHQL_QUERY = @"
+        query CountOpenIssuesAndPullRequests($repoName: String!, $repoOwner: String!)
+		{
+		  repository(owner: $repoOwner, name: $repoName) {
+			issues(states: OPEN) {
+			  totalCount
+			}
+			pullRequests(states: OPEN) {
+			  totalCount
+			}
+		  }
+		}";
+
 		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && context.Options.GenerateExcelReport;
 
 		public string GetDescription(DiscoveryContext context) => "Get stats from Github (number of open issues, etc.)";
@@ -34,9 +47,8 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							try
 							{
-								// Total count includes both issues and pull requests.
-								var issuesCount = await GetRecordsCount(context, "issues", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
-								var pullRequestsCount = await GetRecordsCount(context, "pulls", addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
+								// Get the number of open issues and pull requests
+								(int issuesCount, int pullRequestsCount) = await GetOpenRecordsCount(context, addinsGroup.Key.RepositoryOwner, addinsGroup.Key.RepositoryName).ConfigureAwait(false);
 
 								// Update all the addins for this repo
 								foreach (AddinMetadata addin in addinsGroup)
@@ -73,51 +85,31 @@ namespace Cake.AddinDiscoverer.Steps
 				.ConfigureAwait(false);
 		}
 
-		public static async Task<int> GetRecordsCount(DiscoveryContext context, string type, string repositoryOwner, string repositoryName)
+		public static async Task<(int IssuesCount, int PullRquestsCount)> GetOpenRecordsCount(DiscoveryContext context, string repositoryOwner, string repositoryName)
 		{
-			// Send a HTTP request to Github for issues with only one issue per page (notice "per_page=1", this is important).
-			// The response will include a header called "Link" containing URLs for the "next" page and also for the "last" page.
-			// The link for the "last" page will contain a querystring parameter like: "page=2". This value indicates the total
-			// number of records. This works because we requested one record per page.
-			var githubRequest = new Request()
+			var connection = (Octokit.Connection)context.GithubClient.Connection;
+			var client = new GraphQLHttpClient(new GraphQLHttpClientOptions { EndPoint = new Uri("https://api.github.com/graphql") }, new SystemTextJsonSerializer());
+			client.HttpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(connection.Credentials.Login, ":", connection.Credentials.Password)))}");
+
+			var request = new GraphQLHttpRequest
 			{
-				BaseAddress = new Uri("https://api.github.com"),
-				Endpoint = new Uri($"/repos/{repositoryOwner}/{repositoryName}/{type}?state=open&per_page=1&page=1", UriKind.Relative),
-				Method = HttpMethod.Get,
+				Query = COUNT_OPEN_ISSUES_AND_PULLREQUESTS_GRAPHQL_QUERY
+					.Replace("\r\n", string.Empty, StringComparison.OrdinalIgnoreCase)
+					.Replace("\t", string.Empty, StringComparison.OrdinalIgnoreCase),
+				Variables = new
+				{
+					repoName = repositoryName,
+					repoOwner = repositoryOwner,
+				},
 			};
-			var connection = (Connection)context.GithubClient.Connection;
-			githubRequest.Headers.Add("Authorization", $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(connection.Credentials.Login, ":", connection.Credentials.Password)))}");
-			githubRequest.Headers.Add("User-Agent", connection.UserAgent);
 
-			var githubResponse = await context.GithubHttpClient.Send(githubRequest).ConfigureAwait(false);
+			var graphQLResponse = await client.SendQueryAsync<dynamic>(request).ConfigureAwait(false);
 
-			var recordsCount = 0;
-			var lastPageUrl = githubResponse.ApiInfo.GetLastPageUrl();
-			if (lastPageUrl != null)
-			{
-				var pageParameter = lastPageUrl.ParseQuerystring().Where(p => p.Key.EqualsIgnoreCase("page"));
-				if (pageParameter.Any())
-				{
-					var lastPageNumber = pageParameter.Single().Value;
-					int.TryParse(lastPageNumber, out recordsCount);
-				}
-			}
-			else
-			{
-				// The link for the "last" page is not present in the response header.
-				// Check if there is a record in the content.
-				try
-				{
-					var records = JArray.Parse(githubResponse.Body.ToString());
-					recordsCount = records.Count;
-				}
-				catch
-				{
-					recordsCount = 0;
-				}
-			}
+			var repoNode = ((JsonElement)graphQLResponse.Data).GetProperty("repository");
+			var issuesCount = repoNode.GetProperty("issues").GetProperty("totalCount").GetInt32();
+			var pullRequestsCount = repoNode.GetProperty("pullRequests").GetProperty("totalCount").GetInt32();
 
-			return recordsCount;
+			return (issuesCount, pullRequestsCount);
 		}
 	}
 }
