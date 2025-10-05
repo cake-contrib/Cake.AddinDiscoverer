@@ -24,6 +24,10 @@ namespace Cake.AddinDiscoverer.Steps
 		// and any subsequent release of Cake
 		private static readonly CakeVersion _subsequentCakeVersion = new() { Version = new SemVersion(-1) };
 
+		// This is a bogus version that is intended to represent any version of Cake less than currentCakeVersion
+		// For example: if Cake 3.0 is the current version of Cake, this bogus version would represent Cake 1.0 and 2.0
+		private static readonly CakeVersion _priorCakeVersion = new() { Version = new SemVersion(-2) };
+
 		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.UpdateCakeRecipeReferences;
 
 		public string GetDescription(DiscoveryContext context) => "Update Cake.Recipe";
@@ -101,6 +105,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var reportData = new ReportData(context.Addins);
 			var addins = new Dictionary<CakeVersion, IEnumerable<AddinMetadata>>
 			{
+				{ _priorCakeVersion, reportData.GetAddinsForCakeVersion(currentCakeVersion, CakeVersionComparison.LessThan) },
 				{ currentCakeVersion, reportData.GetAddinsForCakeVersion(currentCakeVersion, CakeVersionComparison.Equal) }
 			};
 
@@ -131,6 +136,11 @@ namespace Cake.AddinDiscoverer.Steps
 
 						foreach (var addinReference in recipeFile.AddinReferences)
 						{
+							addinReference.LatestVersionForAnyPreviousCake = addins[_priorCakeVersion]
+								.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
+								.NuGetPackageVersion
+								.ToSemVersion();
+
 							addinReference.LatestVersionForCurrentCake = addins[currentCakeVersion]
 								.SingleOrDefault(addin => AddinIsEqualToReference(addin, addinReference))?
 								.NuGetPackageVersion
