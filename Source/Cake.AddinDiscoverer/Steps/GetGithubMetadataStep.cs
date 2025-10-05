@@ -29,6 +29,33 @@ namespace Cake.AddinDiscoverer.Steps
 		  }
 		}";
 
+		public static async Task<(int IssuesCount, int PullRquestsCount)> GetOpenRecordsCount(DiscoveryContext context, string repositoryOwner, string repositoryName)
+		{
+			var connection = (Octokit.Connection)context.GithubClient.Connection;
+			var client = new GraphQLHttpClient(new GraphQLHttpClientOptions { EndPoint = new Uri("https://api.github.com/graphql") }, new SystemTextJsonSerializer());
+			client.HttpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(connection.Credentials.Login, ":", connection.Credentials.Password)))}");
+
+			var request = new GraphQLHttpRequest
+			{
+				Query = COUNT_OPEN_ISSUES_AND_PULLREQUESTS_GRAPHQL_QUERY
+					.Replace("\r\n", string.Empty, StringComparison.OrdinalIgnoreCase)
+					.Replace("\t", string.Empty, StringComparison.OrdinalIgnoreCase),
+				Variables = new
+				{
+					repoName = repositoryName,
+					repoOwner = repositoryOwner,
+				},
+			};
+
+			var graphQLResponse = await client.SendQueryAsync<dynamic>(request).ConfigureAwait(false);
+
+			var repoNode = ((JsonElement)graphQLResponse.Data).GetProperty("repository");
+			var issuesCount = repoNode.GetProperty("issues").GetProperty("totalCount").GetInt32();
+			var pullRequestsCount = repoNode.GetProperty("pullRequests").GetProperty("totalCount").GetInt32();
+
+			return (issuesCount, pullRequestsCount);
+		}
+
 		public bool PreConditionIsMet(DiscoveryContext context) => !context.Options.ExcludeSlowSteps && context.Options.GenerateExcelReport;
 
 		public string GetDescription(DiscoveryContext context) => "Get stats from Github (number of open issues, etc.)";
@@ -83,33 +110,6 @@ namespace Cake.AddinDiscoverer.Steps
 					},
 					Constants.MAX_GITHUB_CONCURENCY)
 				.ConfigureAwait(false);
-		}
-
-		public static async Task<(int IssuesCount, int PullRquestsCount)> GetOpenRecordsCount(DiscoveryContext context, string repositoryOwner, string repositoryName)
-		{
-			var connection = (Octokit.Connection)context.GithubClient.Connection;
-			var client = new GraphQLHttpClient(new GraphQLHttpClientOptions { EndPoint = new Uri("https://api.github.com/graphql") }, new SystemTextJsonSerializer());
-			client.HttpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(connection.Credentials.Login, ":", connection.Credentials.Password)))}");
-
-			var request = new GraphQLHttpRequest
-			{
-				Query = COUNT_OPEN_ISSUES_AND_PULLREQUESTS_GRAPHQL_QUERY
-					.Replace("\r\n", string.Empty, StringComparison.OrdinalIgnoreCase)
-					.Replace("\t", string.Empty, StringComparison.OrdinalIgnoreCase),
-				Variables = new
-				{
-					repoName = repositoryName,
-					repoOwner = repositoryOwner,
-				},
-			};
-
-			var graphQLResponse = await client.SendQueryAsync<dynamic>(request).ConfigureAwait(false);
-
-			var repoNode = ((JsonElement)graphQLResponse.Data).GetProperty("repository");
-			var issuesCount = repoNode.GetProperty("issues").GetProperty("totalCount").GetInt32();
-			var pullRequestsCount = repoNode.GetProperty("pullRequests").GetProperty("totalCount").GetInt32();
-
-			return (issuesCount, pullRequestsCount);
 		}
 	}
 }
