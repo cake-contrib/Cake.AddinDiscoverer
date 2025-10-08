@@ -122,8 +122,9 @@ namespace Cake.AddinDiscoverer.Models
 				var packageName = parameters["package"];
 				var referencedVersion = parameters["version"];
 				var prerelease = (parameters.AllKeys?.Contains("prerelease") ?? false) || (parameters.GetValues(null)?.Contains("prerelease") ?? false);
+				var shouldBeIgnored = (parameters.AllKeys?.Contains("addindiscoignore") ?? false) || (parameters.GetValues(null)?.Contains("addindiscoignore") ?? false);
 
-				if (!enforceNamingConvention || packageName.StartsWith("Cake.", StringComparison.OrdinalIgnoreCase))
+				if (!shouldBeIgnored && (!enforceNamingConvention || packageName.StartsWith("Cake.", StringComparison.OrdinalIgnoreCase)))
 				{
 					references.Add(new T()
 					{
@@ -147,6 +148,10 @@ namespace Cake.AddinDiscoverer.Models
 			var updatedContent = regex.Replace(unixFormat, match =>
 			{
 				var parameters = HttpUtility.ParseQueryString(match.Groups["referencestring"].Value);
+
+				// The 'addindiscoignore' parameter allows excluding a given package reference from being updated by AddinDiscoverer.
+				var shouldBeIgnored = (parameters.AllKeys?.Contains("addindiscoignore") ?? false) || (parameters.GetValues(null)?.Contains("addindiscoignore") ?? false);
+				if (shouldBeIgnored) return match.Groups[0].Value;
 
 				// These are the supported parameters as documented here: https://cakebuild.net/docs/fundamentals/preprocessor-directives
 				var packageName = parameters["package"];
