@@ -19,8 +19,8 @@ namespace Cake.AddinDiscoverer
 		[Option('i', "issue", Default = false, HelpText = "Create issue in Github repositories that do not meet recommendations.")]
 		public bool CreateGithubIssue { get; set; }
 
-		[Option('k', "updatecakerecipe", Default = false, HelpText = "Update addin references in CakeRecipe.")]
-		public bool UpdateCakeRecipeReferences { get; set; }
+		[Option('k', "updaterecipes", Default = false, HelpText = "Update addin references in recipes such as Cake.Recipe and Chocolatey.Cake.Recipe.")]
+		public bool UpdateRecipes { get; set; }
 
 		[Option('l', "uselocalresources", Default = false, HelpText = "Use local resource files instead of downloading them from GitHub.")]
 		public bool UseLocalResources { get; set; }

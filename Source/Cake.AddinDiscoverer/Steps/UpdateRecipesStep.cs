@@ -17,8 +17,11 @@ using Constants = Cake.AddinDiscoverer.Utilities.Constants;
 
 namespace Cake.AddinDiscoverer.Steps
 {
-	internal class UpdateCakeRecipeStep : IStep
+	internal class UpdateRecipesStep : IStep
 	{
+		// A recipe must support Cake 0.38.5 (which was the last pre-1.0.0 version) at the very least, in order for AddinDiscoverer to be able to suggest upgrades
+		private static readonly SemVersion _minSupportedCakeVersion = new SemVersion(0, 38, 5);
+
 		// This is a bogus version that is intended to represent any version of Cake greather than nextCakeVersion
 		// For example: if Cake 2.0 is the next version of Cake, this bogus version would represent Cake 3.0 and 4.0
 		// and any subsequent release of Cake
@@ -28,32 +31,40 @@ namespace Cake.AddinDiscoverer.Steps
 		// For example: if Cake 3.0 is the current version of Cake, this bogus version would represent Cake 1.0 and 2.0
 		private static readonly CakeVersion _priorCakeVersion = new() { Version = new SemVersion(-2) };
 
-		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.UpdateCakeRecipeReferences;
+		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.UpdateRecipes;
 
-		public string GetDescription(DiscoveryContext context) => "Update Cake.Recipe";
+		public string GetDescription(DiscoveryContext context) => "Update recipes";
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
-			var cakeVersionUsedByRecipe = await FindCakeVersionUsedByRecipe(context).ConfigureAwait(false);
-			await UpdateCakeRecipeAsync(context, cakeVersionUsedByRecipe).ConfigureAwait(false);
+			foreach (var recipeRepo in Constants.CAKE_RECIPES)
+			{
+				var cakeVersionUsedByRecipe = await FindCakeVersionUsedByRecipe(context, recipeRepo).ConfigureAwait(false);
+				if (cakeVersionUsedByRecipe < _minSupportedCakeVersion)
+				{
+					throw new Exception($"{recipeRepo.Owner}/{recipeRepo.Name} currently supports Cake {cakeVersionUsedByRecipe.ToString(3)}. It must support {_minSupportedCakeVersion.ToString(3)} at the very least in order for AddinDiscoverer to be able to make upgrade suggestions.");
+				}
+
+				await UpdateCakeRecipeAsync(context, recipeRepo, cakeVersionUsedByRecipe).ConfigureAwait(false);
+			}
 		}
 
-		private static async Task<SemVersion> FindCakeVersionUsedByRecipe(DiscoveryContext context)
+		private static async Task<SemVersion> FindCakeVersionUsedByRecipe(DiscoveryContext context, RecipeRepo recipeRepo)
 		{
 			// Try to get Cake version from cake-version.yml
-			var cakeVersion = await FindCakeVersionUsedByRecipeFromCakeVersionYaml(context).ConfigureAwait(false);
+			var cakeVersion = await FindCakeVersionUsedByRecipeFromCakeVersionYaml(context, recipeRepo).ConfigureAwait(false);
 
 			// Fallback on dotnet-tools.json
-			cakeVersion ??= await FindCakeVersionUsedByRecipeFromDotNetConfig(context).ConfigureAwait(false);
+			cakeVersion ??= await FindCakeVersionUsedByRecipeFromDotNetConfig(context, recipeRepo).ConfigureAwait(false);
 
-			return cakeVersion ?? throw new Exception("Unable to detect the version of Cake used by Cake.Recipe.");
+			return cakeVersion ?? throw new Exception($"Unable to detect the version of Cake used by {recipeRepo.Owner}/{recipeRepo.Name}");
 		}
 
-		private static async Task<SemVersion> FindCakeVersionUsedByRecipeFromCakeVersionYaml(DiscoveryContext context)
+		private static async Task<SemVersion> FindCakeVersionUsedByRecipeFromCakeVersionYaml(DiscoveryContext context, RecipeRepo recipeRepo)
 		{
 			try
 			{
-				var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.CAKE_VERSION_YML_PATH).ConfigureAwait(false);
+				var contents = await context.GithubClient.Repository.Content.GetAllContents(recipeRepo.Owner, recipeRepo.Name, recipeRepo.VersionFilePath).ConfigureAwait(false);
 				var deserializer = new YamlDotNet.Serialization.Deserializer();
 				var yamlConfig = deserializer.Deserialize<CakeVersionYamlConfig>(contents[0].Content);
 				return yamlConfig.TargetCakeVersion;
@@ -64,11 +75,11 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private static async Task<SemVersion> FindCakeVersionUsedByRecipeFromDotNetConfig(DiscoveryContext context)
+		private static async Task<SemVersion> FindCakeVersionUsedByRecipeFromDotNetConfig(DiscoveryContext context, RecipeRepo recipeRepo)
 		{
 			try
 			{
-				var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.DOT_NET_TOOLS_CONFIG_PATH).ConfigureAwait(false);
+				var contents = await context.GithubClient.Repository.Content.GetAllContents(recipeRepo.Owner, recipeRepo.Name, Constants.DOT_NET_TOOLS_CONFIG_PATH).ConfigureAwait(false);
 				var jObject = JObject.Parse(contents[0].Content);
 				var versionNode = jObject["tools"]?["cake.tool"]?["version"];
 				return versionNode == null ? null : SemVersion.Parse(versionNode.Value<string>());
@@ -79,27 +90,27 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private static async Task UpdateCakeRecipeAsync(DiscoveryContext context, SemVersion cakeVersionUsedInRecipe)
+		private static async Task UpdateCakeRecipeAsync(DiscoveryContext context, RecipeRepo recipeRepo, SemVersion cakeVersionUsedInRecipe)
 		{
 			var currentCakeVersion = Constants.CAKE_VERSIONS.Where(v => v.Version <= cakeVersionUsedInRecipe).Max();
 			var nextCakeVersion = Constants.CAKE_VERSIONS.Where(v => v.Version > cakeVersionUsedInRecipe).Min();
 
 			// Get the ".cake" files
-			var recipeFiles = await GetRecipeFilesAsync(context, currentCakeVersion, nextCakeVersion).ConfigureAwait(false);
+			var recipeFiles = await GetRecipeFilesAsync(context, recipeRepo, currentCakeVersion, nextCakeVersion).ConfigureAwait(false);
 
 			// Submit a PR if any addin reference is outdated
-			await UpdateOutdatedRecipeFilesAsync(context, recipeFiles).ConfigureAwait(false);
+			await UpdateOutdatedRecipeFilesAsync(context, recipeRepo, recipeFiles).ConfigureAwait(false);
 
 			// Either submit a PR to upgrade to the next version of Cake OR create an issue explaining why Cake.Recipe cannot be upgraded to next Cake version
 			if (nextCakeVersion != null && currentCakeVersion.Version < nextCakeVersion.Version)
 			{
-				await UpgradeCakeVersionUsedByRecipeAsync(context, recipeFiles, nextCakeVersion).ConfigureAwait(false);
+				await UpgradeCakeVersionUsedByRecipeAsync(context, recipeRepo, recipeFiles, nextCakeVersion).ConfigureAwait(false);
 			}
 		}
 
-		private static async Task<RecipeFile[]> GetRecipeFilesAsync(DiscoveryContext context, CakeVersion currentCakeVersion, CakeVersion nextCakeVersion)
+		private static async Task<RecipeFile[]> GetRecipeFilesAsync(DiscoveryContext context, RecipeRepo recipeRepo, CakeVersion currentCakeVersion, CakeVersion nextCakeVersion)
 		{
-			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, "Source/Cake.Recipe/Content").ConfigureAwait(false);
+			var directoryContent = await context.GithubClient.Repository.Content.GetAllContents(recipeRepo.Owner, recipeRepo.Name, recipeRepo.ContentFolderPath).ConfigureAwait(false);
 			var cakeFiles = directoryContent.Where(c => c.Type == new StringEnum<ContentType>(ContentType.File) && c.Name.EndsWith(".cake", StringComparison.OrdinalIgnoreCase));
 
 			var reportData = new ReportData(context.Addins);
@@ -125,7 +136,7 @@ namespace Cake.AddinDiscoverer.Steps
 				.ForEachAsync(
 					async cakeFile =>
 					{
-						var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, cakeFile.Path).ConfigureAwait(false);
+						var contents = await context.GithubClient.Repository.Content.GetAllContents(recipeRepo.Owner, recipeRepo.Name, cakeFile.Path).ConfigureAwait(false);
 
 						var recipeFile = new RecipeFile()
 						{
@@ -200,7 +211,7 @@ namespace Cake.AddinDiscoverer.Steps
 			return recipeFiles;
 		}
 
-		private static async Task UpdateOutdatedRecipeFilesAsync(DiscoveryContext context, RecipeFile[] recipeFiles)
+		private static async Task UpdateOutdatedRecipeFilesAsync(DiscoveryContext context, RecipeRepo recipeRepo, RecipeFile[] recipeFiles)
 		{
 			// Make sure there is at least one outdated reference
 			var outdatedReferences = recipeFiles
@@ -219,7 +230,7 @@ namespace Cake.AddinDiscoverer.Steps
 			if (outdatedReferences.Length == 0) return;
 
 			// Ensure the fork is up-to-date
-			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
+			var fork = await context.GithubClient.CreateOrRefreshFork(recipeRepo.Owner, recipeRepo.Name).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
 			if (context.Options.DryRun)
@@ -234,7 +245,7 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 
 				var commitMessageShort = "Update outdated reference";
-				var newBranchName = $"dryrun_update_cake_recipe_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
+				var newBranchName = $"dryrun_update_{recipeRepo.Name.ToLower().Replace('.', '_')}_references_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 				await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, null, newBranchName, commitMessageShort, commits).ConfigureAwait(false);
 			}
 			else
@@ -278,7 +289,7 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 		}
 
-		private static async Task UpgradeCakeVersionUsedByRecipeAsync(DiscoveryContext context, RecipeFile[] recipeFiles, CakeVersion nextCakeVersion)
+		private static async Task UpgradeCakeVersionUsedByRecipeAsync(DiscoveryContext context, RecipeRepo recipeRepo, RecipeFile[] recipeFiles, CakeVersion nextCakeVersion)
 		{
 			var recipeFilesWithAtLeastOneReference = recipeFiles
 				.Where(recipeFile => recipeFile.AddinReferences.Any() || recipeFile.LoadReferences.Any())
@@ -286,14 +297,14 @@ namespace Cake.AddinDiscoverer.Steps
 			if (recipeFilesWithAtLeastOneReference.Length == 0) return;
 
 			// Ensure the fork is up-to-date
-			var fork = await context.GithubClient.CreateOrRefreshFork(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME).ConfigureAwait(false);
+			var fork = await context.GithubClient.CreateOrRefreshFork(recipeRepo.Owner, recipeRepo.Name).ConfigureAwait(false);
 			var upstream = fork.Parent;
 
 			// The content of the issue body
 			var issueBody = new StringBuilder();
-			issueBody.AppendFormat("In order for Cake.Recipe to be compatible with Cake version {0}, each and every referenced addin must support Cake {0}. ", nextCakeVersion.Version.ToString(3));
+			issueBody.AppendFormat("In order for {0} to be compatible with Cake version {1}, each and every referenced addin must support Cake {1}. ", recipeRepo.Name, nextCakeVersion.Version.ToString(3));
 			issueBody.AppendFormat("This issue will be used to track the full list of addins referenced in Cake.Recipe and whether or not they support Cake {0}. ", nextCakeVersion.Version.ToString(3));
-			issueBody.AppendFormat("When all referenced addins are upgraded to support Cake {0}, we will automatically submit a PR to upgrade Cake.Recipe. ", nextCakeVersion.Version.ToString(3));
+			issueBody.AppendFormat("When all referenced addins are upgraded to support Cake {0}, we will automatically submit a PR to upgrade {1}. ", nextCakeVersion.Version.ToString(3), recipeRepo.Name);
 			issueBody.AppendFormat("In the mean time, this issue will be regularly updated when addins are updated with Cake {0} support.{1}", nextCakeVersion.Version.ToString(3), Environment.NewLine);
 			issueBody.AppendLine();
 			issueBody.AppendLine("Referenced Addins:");
@@ -362,7 +373,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (availableForNextCakeVersionCount == totalReferencesCount)
 			{
-				var yamlVersionConfigContents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_RECIPE_REPO_NAME, Constants.CAKE_VERSION_YML_PATH).ConfigureAwait(false);
+				var yamlVersionConfigContents = await context.GithubClient.Repository.Content.GetAllContents(recipeRepo.Owner, recipeRepo.Name, recipeRepo.VersionFilePath).ConfigureAwait(false);
 				var yamlConfig = yamlVersionConfigContents[0].Content.FromYamlString<CakeVersionYamlConfig>();
 				yamlConfig.TargetCakeVersion = nextCakeVersion.Version;
 
@@ -376,7 +387,7 @@ namespace Cake.AddinDiscoverer.Steps
 					var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
 					{
 						(CommitMessage: "Update addins references", FilesToDelete: null, FilesToUpsert: recipeFilesWithAtLeastOneReference.Select(recipeFile => (EncodingType: EncodingType.Utf8, recipeFile.Path, Content: recipeFile.GetContentForNextCake())).ToArray()),
-						(CommitMessage: "Update Cake version in cake-version.yml", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: Constants.CAKE_VERSION_YML_PATH, Content: yamlConfig.ToYamlString()) })
+						(CommitMessage: "Update Cake version in cake-version.yml", FilesToDelete: null, FilesToUpsert: new[] { (EncodingType: EncodingType.Utf8, Path: recipeRepo.VersionFilePath, Content: yamlConfig.ToYamlString()) })
 					};
 
 					pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);

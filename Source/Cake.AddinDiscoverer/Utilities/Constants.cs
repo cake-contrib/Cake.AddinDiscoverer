@@ -24,7 +24,6 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string YELLOW_EMOJI = ":warning: ";
 		public const string CSV_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 		public const string DOT_NET_TOOLS_CONFIG_PATH = ".config/dotnet-tools.json";
-		public const string CAKE_VERSION_YML_PATH = "Source/Cake.Recipe/cake-version.yml";
 		public const string NO_DESCRIPTION_PROVIDED = "No description has been provided";
 		public const string COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize YAML files";
 		public const string CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE = "Synchronize Contributors";
@@ -47,7 +46,6 @@ namespace Cake.AddinDiscoverer.Utilities
 		public const string CAKE_WEBSITE_REPO_NAME = "website";
 		public const string CAKE_CONTRIB_REPO_OWNER = "cake-contrib";
 		public const string CAKE_CONTRIB_REPO_NAME = "Home";
-		public const string CAKE_RECIPE_REPO_NAME = "Cake.Recipe";
 		public const string ADDIN_DISCOVERER_REPO_NAME = "Cake.AddinDiscoverer";
 
 		public static readonly DateTime UtcMinDateTime = new DateTime(0, DateTimeKind.Utc); // <== Making sure the timezone is UTC. Do not use DateTime.MinValue because the 'Kind' is unspecified.
@@ -92,6 +90,12 @@ namespace Cake.AddinDiscoverer.Utilities
 				RequiredFrameworks = new[] { "net8.0", "net9.0" },
 				OptionalFrameworks = Array.Empty<string>()
 			}
+		};
+
+		public static readonly RecipeRepo[] CAKE_RECIPES = new[]
+		{
+			new RecipeRepo(CAKE_CONTRIB_REPO_OWNER, "Cake.Recipe", "Source/Cake.Recipe/cake-version.yml", "Source/Cake.Recipe/Content"),
+			new RecipeRepo("Chocolatey", "Chocolatey.Cake.Recipe", "Chocolatey.Cake.Recipe/cake-version.yml", "Chocolatey.Cake.Recipe/Content"),
 		};
 
 #pragma warning disable SA1009 // Closing parenthesis should be spaced correctly
