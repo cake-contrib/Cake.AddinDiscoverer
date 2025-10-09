@@ -75,23 +75,31 @@ namespace Cake.AddinDiscoverer.Models
 
 		public string GetContentForCurrentCake(CakeReference reference)
 		{
-			var updatedContent = string.Empty;
+			return GetContentForCurrentCake(new[] { reference });
+		}
 
-			if (reference is LoadReference loadReference)
+		public string GetContentForCurrentCake(IEnumerable<CakeReference> references)
+		{
+			var updatedContent = Content;
+
+			foreach (var reference in references)
 			{
-				updatedContent = GetContent(Content, LoadReferenceRegex, new[] { loadReference }, r => loadReference.LatestVersionForCurrentCake);
-			}
-			else if (reference is AddinReference addinReference)
-			{
-				updatedContent = GetContent(Content, AddinReferenceRegex, new[] { addinReference }, r => addinReference.LatestVersionForCurrentCake);
-			}
-			else if (reference is ToolReference toolReference)
-			{
-				updatedContent = GetContent(Content, ToolReferenceRegex, new[] { toolReference }, r => toolReference.LatestVersion);
-			}
-			else
-			{
-				throw new ArgumentException("Unknown reference type", nameof(reference));
+				if (reference is LoadReference loadReference)
+				{
+					updatedContent = GetContent(updatedContent, LoadReferenceRegex, new[] { loadReference }, r => loadReference.LatestVersionForCurrentCake);
+				}
+				else if (reference is AddinReference addinReference)
+				{
+					updatedContent = GetContent(updatedContent, AddinReferenceRegex, new[] { addinReference }, r => addinReference.LatestVersionForCurrentCake);
+				}
+				else if (reference is ToolReference toolReference)
+				{
+					updatedContent = GetContent(updatedContent, ToolReferenceRegex, new[] { toolReference }, r => toolReference.LatestVersion);
+				}
+				else
+				{
+					throw new ArgumentException("Unknown reference type", nameof(reference));
+				}
 			}
 
 			return updatedContent;

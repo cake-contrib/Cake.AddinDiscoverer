@@ -17,7 +17,7 @@ using Constants = Cake.AddinDiscoverer.Utilities.Constants;
 
 namespace Cake.AddinDiscoverer.Steps
 {
-	internal class UpdateRecipesStep : IStep
+	internal class UpdateRecipeStep : IStep
 	{
 		// A recipe must support Cake 0.38.5 (which was the last pre-1.0.0 version) at the very least, in order for AddinDiscoverer to be able to suggest upgrades
 		private static readonly SemVersion _minSupportedCakeVersion = new SemVersion(0, 38, 5);
@@ -31,22 +31,28 @@ namespace Cake.AddinDiscoverer.Steps
 		// For example: if Cake 3.0 is the current version of Cake, this bogus version would represent Cake 1.0 and 2.0
 		private static readonly CakeVersion _priorCakeVersion = new() { Version = new SemVersion(-2) };
 
+		private readonly RecipeRepo _recipeRepo;
+
+		public bool ContinueOnError { get { return true; } }
+
+		public UpdateRecipeStep(RecipeRepo recipeRepo)
+		{
+			_recipeRepo = recipeRepo;
+		}
+
 		public bool PreConditionIsMet(DiscoveryContext context) => context.Options.UpdateRecipes;
 
-		public string GetDescription(DiscoveryContext context) => "Update recipes";
+		public string GetDescription(DiscoveryContext context) => $"Update {_recipeRepo.Owner}/{_recipeRepo.Name}";
 
 		public async Task ExecuteAsync(DiscoveryContext context, TextWriter log, CancellationToken cancellationToken)
 		{
-			foreach (var recipeRepo in Constants.CAKE_RECIPES)
+			var cakeVersionUsedByRecipe = await FindCakeVersionUsedByRecipe(context, _recipeRepo).ConfigureAwait(false);
+			if (cakeVersionUsedByRecipe < _minSupportedCakeVersion)
 			{
-				var cakeVersionUsedByRecipe = await FindCakeVersionUsedByRecipe(context, recipeRepo).ConfigureAwait(false);
-				if (cakeVersionUsedByRecipe < _minSupportedCakeVersion)
-				{
-					throw new Exception($"{recipeRepo.Owner}/{recipeRepo.Name} currently supports Cake {cakeVersionUsedByRecipe.ToString(3)}. It must support {_minSupportedCakeVersion.ToString(3)} at the very least in order for AddinDiscoverer to be able to make upgrade suggestions.");
-				}
-
-				await UpdateCakeRecipeAsync(context, recipeRepo, cakeVersionUsedByRecipe).ConfigureAwait(false);
+				throw new Exception($"{_recipeRepo.Owner}/{_recipeRepo.Name} currently supports Cake {cakeVersionUsedByRecipe.ToString(3)}. It must support {_minSupportedCakeVersion.ToString(3)} at the very least in order for AddinDiscoverer to be able to make upgrade suggestions.");
 			}
+
+			await UpdateCakeRecipeAsync(context, _recipeRepo, cakeVersionUsedByRecipe).ConfigureAwait(false);
 		}
 
 		private static async Task<SemVersion> FindCakeVersionUsedByRecipe(DiscoveryContext context, RecipeRepo recipeRepo)
@@ -237,11 +243,12 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
 
-				// Create a single PR for all outdated references
-				foreach (var outdatedReference in outdatedReferences)
+				foreach (var grp in outdatedReferences.GroupBy(r => r.Recipe))
 				{
-					var commitMessageLong = $"Update {outdatedReference.Reference.Name} reference from {outdatedReference.Reference.ReferencedVersion} to {outdatedReference.LatestVersion}";
-					commits.Add((commitMessageLong, null, new[] { (EncodingType: EncodingType.Utf8, outdatedReference.Recipe.Path, Content: outdatedReference.Recipe.GetContentForCurrentCake(outdatedReference.Reference)) }));
+					// Create a commit with all the changes to the same recipe file
+					var commitMessageLong = $"Update {grp.Count()} reference(s) in {grp.Key.Name}";
+					var content = grp.Key.GetContentForCurrentCake(grp.Select(r => r.Reference));
+					commits.Add((commitMessageLong, null, new[] { (EncodingType: EncodingType.Utf8, grp.Key.Path, Content: content) }));
 				}
 
 				var commitMessageShort = "Update outdated reference";
@@ -255,8 +262,8 @@ namespace Cake.AddinDiscoverer.Steps
 				// Create an issue and PR for each outdated reference
 				foreach (var outdatedReference in outdatedReferences)
 				{
-					// Limit the number outdated references we will update in this run in an attempt to reduce
-					// the number of commits and therefore avoid triggering GitHub's abuse detection.
+					// Limit the number of outdated references we will update in this run in an attempt to
+					// reduce the number of commits and therefore avoid triggering GitHub's abuse detection.
 					// The remaining outdated references will be updated in subsequent run(s).
 					if (updatedReferencesCount < 5)
 					{
