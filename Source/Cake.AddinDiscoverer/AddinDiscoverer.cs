@@ -19,74 +19,38 @@ namespace Cake.AddinDiscoverer
 {
 	internal class AddinDiscoverer
 	{
-		// These are the steps that will be executed by the Addin.Discoverer (if their pre-condition is met).
-		// The order is important!
-		private readonly Type[] _steps = new[]
-		{
-			// Delete artifacts from previous audits
-			typeof(CleanupStep),
-
-			// Download resource files (such as exclusion list, inclusion list and previous analysis)
-			typeof(GetResourceFiles),
-
-			// Load the result of previous analysis
-			typeof(LoadPreviousAnalysisStep),
-
-			// Discover all existing Cake addins on NuGet
-			typeof(DiscoveryStep),
-
-			// Sanity check on the list of addins we discovered
-			typeof(ValidateDiscoveryStep),
-
-			// Analyze the addins
-			typeof(AnalyzeStep),
-
-			// Get previously created issue and pull request from the Github repo
-			typeof(GetGithubIssuesStep),
-
-			// Get statistics, content, etc. from the Github repo
-			typeof(GetGithubMetadataStep),
-
-			// Save the result of the analysis
-			typeof(SaveAnalysisStep),
-
-			// Generate an Excel spreadsheet with the result of the audit
-			typeof(GenerateExcelReportStep),
-
-			// Generate a markdown file with the result of the audit
-			typeof(GenerateMarkdownReportStep),
-
-			// Update the CSV file with statistics about the audit
-			typeof(UpdateStatsCsvStep),
-
-			// Generate a graph to percentage of addins that meet best practices over time
-			typeof(GenerateStatsGraphStep),
-
-			// Commit the artifacts (such as Excel and markdown reports, CSV, etc.) to the cake-contrib/home github repo
-			typeof(CommitToRepoStep),
-
-			// Create an issue to inform addin authors of the issues we discovered
-			typeof(CreateGithubIssueStep),
-
-			// Submit a pull request to fix the issue we discovered
-			typeof(SubmitGithubPullRequest),
-
-			// Make sure the YAML files in the cake-build/website repo are up to date
-			// These files are used to generate the addins documentation published on Cake's web site
-			typeof(SynchronizeYamlStep),
-
-			// Update the addin references in the Cake.Recipe. Also, upgrade the version of Cake used to build
-			// Cake.Recipe IF AND ONLY IF all references have been updated to be compatible with the latest version
-			typeof(UpdateCakeRecipeStep),
-
-			// Get the list of people who contributed to Cake
-			typeof(GetContributorsStep)
-		};
+		private readonly List<IStep> _steps = new();
 
 		private readonly DiscoveryContext _context;
 
 		public AddinDiscoverer(Options options)
 		{
+			// These are the steps that will be executed by the Addin.Discoverer (if their pre-condition is met).
+			// The order is important!
+			_steps.Add(new CleanupStep()); // Delete artifacts from previous audits
+			_steps.Add(new GetResourceFiles()); // Download resource files (such as exclusion list, inclusion list and previous analysis)
+			_steps.Add(new LoadPreviousAnalysisStep()); // Load the result of previous analysis
+			_steps.Add(new DiscoveryStep()); // Discover all existing Cake addins on NuGet
+			_steps.Add(new ValidateDiscoveryStep()); // Sanity check on the list of addins we discovered
+			_steps.Add(new AnalyzeStep()); // Analyze the addins
+			_steps.Add(new GetGithubIssuesStep()); // Get previously created issue and pull request from the Github repo
+			_steps.Add(new GetGithubMetadataStep()); // Get statistics, content, etc. from the Github repo
+			_steps.Add(new SaveAnalysisStep()); // Save the result of the analysis
+			_steps.Add(new GenerateExcelReportStep()); // Generate an Excel spreadsheet with the result of the audit
+			_steps.Add(new GenerateMarkdownReportStep()); // Generate a markdown file with the result of the audit
+			_steps.Add(new UpdateStatsCsvStep()); // Update the CSV file with statistics about the audit
+			_steps.Add(new GenerateStatsGraphStep()); // Generate a graph to percentage of addins that meet best practices over time
+			_steps.Add(new CommitToRepoStep()); // Commit the artifacts (such as Excel and markdown reports, CSV, etc.) to the cake-contrib/home github repo
+			_steps.Add(new CreateGithubIssueStep()); // Create an issue to inform addin authors of the issues we discovered
+			_steps.Add(new SubmitGithubPullRequest()); // Submit a pull request to fix the issue we discovered
+			_steps.Add(new SynchronizeYamlStep()); // Make sure the YAML files in the cake-build/website repo are up to date.
+			_steps.Add(new GetContributorsStep()); // Get the list of people who contributed to Cake
+
+			foreach (var recipeRepo in Constants.CAKE_RECIPES)
+			{
+				_steps.Add(new UpdateRecipeStep(recipeRepo)); // Update the addin references in a given recipe
+			}
+
 			// Setup the Github client
 			var proxy = string.IsNullOrEmpty(options.ProxyUrl) ? null : new WebProxy(options.ProxyUrl);
 			var credentials = !string.IsNullOrEmpty(options.GithubToken) ? new Credentials(options.GithubToken) : new Credentials(options.GithubUsername, options.GithuPassword);
@@ -141,9 +105,8 @@ namespace Cake.AddinDiscoverer
 
 			var totalTime = Stopwatch.StartNew();
 
-			foreach (var type in _steps)
+			foreach (var step in _steps)
 			{
-				var step = (IStep)Activator.CreateInstance(type);
 				var stepDescription = step.GetDescription(_context);
 				if (stepDescription.Length > maxStepNameLength - 1)
 				{
@@ -176,7 +139,7 @@ namespace Cake.AddinDiscoverer
 						Console.WriteLine(e.Demystify().ToString());
 						Console.WriteLine();
 						result = ResultCode.Error;
-						cts.Cancel();
+						if (!step.ContinueOnError) cts.Cancel();
 					}
 				}
 				else

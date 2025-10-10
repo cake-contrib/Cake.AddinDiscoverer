@@ -11,6 +11,11 @@ namespace Cake.AddinDiscoverer
 	internal interface IStep
 	{
 		/// <summary>
+		/// Gets a value indicating whether subsequent steps should be executed when an error occurs.
+		/// </summary>
+		bool ContinueOnError { get { return false; } }
+
+		/// <summary>
 		/// Indicates if the pre-condition is met and therefore this step should be executed.
 		/// </summary>
 		/// <param name="context">The context.</param>
