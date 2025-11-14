@@ -33,10 +33,7 @@
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.507">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="System.Linq.AsyncEnumerable" Version="10.0.0" />
-    <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="System.Reflection.MetadataLoadContext" Version="10.0.0" />
-    <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
 
