@@ -154,7 +154,7 @@ Task("Build")
 	.IsDependentOn("Restore-NuGet-Packages")
 	.Does(() =>
 {
-	DotNetBuild($"{sourceFolder}{appName}.sln", new DotNetBuildSettings
+	DotNetBuild($"{sourceFolder}{appName}.slnx", new DotNetBuildSettings
 	{
 		Configuration = configuration,
 		NoRestore = true,
@@ -176,7 +176,7 @@ Task("Publish")
 	.IsDependentOn("Build")
 	.Does(() =>
 {
-	DotNetPublish($"{sourceFolder}{appName}.sln", new DotNetPublishSettings
+	DotNetPublish($"{sourceFolder}{appName}.slnx", new DotNetPublishSettings
 	{
 		Configuration = configuration,
 		NoBuild = true,
