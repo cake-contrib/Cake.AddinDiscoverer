@@ -34,9 +34,7 @@ var versionInfo = (GitVersion)null; // Will be calculated in SETUP
 var cakeVersion = typeof(ICakeContext).Assembly.GetName().Version.ToString();
 var isLocalBuild = BuildSystem.IsLocalBuild;
 var isMainBranch = StringComparer.OrdinalIgnoreCase.Equals("main", buildBranch);
-var isMainRepo = StringComparer.OrdinalIgnoreCase.Equals($"{gitHubUserName}/{gitHubRepo}", repoName);
 var isPullRequest = BuildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
-var isTagged = BuildSystem.AppVeyor.Environment.Repository.Tag.IsTag && !string.IsNullOrWhiteSpace(BuildSystem.AppVeyor.Environment.Repository.Tag.Name);
 
 // The terminal logger introduced but turned off by default in .NET8 and turned on by default in .NET9
 // doesn't work right on Linux and causes a lot of noise in the build log on Ubuntu in AppVeyor.
@@ -68,12 +66,10 @@ Setup(context =>
 		cakeVersion
 	);
 
-	Information("Variables:\r\n\tLocalBuild: {0}\r\n\tIsMainBranch: {1}\r\n\tIsMainRepo: {2}\r\n\tIsPullRequest: {3}\r\n\tIsTagged: {4}",
+	Information("Variables:\r\n\tLocalBuild: {0}\r\n\tIsMainBranch: {1}\r\n\tIsPullRequest: {2}",
 		isLocalBuild,
 		isMainBranch,
-		isMainRepo,
-		isPullRequest,
-		isTagged
+		isPullRequest
 	);
 
 	if (!string.IsNullOrEmpty(gitHubToken))
@@ -214,28 +210,7 @@ Task("Run")
 		args.Append("-m"); // "Generate the Markdown report and write to a file."
 	}
 
-	IEnumerable<string> redirectedStandardOutput = new List<string>();
-	IEnumerable<string> redirectedError = new List<string>();
-
-	// Execute the command
-	using (DiagnosticVerbosity())
-	{
-		var processResult = StartProcess(
-			new FilePath($"{publishDir}{appName}.exe"),
-			new ProcessSettings()
-			{
-				Arguments = args,
-				RedirectStandardOutput = true,
-				RedirectStandardError= true
-			},
-			out redirectedStandardOutput,
-			out redirectedError
-		);
-		if (processResult != 0)
-		{
-			throw new Exception($"{appName} did not complete successfully. Result code: {processResult}");
-		}
-	}
+	Context.ExecuteCommand(new FilePath($"{publishDir}{appName}.exe"), args);
 });
 
 Task("Upload-Artifacts")
@@ -300,17 +275,55 @@ static string TrimStart(this string source, string value, StringComparison compa
 	return source.Substring(startIndex);
 }
 
-static List<string> ExecuteCommand(this ICakeContext context, FilePath exe, string args)
+static IDisposable GetDisposableVerbosity(this ICakeContext context, Verbosity verbosity)
 {
-    context.StartProcess(exe, new ProcessSettings { Arguments = args, RedirectStandardOutput = true }, out var redirectedOutput);
+	return verbosity switch
+	{
+		Verbosity.Diagnostic => context.DiagnosticVerbosity(),
+		Verbosity.Minimal => context.MinimalVerbosity(),
+		Verbosity.Normal => context.NormalVerbosity(),
+		Verbosity.Quiet => context.QuietVerbosity(),
+		Verbosity.Verbose => context.VerboseVerbosity(),
+		_ => throw new ArgumentOutOfRangeException(nameof(verbosity), $"Unknown verbosity: {verbosity}"),
+	}; 
+}
 
-    return redirectedOutput.ToList();
+static List<string> ExecuteCommand(this ICakeContext context, FilePath exe, string args, bool captureStandardOutput = false, Verbosity verbosity = Verbosity.Diagnostic)
+{
+	return context.ExecuteCommand(exe, new ProcessArgumentBuilder().Append(args), captureStandardOutput, verbosity);
+}
+
+static List<string> ExecuteCommand(this ICakeContext context, FilePath exe, ProcessArgumentBuilder argsBuilder, bool captureStandardOutput = false, Verbosity verbosity = Verbosity.Diagnostic)
+{
+	using (context.GetDisposableVerbosity(verbosity))
+	{
+		var processResult = context.StartProcess(
+			exe,
+			new ProcessSettings()
+			{
+				Arguments = argsBuilder,
+				RedirectStandardOutput = captureStandardOutput,
+				RedirectStandardError= true
+			},
+			out var redirectedOutput,
+			out var redirectedError
+		);
+		
+		if (processResult != 0 || redirectedError.Count() > 0)
+		{
+			var errorMsg = string.Join(Environment.NewLine, redirectedError.Where(s => !string.IsNullOrWhiteSpace(s)));
+			var innerException = !string.IsNullOrEmpty(errorMsg) ? new Exception(errorMsg) : null;
+			throw new Exception($"{exe} did not complete successfully. Result code: {processResult}", innerException);
+		}
+		
+		return (redirectedOutput ?? Array.Empty<string>()).ToList();
+	}
 }
 
 static List<string> ExecGitCmd(this ICakeContext context, string cmd)
 {
     var gitExe = context.Tools.Resolve(context.IsRunningOnWindows() ? "git.exe" : "git");
-    return context.ExecuteCommand(gitExe, cmd);
+    return context.ExecuteCommand(gitExe, cmd, true);
 }
 
 static string GetBuildBranch(this ICakeContext context)
@@ -346,8 +359,8 @@ static string GetRepoName(this ICakeContext context)
 	return $"{parts[parts.Length - 2]}/{parts[parts.Length - 1].Replace(".git", "")}";
 }
 
-// Clean previous artifacts and  make sure to preserve the content
-// of folders that are used as caches (such as "packages", "analysis"
+// Clean previous artifacts and make sure to preserve the content
+// of folders that are used as cache (such as "packages", "analysis"
 // and "archives"). Do not use Cake's "CleanDirectories" alias because
 // there is no way to exclude a sub folder which prevents us from
 // exluding the subfolders we want to preserve.
