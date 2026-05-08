@@ -1,6 +1,7 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
+using Cake.Incubator.XDocumentExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
@@ -156,7 +157,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 					if (targetFrameworkElement == null && targetFrameworksElement == null)
 					{
-						throw new Exception("We found neither 'TargetFrameworks' nor 'TargetFramework' in {addin.Name}.csproj. Therfore we were unable to update the framework targets");
+						throw new Exception($"We found neither 'TargetFrameworks' nor 'TargetFramework' in {addin.Name}.csproj. Therefore we were unable to update the framework targets");
 					}
 
 					var targetFrameworks = (targetFrameworksElement?.Value.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>()).ToList();

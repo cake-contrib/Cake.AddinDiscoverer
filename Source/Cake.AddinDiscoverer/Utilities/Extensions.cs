@@ -220,6 +220,7 @@ namespace Cake.AddinDiscoverer
 			return currentVersion == null || currentVersion >= desiredVersion;
 		}
 
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static XElement GetFirstElement(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
 		{
 			var elements = document.Descendants(elementName);
@@ -239,12 +240,7 @@ namespace Cake.AddinDiscoverer
 		}
 
 		// From The Cake Incubator project
-		public static string GetFirstElementValue(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
-		{
-			return document.GetFirstElement(elementName, config, platform)?.Value;
-		}
-
-		// From The Cake Incubator project
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static bool WithConfigCondition(this XElement element, string config = null, string platform = null)
 		{
 			bool? configAttribute = element.Attribute("Condition")?.Value.HasConfigPlatformCondition(config, platform);
@@ -257,11 +253,13 @@ namespace Cake.AddinDiscoverer
 		}
 
 		// From The Cake Incubator project
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static bool HasConfigPlatformCondition(this string condition, string config = null, string platform = null)
 		{
 			return string.IsNullOrEmpty(config) ? condition.StartsWith("'$(Configuration)|$(Platform)'==") : condition.EqualsIgnoreCase("'$(Configuration)|$(Platform)'=='" + config + "|" + platform + "'");
 		}
 
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static bool SetFirstElementValue(this XDocument document, XName elementName, string newValue, string config = null, string platform = "AnyCPU")
 		{
 			var element = document.GetFirstElement(elementName, config, platform);
@@ -271,6 +269,7 @@ namespace Cake.AddinDiscoverer
 			return true;
 		}
 
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static bool RemoveElement(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
 		{
 			var element = document.GetFirstElement(elementName, config, platform);
@@ -278,13 +277,6 @@ namespace Cake.AddinDiscoverer
 
 			element.Remove();
 			return true;
-		}
-
-		// From The Cake Incubator project
-		public static XName GetXNameWithNamespace(this XNamespace ns, string elementName)
-		{
-			string nsName = ns?.NamespaceName;
-			return (nsName == null) ? XName.Get(elementName) : XName.Get(elementName, nsName);
 		}
 
 		public static IEnumerable<KeyValuePair<string, string>> ParseQuerystring(this Uri uri)
