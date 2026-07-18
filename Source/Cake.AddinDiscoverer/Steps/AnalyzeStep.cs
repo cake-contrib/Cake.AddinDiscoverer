@@ -611,7 +611,7 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				try
 				{
-					var repository = await context.RepositoryValidator.ValidateGithubRepoAsync(repoOwner, repoName).ConfigureAwait(false);
+					var repository = await Misc.ExecuteWithRetryAsync(() => context.RepositoryValidator.ValidateGithubRepoAsync(repoOwner, repoName)).ConfigureAwait(false);
 
 					// Only overwrite GitHub and Bitbucket URLs and preserve custom URLs such as 'https://cakeissues.net/' for example.
 					if (addin.ProjectUrl.IsGithubUrl(false) || addin.ProjectUrl.IsBitbucketUrl())
@@ -758,7 +758,7 @@ namespace Cake.AddinDiscoverer.Steps
 					// Get all files from the repo.
 					// We try to locate a "tag" in the GitHub repo that corresponds to the addin version.
 					// If we find such a tag, we get the tagged repo content otherwise we simply get the most recent files.
-					var repoContent = await context.RepositoryValidator.GetRepoContentAsync(addin.RepositoryOwner, addin.RepositoryName, addin.NuGetPackageVersion.ToNormalizedString()).ConfigureAwait(false);
+					var repoContent = await Misc.ExecuteWithRetryAsync(() => context.RepositoryValidator.GetRepoContentAsync(addin.RepositoryOwner, addin.RepositoryName, addin.NuGetPackageVersion.ToNormalizedString())).ConfigureAwait(false);
 
 					// Get the cake files
 					var repoItems = repoContent

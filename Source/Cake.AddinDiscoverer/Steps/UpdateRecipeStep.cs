@@ -70,7 +70,7 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			try
 			{
-				var contents = await context.GithubClient.Repository.Content.GetAllContents(recipeRepo.Owner, recipeRepo.Name, recipeRepo.VersionFilePath).ConfigureAwait(false);
+				var contents = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.Content.GetAllContents(recipeRepo.Owner, recipeRepo.Name, recipeRepo.VersionFilePath)).ConfigureAwait(false);
 				var deserializer = new YamlDotNet.Serialization.Deserializer();
 				var yamlConfig = deserializer.Deserialize<CakeVersionYamlConfig>(contents[0].Content);
 				return yamlConfig.TargetCakeVersion;
@@ -85,7 +85,7 @@ namespace Cake.AddinDiscoverer.Steps
 		{
 			try
 			{
-				var contents = await context.GithubClient.Repository.Content.GetAllContents(recipeRepo.Owner, recipeRepo.Name, Constants.DOT_NET_TOOLS_CONFIG_PATH).ConfigureAwait(false);
+				var contents = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.Content.GetAllContents(recipeRepo.Owner, recipeRepo.Name, Constants.DOT_NET_TOOLS_CONFIG_PATH)).ConfigureAwait(false);
 				var jObject = JObject.Parse(contents[0].Content);
 				var versionNode = jObject["tools"]?["cake.tool"]?["version"];
 				return versionNode == null ? null : SemVersion.Parse(versionNode.Value<string>());
@@ -277,7 +277,7 @@ namespace Cake.AddinDiscoverer.Steps
 						{
 							Body = $"Reference to {outdatedReference.Reference.Name} {outdatedReference.Reference.ReferencedVersion} in {outdatedReference.Recipe.Name} should be updated to {outdatedReference.LatestVersion}"
 						};
-						issue = await context.GithubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
+						issue = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue)).ConfigureAwait(false);
 
 						// Commit changes to a new branch and submit PR
 						var commitMessageShort = $"Update {outdatedReference.Reference.Name} reference to {outdatedReference.LatestVersion}";
@@ -354,14 +354,14 @@ namespace Cake.AddinDiscoverer.Steps
 				{
 					Body = issueBody.ToString()
 				};
-				issue = await context.GithubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue).ConfigureAwait(false);
+				issue = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Create(upstream.Owner.Login, upstream.Name, newIssue)).ConfigureAwait(false);
 				context.IssuesCreatedByCurrentUser.Add(issue);
 			}
 			else
 			{
 				var issueUpdate = issue.ToUpdate();
 				issueUpdate.Body = issueBody.ToString();
-				issue = await context.GithubClient.Issue.Update(upstream.Owner.Login, upstream.Name, issue.Number, issueUpdate).ConfigureAwait(false);
+				issue = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Update(upstream.Owner.Login, upstream.Name, issue.Number, issueUpdate)).ConfigureAwait(false);
 			}
 
 			// Submit a PR when all addins have been upgraded to next version of Cake

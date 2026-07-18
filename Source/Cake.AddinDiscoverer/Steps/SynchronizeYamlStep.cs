@@ -366,7 +366,7 @@ namespace Cake.AddinDiscoverer.Steps
 					Body = $"The Cake.AddinDiscoverer tool has discovered that a large number of YAML file need to be deleted, added or modified.{Environment.NewLine}" +
 						   $"{Environment.NewLine}Since the number of files is larger than usual, we grouped them all together and we are raising a single issue and opening a single PR.{Environment.NewLine}"
 				};
-				var issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+				var issue = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue)).ConfigureAwait(false);
 				context.IssuesCreatedByCurrentUser.Add(issue);
 
 				// Commit changes to a new branch and submit PR

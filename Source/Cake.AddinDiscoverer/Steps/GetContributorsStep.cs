@@ -35,7 +35,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var allContributors = new Dictionary<Repository, IEnumerable<RepositoryContributor>>(250);
 			foreach (var publicRepo in publicRepos)
 			{
-				var repoContributors = await context.GithubClient.Repository.GetAllContributors(publicRepo.Id, false, apiOptions).ConfigureAwait(false);
+				var repoContributors = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.GetAllContributors(publicRepo.Id, false, apiOptions)).ConfigureAwait(false);
 				allContributors[publicRepo] = repoContributors;
 			}
 
@@ -67,7 +67,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			try
 			{
-				directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "contributors").ConfigureAwait(false);
+				directoryContent = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "contributors")).ConfigureAwait(false);
 			}
 			catch (NotFoundException)
 			{
@@ -82,7 +82,7 @@ namespace Cake.AddinDiscoverer.Steps
 						var currentContent = string.Empty;
 						if (directoryContent.Any(currentFile => currentFile.Name.EndsWith(fileName, StringComparison.OrdinalIgnoreCase)))
 						{
-							var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"contributors/{fileName}").ConfigureAwait(false);
+							var contents = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"contributors/{fileName}")).ConfigureAwait(false);
 							if (contents != null && contents.Count >= 1) currentContent = contents[0].Content;
 						}
 
@@ -182,7 +182,7 @@ namespace Cake.AddinDiscoverer.Steps
 				{
 					Body = $"The Cake.AddinDiscoverer tool has discovered that the list of contributors has changed.{Environment.NewLine}"
 				};
-				var issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
+				var issue = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue)).ConfigureAwait(false);
 				context.IssuesCreatedByCurrentUser.Add(issue);
 
 				// Commit changes to a new branch and submit PR

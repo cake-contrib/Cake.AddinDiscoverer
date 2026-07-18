@@ -30,7 +30,7 @@ namespace Cake.AddinDiscoverer
 
 			// Build the tree with the existing items
 			var nt = new NewTree();
-			var currentTree = await githubClient.Git.Tree.GetRecursive(repo.Owner.Login, repo.Name, parentCommit.Tree.Sha).ConfigureAwait(false);
+			var currentTree = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Tree.GetRecursive(repo.Owner.Login, repo.Name, parentCommit.Tree.Sha)).ConfigureAwait(false);
 			currentTree.Tree
 				.Where(x => x.Type != TreeType.Tree)
 				.Select(x => new NewTreeItem
@@ -65,7 +65,7 @@ namespace Cake.AddinDiscoverer
 						Encoding = file.Encoding,
 						Content = file.Content
 					};
-					var fileBlobRef = await githubClient.Git.Blob.Create(repo.Owner.Login, repo.Name, fileBlob).ConfigureAwait(false);
+					var fileBlobRef = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Blob.Create(repo.Owner.Login, repo.Name, fileBlob)).ConfigureAwait(false);
 					nt.Tree.Add(new NewTreeItem
 					{
 						Path = file.Path,
@@ -77,9 +77,9 @@ namespace Cake.AddinDiscoverer
 			}
 
 			// Commit changes
-			var newTree = await githubClient.Git.Tree.Create(repo.Owner.Login, repo.Name, nt);
+			var newTree = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Tree.Create(repo.Owner.Login, repo.Name, nt)).ConfigureAwait(false);
 			var newCommit = new NewCommit(commitMessage, newTree.Sha, parentCommit.Sha);
-			var latestCommit = await githubClient.Git.Commit.Create(repo.Owner.Login, repo.Name, newCommit);
+			var latestCommit = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Commit.Create(repo.Owner.Login, repo.Name, newCommit)).ConfigureAwait(false);
 
 			return latestCommit;
 		}
@@ -135,24 +135,24 @@ namespace Cake.AddinDiscoverer
 
 		public static async Task<Repository> CreateOrRefreshFork(this IGitHubClient githubClient, string repoOwner, string repoName)
 		{
-			var fork = await githubClient.Repository.Forks.Create(repoOwner, repoName, new NewRepositoryFork()).ConfigureAwait(false);
+			var fork = await Misc.ExecuteWithRetryAsync(() => githubClient.Repository.Forks.Create(repoOwner, repoName, new NewRepositoryFork())).ConfigureAwait(false);
 			return await githubClient.RefreshFork(fork).ConfigureAwait(false);
 		}
 
 		public static async Task<Repository> RefreshFork(this IGitHubClient githubClient, string forkOwner, string forkName)
 		{
-			var fork = await githubClient.Repository.Get(forkOwner, forkName).ConfigureAwait(false);
+			var fork = await Misc.ExecuteWithRetryAsync(() => githubClient.Repository.Get(forkOwner, forkName)).ConfigureAwait(false);
 			return await githubClient.RefreshFork(fork).ConfigureAwait(false);
 		}
 
 		public static async Task<Repository> RefreshFork(this IGitHubClient githubClient, Repository fork)
 		{
 			var upstream = fork.Parent ?? throw new Exception("This repository is not a fork");
-			var compareResult = await githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}").ConfigureAwait(false);
+			var compareResult = await Misc.ExecuteWithRetryAsync(() => githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}")).ConfigureAwait(false);
 			if (compareResult.BehindBy > 0)
 			{
-				var upstreamBranchReference = await githubClient.Git.Reference.Get(upstream.Owner.Login, upstream.Name, $"heads/{upstream.DefaultBranch}").ConfigureAwait(false);
-				await githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}", new ReferenceUpdate(upstreamBranchReference.Object.Sha)).ConfigureAwait(false);
+				var upstreamBranchReference = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Reference.Get(upstream.Owner.Login, upstream.Name, $"heads/{upstream.DefaultBranch}")).ConfigureAwait(false);
+				await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}", new ReferenceUpdate(upstreamBranchReference.Object.Sha))).ConfigureAwait(false);
 			}
 
 			return fork;

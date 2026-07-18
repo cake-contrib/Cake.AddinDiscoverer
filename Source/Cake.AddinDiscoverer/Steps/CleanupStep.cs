@@ -131,9 +131,7 @@ namespace Cake.AddinDiscoverer.Steps
 					SortDirection = SortDirection.Descending,
 					Head = $"{context.Options.GithubUsername}:{branch.Name}"
 				};
-				var pullRequests = await context.GithubClient.Repository.PullRequest
-					.GetAllForRepository(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, pullRequestsRequest)
-					.ConfigureAwait(false);
+				var pullRequests = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.PullRequest.GetAllForRepository(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, pullRequestsRequest)).ConfigureAwait(false);
 				var pr = pullRequests.SingleOrDefault(pr => pr.Head.Sha == branch.Commit.Sha);
 
 				if (pr != null && pr.Merged)
