@@ -30,7 +30,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			return unnecessaryFrameworks.Length == 0;
 		}
 
-		public static async Task<Issue> FindGithubIssueAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)
+		public static async Task<Issue[]> FindGithubIssuesAsync(DiscoveryContext context, string repoOwner, string repoName, string creator)
 		{
 			// Optimization: if the creator is the current user, we can rely on the cached list of issues
 			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
@@ -41,7 +41,7 @@ namespace Cake.AddinDiscoverer.Utilities
 						var success = Misc.DeriveGitHubRepositoryInfo(new Uri(i.Url), out string owner, out string name);
 						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
 					})
-					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
+					.ToArray();
 			}
 			else
 			{
@@ -54,8 +54,7 @@ namespace Cake.AddinDiscoverer.Utilities
 				};
 
 				var issues = await ExecuteWithRetryAsync(() => context.GithubClient.Issue.GetAllForRepository(repoOwner, repoName, request)).ConfigureAwait(false);
-				var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
-				return issue;
+				return issues.ToArray();
 			}
 		}
 

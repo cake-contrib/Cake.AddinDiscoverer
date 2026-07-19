@@ -259,6 +259,8 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				var updatedReferencesCount = 0;
 
+				var issues = await Misc.FindGithubIssuesAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername).ConfigureAwait(false);
+
 				// Create an issue and PR for each outdated reference
 				foreach (var outdatedReference in outdatedReferences)
 				{
@@ -269,7 +271,7 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						// Check if an issue already exists
 						var issueTitle = $"Reference to {outdatedReference.Type} {outdatedReference.Reference.Name} in {outdatedReference.Recipe.Name} needs to be updated";
-						var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
+						var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE));
 						if (issue != null) continue;
 
 						// Create the issue
@@ -306,6 +308,8 @@ namespace Cake.AddinDiscoverer.Steps
 			// Ensure the fork is up-to-date
 			var fork = await context.GithubClient.CreateOrRefreshFork(recipeRepo.Owner, recipeRepo.Name).ConfigureAwait(false);
 			var upstream = fork.Parent;
+
+			var issues = await Misc.FindGithubIssuesAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername).ConfigureAwait(false);
 
 			// The content of the issue body
 			var issueBody = new StringBuilder();
@@ -347,7 +351,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// Create a new issue or update existing one
 			var issueTitle = string.Format(Constants.CAKE_RECIPE_UPGRADE_CAKE_VERSION_ISSUE_TITLE, nextCakeVersion.Version.ToString(3));
-			var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, issueTitle).ConfigureAwait(false);
+			var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(issueTitle));
 			if (issue == null)
 			{
 				var newIssue = new NewIssue(issueTitle)

@@ -168,7 +168,8 @@ namespace Cake.AddinDiscoverer.Steps
 			{
 				// Check if an issue already exists
 				var upstream = fork.Parent;
-				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE).ConfigureAwait(false);
+				var issues = await Misc.FindGithubIssuesAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername).ConfigureAwait(false);
+				var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE));
 
 				if (issue == null)
 				{
