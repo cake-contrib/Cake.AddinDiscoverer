@@ -493,6 +493,39 @@ namespace Cake.AddinDiscoverer
 			}
 		}
 
+		public static Issue WithPullRequest(this Issue issue, PullRequest pullRequest)
+		{
+			if (issue == null) throw new ArgumentNullException(nameof(issue));
+
+			return new Issue(
+				issue.Url,
+				issue.HtmlUrl,
+				issue.CommentsUrl,
+				issue.EventsUrl,
+				issue.Number,
+				issue.State.Value,
+				issue.Title,
+				issue.Body,
+				issue.ClosedBy,
+				issue.User,
+				issue.Labels,
+				issue.Assignee,
+				issue.Assignees,
+				issue.Milestone,
+				issue.Comments,
+				pullRequest,
+				issue.ClosedAt,
+				issue.CreatedAt,
+				issue.UpdatedAt,
+				issue.Id,
+				issue.NodeId,
+				issue.Locked,
+				issue.Repository,
+				issue.Reactions,
+				issue.ActiveLockReason?.Value,
+				issue.StateReason?.Value);
+		}
+
 		private static void CheckIsEnum<T>(bool withFlags)
 		{
 			if (!typeof(T).IsEnum)

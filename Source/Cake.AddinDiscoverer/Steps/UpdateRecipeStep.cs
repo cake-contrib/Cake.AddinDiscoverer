@@ -398,7 +398,11 @@ namespace Cake.AddinDiscoverer.Steps
 					};
 
 					pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, pullRequestTitle, commits).ConfigureAwait(false);
-					if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+					if (pullRequest != null)
+					{
+						issue = issue.WithPullRequest(pullRequest);
+						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+					}
 				}
 			}
 		}

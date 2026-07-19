@@ -95,26 +95,15 @@ namespace Cake.AddinDiscoverer.Steps
 				// All changes created in a single branch and we don't create issues + PRs
 				await DryRunAsync(context, fork, yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated).ConfigureAwait(false);
 			}
+			else if (yamlFilesToBeDeleted.Length + addinsToBeCreated.Length + addinsToBeUpdated.Length > 25)
+			{
+				// Changes are committed to a single branch, one single issue is raised and a single PRs is opened
+				await SynchronizeYamlFilesCollectivelyAsync(context, fork, yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated).ConfigureAwait(false);
+			}
 			else
 			{
-				// Check if an issue already exists
-				var upstream = fork.Parent;
-				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE).ConfigureAwait(false);
-
-				if (issue != null)
-				{
-					return;
-				}
-				else if (yamlFilesToBeDeleted.Length + addinsToBeCreated.Length + addinsToBeUpdated.Length > 25)
-				{
-					// Changes are committed to a single branch, one single issue is raised and a single PRs is opened
-					await SynchronizeYamlFilesCollectivelyAsync(context, fork, yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated).ConfigureAwait(false);
-				}
-				else
-				{
-					// Each change is committed in a separate branch with their own issue and PR
-					await SynchronizeYamlFilesIndividuallyAsync(context, fork, yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated).ConfigureAwait(false);
-				}
+				// Each change is committed in a separate branch with their own issue and PR
+				await SynchronizeYamlFilesIndividuallyAsync(context, fork, yamlFilesToBeDeleted, addinsToBeCreated, addinsToBeUpdated).ConfigureAwait(false);
 			}
 		}
 
@@ -177,7 +166,11 @@ namespace Cake.AddinDiscoverer.Steps
 						};
 						issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
 						context.IssuesCreatedByCurrentUser.Add(issue);
+					}
 
+					// Check if a PR already exists
+					if (issue.PullRequest == null)
+					{
 						// Commit changes to a new branch and submit PR
 						var newBranchName = $"delete_{yamlFileToBeDeleted.Name}_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
@@ -186,7 +179,11 @@ namespace Cake.AddinDiscoverer.Steps
 							};
 
 						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
-						if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+						if (pullRequest != null)
+						{
+							issue = issue.WithPullRequest(pullRequest);
+							context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+						}
 
 						// This delay is important to avoid triggering GitHub's abuse protection
 						await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
@@ -221,7 +218,11 @@ namespace Cake.AddinDiscoverer.Steps
 						};
 						issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
 						context.IssuesCreatedByCurrentUser.Add(issue);
+					}
 
+					// Check if a PR already exists
+					if (issue.PullRequest == null)
+					{
 						// Commit changes to a new branch and submit PR
 						var newBranchName = $"add_{addinToBeCreated.Addin.Name}.yml_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 						var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>
@@ -230,7 +231,11 @@ namespace Cake.AddinDiscoverer.Steps
 						};
 
 						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
-						if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+						if (pullRequest != null)
+						{
+							issue = issue.WithPullRequest(pullRequest);
+							context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+						}
 
 						// This is minimize the likelihood of triggering Github's abuse detection
 						await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
@@ -265,7 +270,11 @@ namespace Cake.AddinDiscoverer.Steps
 						};
 						issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
 						context.IssuesCreatedByCurrentUser.Add(issue);
+					}
 
+					// Check if a PR already exists
+					if (issue.PullRequest == null)
+					{
 						// Prepare changes
 						var newBranchName = $"update_{addinToBeUpdated.Addin.Name}.yml_{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss}";
 						var commits =
@@ -279,7 +288,11 @@ namespace Cake.AddinDiscoverer.Steps
 							};
 
 						var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, issueTitle, commits).ConfigureAwait(false);
-						if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+						if (pullRequest != null)
+						{
+							issue = issue.WithPullRequest(pullRequest);
+							context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+						}
 
 						// This is minimize the likelihood of triggering Github's abuse detection
 						await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
@@ -360,18 +373,31 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (commits.Any())
 			{
-				// Create issue
-				var newIssue = new NewIssue(Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE)
+				// Check if an issue already exists
+				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE).ConfigureAwait(false);
+				if (issue == null)
 				{
-					Body = $"The Cake.AddinDiscoverer tool has discovered that a large number of YAML file need to be deleted, added or modified.{Environment.NewLine}" +
+					// Create issue
+					var newIssue = new NewIssue(Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE)
+					{
+						Body = $"The Cake.AddinDiscoverer tool has discovered that a large number of YAML file need to be deleted, added or modified.{Environment.NewLine}" +
 						   $"{Environment.NewLine}Since the number of files is larger than usual, we grouped them all together and we are raising a single issue and opening a single PR.{Environment.NewLine}"
-				};
-				var issue = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue)).ConfigureAwait(false);
-				context.IssuesCreatedByCurrentUser.Add(issue);
+					};
+					issue = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue)).ConfigureAwait(false);
+					context.IssuesCreatedByCurrentUser.Add(issue);
+				}
 
-				// Commit changes to a new branch and submit PR
-				var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE, commits).ConfigureAwait(false);
-				if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+				// Check if a PR already exists
+				if (issue.PullRequest == null)
+				{
+					// Commit changes to a new branch and submit PR
+					var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, Constants.COLLECTIVE_YAML_SYNCHRONIZATION_ISSUE_TITLE, commits).ConfigureAwait(false);
+					if (pullRequest != null)
+					{
+						issue = issue.WithPullRequest(pullRequest);
+						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+					}
+				}
 			}
 		}
 
