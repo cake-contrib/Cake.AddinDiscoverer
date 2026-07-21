@@ -1,4 +1,5 @@
 using Cake.AddinDiscoverer.Utilities;
+using GraphQL.Client.Http;
 using NuGet.Protocol.Core.Types;
 using Octokit;
 using Octokit.Internal;
@@ -20,6 +21,8 @@ namespace Cake.AddinDiscoverer.Models
 		public IHttpClient GithubHttpClient { get; set; }
 
 		public HttpClient HttpClient { get; set; }
+
+		public GraphQLHttpClient GraphQLClient { get; set; }
 
 		public CachedRepositoryValidator RepositoryValidator { get; set; }
 

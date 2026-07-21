@@ -87,7 +87,7 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 				else
 				{
-					issueComment = await context.GithubClient.Issue.Comment.Create(addin.RepositoryOwner, addin.RepositoryName, addin.AuditIssue.Number, comment.ToString()).ConfigureAwait(false);
+					issueComment = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Comment.Create(addin.RepositoryOwner, addin.RepositoryName, addin.AuditIssue.Number, comment.ToString())).ConfigureAwait(false);
 				}
 			}
 			catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Issues are disabled for this repo"))
@@ -196,7 +196,7 @@ namespace Cake.AddinDiscoverer.Steps
 				}
 				else
 				{
-					issue = await context.GithubClient.Issue.Create(addin.RepositoryOwner, addin.RepositoryName, newIssue).ConfigureAwait(false);
+					issue = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Create(addin.RepositoryOwner, addin.RepositoryName, newIssue)).ConfigureAwait(false);
 				}
 			}
 			catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Issues are disabled for this repo"))

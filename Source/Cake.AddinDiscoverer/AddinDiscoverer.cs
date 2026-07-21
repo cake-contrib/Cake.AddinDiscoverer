@@ -1,6 +1,8 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Steps;
 using Cake.AddinDiscoverer.Utilities;
+using GraphQL.Client.Http;
+using GraphQL.Client.Serializer.SystemTextJson;
 using NuGet.Configuration;
 using NuGet.Protocol.Core.Types;
 using Octokit;
@@ -12,6 +14,7 @@ using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -67,6 +70,15 @@ namespace Cake.AddinDiscoverer
 			providers.AddRange(NuGet.Protocol.Core.Types.Repository.Provider.GetCoreV3());  // Add v3 API support
 			var packageSource = new PackageSource("https://api.nuget.org/v3/index.json");
 
+			var graphQlHttpClient = new HttpClient(new HttpClientHandler() { Proxy = proxy, UseProxy = proxy != null })
+			{
+				BaseAddress = new Uri("https://api.github.com/graphql"),
+				DefaultRequestHeaders =
+				{
+					{ "Authorization", $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(connection.Credentials.Login, ":", connection.Credentials.Password)))}" }
+				}
+			};
+
 			// Setup the context that will be passed to each step
 			_context = new DiscoveryContext()
 			{
@@ -74,6 +86,18 @@ namespace Cake.AddinDiscoverer
 				GithubClient = new GitHubClient(connection),
 				GithubHttpClient = new HttpClientAdapter(() => HttpMessageHandlerFactory.CreateDefault(proxy)),
 				HttpClient = new HttpClient(new HttpClientHandler() { Proxy = proxy, UseProxy = proxy != null }),
+				GraphQLClient = new GraphQLHttpClient(
+					"https://api.github.com/graphql",
+					new SystemTextJsonSerializer(),
+					new HttpClient(
+						new HttpClientHandler() { Proxy = proxy, UseProxy = proxy != null })
+					{
+						BaseAddress = new Uri("https://api.github.com/graphql"),
+						DefaultRequestHeaders =
+							{
+								{ "Authorization", $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Concat(connection.Credentials.Login, ":", connection.Credentials.Password)))}" }
+							}
+					}),
 				NugetRepository = new SourceRepository(packageSource, providers),
 				Options = options,
 				TempFolder = Path.Combine(options.TemporaryFolder, Constants.PRODUCT_NAME),

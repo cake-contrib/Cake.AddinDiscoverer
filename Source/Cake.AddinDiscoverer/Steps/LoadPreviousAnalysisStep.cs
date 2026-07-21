@@ -59,7 +59,7 @@ namespace Cake.AddinDiscoverer.Steps
 				{
 					try
 					{
-						var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.CompressedAnalysisResultSaveLocation)).ConfigureAwait(false);
+						var contents = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.CompressedAnalysisResultSaveLocation))).ConfigureAwait(false);
 
 						// The ZIP file is probably small enough to be retrieved using Octokit, but just to be safe let's issue a HTTP GET to the download URL
 						var zippedContent = await context.HttpClient.GetByteArrayAsync(contents[0].DownloadUrl, cancellationToken).ConfigureAwait(false);
@@ -80,7 +80,7 @@ namespace Cake.AddinDiscoverer.Steps
 					catch (NotFoundException)
 					{
 						// When all else fails, try to load previous analysis result from a JSON from the GitHub repo
-						var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.AnalysisResultSaveLocation)).ConfigureAwait(false);
+						var contents = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, Path.GetFileName(context.AnalysisResultSaveLocation))).ConfigureAwait(false);
 
 						// The file is too large to be retrieved from the GitHub API. We must issue a HTTP GET to the download URL
 						previousAnalysisContent = await context.HttpClient.GetStringAsync(contents[0].DownloadUrl, cancellationToken).ConfigureAwait(false);

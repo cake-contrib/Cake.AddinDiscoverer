@@ -17,24 +17,24 @@
 
   <ItemGroup>
     <PackageReference Include="Ben.Demystifier" Version="0.4.1" />
-    <PackageReference Include="Cake.Common" Version="6.1.0" />
-    <PackageReference Include="Cake.Core" Version="6.1.0" />
-    <PackageReference Include="Cake.Incubator" Version="10.0.0" />
+    <PackageReference Include="Cake.Common" Version="6.2.0" />
+    <PackageReference Include="Cake.Core" Version="6.2.0" />
+    <PackageReference Include="Cake.Incubator" Version="11.0.0" />
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="CsvHelper" Version="33.1.0" />
-    <PackageReference Include="EPPlus" Version="8.5.1" />
-    <PackageReference Include="FSharp.Core" Version="10.1.202" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
+    <PackageReference Include="EPPlus" Version="8.6.1" />
+    <PackageReference Include="FSharp.Core" Version="10.1.302" /> <!-- See comment in the FindAssemblyToAnalyze method about assembly resolution for explanation about this reference -->
     <PackageReference Include="GraphQL.Client" Version="6.1.0" />
     <PackageReference Include="GraphQL.Client.Serializer.SystemTextJson" Version="6.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="NuGet.Protocol" Version="7.3.1" />
+    <PackageReference Include="NuGet.Protocol" Version="7.6.0" />
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="OxyPlot.WindowsForms" Version="2.2.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="10.0.6" />
-    <PackageReference Include="YamlDotNet" Version="17.0.1" />
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="10.0.10" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
   <ItemGroup>

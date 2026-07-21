@@ -4,6 +4,7 @@ using Octokit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -29,7 +30,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			return unnecessaryFrameworks.Length == 0;
 		}
 
-		public static async Task<Issue> FindGithubIssueAsync(DiscoveryContext context, string repoOwner, string repoName, string creator, string title)
+		public static async Task<Issue[]> FindGithubIssuesAsync(DiscoveryContext context, string repoOwner, string repoName, string creator)
 		{
 			// Optimization: if the creator is the current user, we can rely on the cached list of issues
 			if (creator.EqualsIgnoreCase(context.GithubClient.Connection.Credentials.Login))
@@ -40,7 +41,7 @@ namespace Cake.AddinDiscoverer.Utilities
 						var success = Misc.DeriveGitHubRepositoryInfo(new Uri(i.Url), out string owner, out string name);
 						return owner.EqualsIgnoreCase(repoOwner) && name.EqualsIgnoreCase(repoName);
 					})
-					.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
+					.ToArray();
 			}
 			else
 			{
@@ -52,9 +53,8 @@ namespace Cake.AddinDiscoverer.Utilities
 					SortDirection = SortDirection.Descending
 				};
 
-				var issues = await context.GithubClient.Issue.GetAllForRepository(repoOwner, repoName, request).ConfigureAwait(false);
-				var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(title));
-				return issue;
+				var issues = await ExecuteWithRetryAsync(() => context.GithubClient.Issue.GetAllForRepository(repoOwner, repoName, request)).ConfigureAwait(false);
+				return issues.ToArray();
 			}
 		}
 
@@ -80,7 +80,7 @@ namespace Cake.AddinDiscoverer.Utilities
 					SortDirection = SortDirection.Descending
 				};
 
-				var pullRequests = await context.GithubClient.PullRequest.GetAllForRepository(repoOwner, repoName, request).ConfigureAwait(false);
+				var pullRequests = await ExecuteWithRetryAsync(() => context.GithubClient.PullRequest.GetAllForRepository(repoOwner, repoName, request)).ConfigureAwait(false);
 				var pullRequest = pullRequests.FirstOrDefault(pr => pr.Title.EqualsIgnoreCase(title) && pr.User.Login.EqualsIgnoreCase(creator));
 
 				return pullRequest;
@@ -111,9 +111,9 @@ namespace Cake.AddinDiscoverer.Utilities
 		{
 			if (commits == null || !commits.Any()) throw new ArgumentNullException(nameof(commits), "You must provide at least one commit");
 
-			var defaultBranchReference = await context.GithubClient.Git.Reference.Get(context.Options.GithubUsername, fork.Name, $"heads/{fork.DefaultBranch}").ConfigureAwait(false);
+			var defaultBranchReference = await ExecuteWithRetryAsync(() => context.GithubClient.Git.Reference.Get(context.Options.GithubUsername, fork.Name, $"heads/{fork.DefaultBranch}")).ConfigureAwait(false);
 			var newReference = new NewReference($"heads/{newBranchName}", defaultBranchReference.Object.Sha);
-			var newBranch = await context.GithubClient.Git.Reference.Create(context.Options.GithubUsername, fork.Name, newReference).ConfigureAwait(false);
+			var newBranch = await ExecuteWithRetryAsync(() => context.GithubClient.Git.Reference.Create(context.Options.GithubUsername, fork.Name, newReference)).ConfigureAwait(false);
 
 			var latestCommit = await context.GithubClient.Git.Commit.Get(context.Options.GithubUsername, fork.Name, newBranch.Object.Sha).ConfigureAwait(false);
 
@@ -144,7 +144,7 @@ namespace Cake.AddinDiscoverer.Utilities
 			{
 				Body = body.ToString()
 			};
-			var pullRequest = await context.GithubClient.PullRequest.Create(upstream.Owner.Login, upstream.Name, newPullRequest).ConfigureAwait(false);
+			var pullRequest = await ExecuteWithRetryAsync(() => context.GithubClient.PullRequest.Create(upstream.Owner.Login, upstream.Name, newPullRequest)).ConfigureAwait(false);
 
 			return pullRequest;
 		}
@@ -217,6 +217,47 @@ namespace Cake.AddinDiscoverer.Utilities
 				WriteIndented = indented,
 				Converters = { new Json.NuGetVersionConverter() }
 			};
+		}
+
+		/// <summary>
+		/// Executes an Octokit API call with retry logic for transient errors.
+		/// </summary>
+		public static async Task<T> ExecuteWithRetryAsync<T>(Func<Task<T>> action, int? maxRetries = null, int? delayMilliseconds = null)
+		{
+			int attempt = 0;
+
+			while (true)
+			{
+				try
+				{
+					return await action().ConfigureAwait(false);
+				}
+				catch (ApiException ex) when (IsTransientError(ex))
+				{
+					attempt++;
+					if (attempt > (maxRetries ?? 3))
+						throw;
+
+					var delay = delayMilliseconds ?? RandomNumberGenerator.GetInt32(2000, 5000);
+					Console.WriteLine($"Transient error ({ex.StatusCode}), retrying in {delay}ms...");
+					await Task.Delay(delay).ConfigureAwait(false);
+				}
+				catch (Exception)
+				{
+					throw; // Non-API exceptions are not retried
+				}
+			}
+		}
+
+		/// <summary>
+		/// Determines if the error is transient (retryable).
+		/// </summary>
+		private static bool IsTransientError(ApiException ex)
+		{
+			return ex.StatusCode == HttpStatusCode.UnprocessableEntity // 422 <-- I believe (altough unverified) that this is the HTTP status code when we get "Sorry, your request timed out"
+				|| ex.StatusCode == HttpStatusCode.BadGateway // 502
+				|| ex.StatusCode == HttpStatusCode.ServiceUnavailable // 503
+				|| ex.StatusCode == HttpStatusCode.GatewayTimeout; // 504
 		}
 	}
 }

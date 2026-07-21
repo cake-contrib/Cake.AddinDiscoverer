@@ -35,7 +35,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var allContributors = new Dictionary<Repository, IEnumerable<RepositoryContributor>>(250);
 			foreach (var publicRepo in publicRepos)
 			{
-				var repoContributors = await context.GithubClient.Repository.GetAllContributors(publicRepo.Id, false, apiOptions).ConfigureAwait(false);
+				var repoContributors = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.GetAllContributors(publicRepo.Id, false, apiOptions)).ConfigureAwait(false);
 				allContributors[publicRepo] = repoContributors;
 			}
 
@@ -67,7 +67,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 			try
 			{
-				directoryContent = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "contributors").ConfigureAwait(false);
+				directoryContent = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, "contributors")).ConfigureAwait(false);
 			}
 			catch (NotFoundException)
 			{
@@ -82,7 +82,7 @@ namespace Cake.AddinDiscoverer.Steps
 						var currentContent = string.Empty;
 						if (directoryContent.Any(currentFile => currentFile.Name.EndsWith(fileName, StringComparison.OrdinalIgnoreCase)))
 						{
-							var contents = await context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"contributors/{fileName}").ConfigureAwait(false);
+							var contents = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Repository.Content.GetAllContents(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, $"contributors/{fileName}")).ConfigureAwait(false);
 							if (contents != null && contents.Count >= 1) currentContent = contents[0].Content;
 						}
 
@@ -115,19 +115,8 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 			else
 			{
-				// Check if an issue already exists
-				var upstream = fork.Parent;
-				var issue = await Misc.FindGithubIssueAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername, Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE).ConfigureAwait(false);
-
-				if (issue != null)
-				{
-					return;
-				}
-				else
-				{
-					// Changes are committed to a single branch, one single issue is raised and a single PRs is opened
-					await SynchronizeFilesCollectivelyAsync(context, fork, filesToBeCreated, filesToBeUpdated).ConfigureAwait(false);
-				}
+				// Changes are committed to a single branch, one single issue is raised and a single PRs is opened
+				await SynchronizeFilesCollectivelyAsync(context, fork, filesToBeCreated, filesToBeUpdated).ConfigureAwait(false);
 			}
 		}
 
@@ -177,17 +166,32 @@ namespace Cake.AddinDiscoverer.Steps
 
 			if (commits.Any())
 			{
-				// Create issue
-				var newIssue = new NewIssue(Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE)
-				{
-					Body = $"The Cake.AddinDiscoverer tool has discovered that the list of contributors has changed.{Environment.NewLine}"
-				};
-				var issue = await context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue).ConfigureAwait(false);
-				context.IssuesCreatedByCurrentUser.Add(issue);
+				// Check if an issue already exists
+				var upstream = fork.Parent;
+				var issues = await Misc.FindGithubIssuesAsync(context, upstream.Owner.Login, upstream.Name, context.Options.GithubUsername).ConfigureAwait(false);
+				var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE));
 
-				// Commit changes to a new branch and submit PR
-				var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue?.Number, newBranchName, Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE, commits).ConfigureAwait(false);
-				if (pullRequest != null) context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+				if (issue == null)
+				{
+					// Create issue
+					var newIssue = new NewIssue(Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE)
+					{
+						Body = $"The Cake.AddinDiscoverer tool has discovered that the list of contributors has changed.{Environment.NewLine}"
+					};
+					issue = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Issue.Create(Constants.CAKE_REPO_OWNER, Constants.CAKE_WEBSITE_REPO_NAME, newIssue)).ConfigureAwait(false);
+					context.IssuesCreatedByCurrentUser.Add(issue);
+				}
+
+				if (issue.PullRequest == null)
+				{
+					// Commit changes to a new branch and submit PR
+					var pullRequest = await Misc.CommitToNewBranchAndSubmitPullRequestAsync(context, fork, issue.Number, newBranchName, Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE, commits).ConfigureAwait(false);
+					if (pullRequest != null)
+					{
+						issue = issue.WithPullRequest(pullRequest);
+						context.PullRequestsCreatedByCurrentUser.Add(pullRequest);
+					}
+				}
 			}
 		}
 

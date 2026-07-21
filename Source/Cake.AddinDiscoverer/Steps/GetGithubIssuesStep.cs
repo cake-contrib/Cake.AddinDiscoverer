@@ -35,7 +35,7 @@ namespace Cake.AddinDiscoverer.Steps
 			var moreRecords = true;
 			do
 			{
-				var searchResult = await context.GithubClient.Search.SearchIssues(searchRequest).ConfigureAwait(false);
+				var searchResult = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Search.SearchIssues(searchRequest)).ConfigureAwait(false);
 				allIssuesAndPullRequests.AddRange(searchResult.Items);
 				searchRequest.Page++;
 

@@ -1,6 +1,7 @@
 using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
+using Cake.Incubator.XDocumentExtensions;
 using Octokit;
 using System;
 using System.Collections.Generic;
@@ -38,7 +39,7 @@ namespace Cake.AddinDiscoverer.Steps
 							!string.IsNullOrEmpty(addin.RepositoryOwner))
 						{
 							var commits = new List<(string CommitMessage, IEnumerable<string> FilesToDelete, IEnumerable<(EncodingType Encoding, string Path, string Content)> FilesToUpsert)>();
-							var repoContent = await context.RepositoryValidator.GetRepoContentAsync(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
+							var repoContent = await Misc.ExecuteWithRetryAsync(() => context.RepositoryValidator.GetRepoContentAsync(addin.RepositoryOwner, addin.RepositoryName)).ConfigureAwait(false);
 
 							await FixNuspec(context, addin, repoContent, recommendedCakeVersion, commits).ConfigureAwait(false);
 							await FixCsproj(context, addin, repoContent, recommendedCakeVersion, commits).ConfigureAwait(false);
@@ -52,7 +53,7 @@ namespace Cake.AddinDiscoverer.Steps
 								if (requestsLeft > Constants.MIN_GITHUB_REQUESTS_THRESHOLD)
 								{
 									// Fork the addin repo if it hasn't been forked already and make sure it's up to date
-									var fork = await context.GithubClient.CreateOrRefreshFork(addin.RepositoryOwner, addin.RepositoryName).ConfigureAwait(false);
+									var fork = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.CreateOrRefreshFork(addin.RepositoryOwner, addin.RepositoryName)).ConfigureAwait(false);
 
 									// This delay is important to avoid triggering GitHub's abuse protection
 									await Misc.RandomGithubDelayAsync().ConfigureAwait(false);
@@ -156,7 +157,7 @@ namespace Cake.AddinDiscoverer.Steps
 
 					if (targetFrameworkElement == null && targetFrameworksElement == null)
 					{
-						throw new Exception("We found neither 'TargetFrameworks' nor 'TargetFramework' in {addin.Name}.csproj. Therfore we were unable to update the framework targets");
+						throw new Exception($"We found neither 'TargetFrameworks' nor 'TargetFramework' in {addin.Name}.csproj. Therefore we were unable to update the framework targets");
 					}
 
 					var targetFrameworks = (targetFrameworksElement?.Value.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>()).ToList();

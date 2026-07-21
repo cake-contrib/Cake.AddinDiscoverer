@@ -31,7 +31,7 @@ namespace Cake.AddinDiscoverer.Steps
 					Encoding = EncodingType.Base64,
 					Content = Convert.ToBase64String(excelBinary)
 				};
-				var excelReportBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, excelReportBlob).ConfigureAwait(false);
+				var excelReportBlobRef = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, excelReportBlob)).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
 				{
 					Path = Path.GetFileName(excelReport),
@@ -48,7 +48,7 @@ namespace Cake.AddinDiscoverer.Steps
 					Encoding = EncodingType.Utf8,
 					Content = await File.ReadAllTextAsync(markdownReport, cancellationToken).ConfigureAwait(false)
 				};
-				var makdownReportBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, makdownReportBlob).ConfigureAwait(false);
+				var makdownReportBlobRef = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, makdownReportBlob)).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
 				{
 					Path = Path.GetFileName(markdownReport),
@@ -65,7 +65,7 @@ namespace Cake.AddinDiscoverer.Steps
 					Encoding = EncodingType.Utf8,
 					Content = await File.ReadAllTextAsync(context.StatsSaveLocation, cancellationToken).ConfigureAwait(false)
 				};
-				var statsBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, statsBlob).ConfigureAwait(false);
+				var statsBlobRef = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, statsBlob)).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
 				{
 					Path = Path.GetFileName(context.StatsSaveLocation),
@@ -83,7 +83,7 @@ namespace Cake.AddinDiscoverer.Steps
 					Encoding = EncodingType.Base64,
 					Content = Convert.ToBase64String(graphBinary)
 				};
-				var graphBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, graphBlob).ConfigureAwait(false);
+				var graphBlobRef = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, graphBlob)).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
 				{
 					Path = Path.GetFileName(context.GraphSaveLocation),
@@ -102,7 +102,7 @@ namespace Cake.AddinDiscoverer.Steps
 					Encoding = EncodingType.Base64,
 					Content = Convert.ToBase64String(analysisBinary)
 				};
-				var analysisResultBlobRef = await context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, analysisResultBlob).ConfigureAwait(false);
+				var analysisResultBlobRef = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Git.Blob.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, analysisResultBlob)).ConfigureAwait(false);
 				tree.Tree.Add(new NewTreeItem
 				{
 					Path = Path.GetFileName(context.CompressedAnalysisResultSaveLocation),
@@ -117,10 +117,10 @@ namespace Cake.AddinDiscoverer.Steps
 
 			// Create the commit with the SHAs of the tree and the reference of master branch
 			var newCommit = new NewCommit($"Automated addins audit {DateTime.UtcNow:yyyy-MM-dd} at {DateTime.UtcNow:HH:mm} UTC", newTree.Sha, masterReference.Object.Sha);
-			var commit = await context.GithubClient.Git.Commit.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, newCommit).ConfigureAwait(false);
+			var commit = await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Git.Commit.Create(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, newCommit)).ConfigureAwait(false);
 
 			// Update the reference of master branch with the SHA of the commit
-			await context.GithubClient.Git.Reference.Update(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, headMasterRef, new ReferenceUpdate(commit.Sha)).ConfigureAwait(false);
+			await Misc.ExecuteWithRetryAsync(() => context.GithubClient.Git.Reference.Update(Constants.CAKE_CONTRIB_REPO_OWNER, Constants.CAKE_CONTRIB_REPO_NAME, headMasterRef, new ReferenceUpdate(commit.Sha))).ConfigureAwait(false);
 		}
 	}
 }

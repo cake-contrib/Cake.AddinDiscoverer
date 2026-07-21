@@ -30,7 +30,7 @@ namespace Cake.AddinDiscoverer
 
 			// Build the tree with the existing items
 			var nt = new NewTree();
-			var currentTree = await githubClient.Git.Tree.GetRecursive(repo.Owner.Login, repo.Name, parentCommit.Tree.Sha).ConfigureAwait(false);
+			var currentTree = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Tree.GetRecursive(repo.Owner.Login, repo.Name, parentCommit.Tree.Sha)).ConfigureAwait(false);
 			currentTree.Tree
 				.Where(x => x.Type != TreeType.Tree)
 				.Select(x => new NewTreeItem
@@ -65,7 +65,7 @@ namespace Cake.AddinDiscoverer
 						Encoding = file.Encoding,
 						Content = file.Content
 					};
-					var fileBlobRef = await githubClient.Git.Blob.Create(repo.Owner.Login, repo.Name, fileBlob).ConfigureAwait(false);
+					var fileBlobRef = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Blob.Create(repo.Owner.Login, repo.Name, fileBlob)).ConfigureAwait(false);
 					nt.Tree.Add(new NewTreeItem
 					{
 						Path = file.Path,
@@ -77,9 +77,9 @@ namespace Cake.AddinDiscoverer
 			}
 
 			// Commit changes
-			var newTree = await githubClient.Git.Tree.Create(repo.Owner.Login, repo.Name, nt);
+			var newTree = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Tree.Create(repo.Owner.Login, repo.Name, nt)).ConfigureAwait(false);
 			var newCommit = new NewCommit(commitMessage, newTree.Sha, parentCommit.Sha);
-			var latestCommit = await githubClient.Git.Commit.Create(repo.Owner.Login, repo.Name, newCommit);
+			var latestCommit = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Commit.Create(repo.Owner.Login, repo.Name, newCommit)).ConfigureAwait(false);
 
 			return latestCommit;
 		}
@@ -135,24 +135,24 @@ namespace Cake.AddinDiscoverer
 
 		public static async Task<Repository> CreateOrRefreshFork(this IGitHubClient githubClient, string repoOwner, string repoName)
 		{
-			var fork = await githubClient.Repository.Forks.Create(repoOwner, repoName, new NewRepositoryFork()).ConfigureAwait(false);
+			var fork = await Misc.ExecuteWithRetryAsync(() => githubClient.Repository.Forks.Create(repoOwner, repoName, new NewRepositoryFork())).ConfigureAwait(false);
 			return await githubClient.RefreshFork(fork).ConfigureAwait(false);
 		}
 
 		public static async Task<Repository> RefreshFork(this IGitHubClient githubClient, string forkOwner, string forkName)
 		{
-			var fork = await githubClient.Repository.Get(forkOwner, forkName).ConfigureAwait(false);
+			var fork = await Misc.ExecuteWithRetryAsync(() => githubClient.Repository.Get(forkOwner, forkName)).ConfigureAwait(false);
 			return await githubClient.RefreshFork(fork).ConfigureAwait(false);
 		}
 
 		public static async Task<Repository> RefreshFork(this IGitHubClient githubClient, Repository fork)
 		{
 			var upstream = fork.Parent ?? throw new Exception("This repository is not a fork");
-			var compareResult = await githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}").ConfigureAwait(false);
+			var compareResult = await Misc.ExecuteWithRetryAsync(() => githubClient.Repository.Commit.Compare(upstream.Owner.Login, upstream.Name, upstream.DefaultBranch, $"{fork.Owner.Login}:{fork.DefaultBranch}")).ConfigureAwait(false);
 			if (compareResult.BehindBy > 0)
 			{
-				var upstreamBranchReference = await githubClient.Git.Reference.Get(upstream.Owner.Login, upstream.Name, $"heads/{upstream.DefaultBranch}").ConfigureAwait(false);
-				await githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}", new ReferenceUpdate(upstreamBranchReference.Object.Sha)).ConfigureAwait(false);
+				var upstreamBranchReference = await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Reference.Get(upstream.Owner.Login, upstream.Name, $"heads/{upstream.DefaultBranch}")).ConfigureAwait(false);
+				await Misc.ExecuteWithRetryAsync(() => githubClient.Git.Reference.Update(fork.Owner.Login, fork.Name, $"heads/{fork.DefaultBranch}", new ReferenceUpdate(upstreamBranchReference.Object.Sha))).ConfigureAwait(false);
 			}
 
 			return fork;
@@ -220,6 +220,7 @@ namespace Cake.AddinDiscoverer
 			return currentVersion == null || currentVersion >= desiredVersion;
 		}
 
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static XElement GetFirstElement(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
 		{
 			var elements = document.Descendants(elementName);
@@ -239,12 +240,7 @@ namespace Cake.AddinDiscoverer
 		}
 
 		// From The Cake Incubator project
-		public static string GetFirstElementValue(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
-		{
-			return document.GetFirstElement(elementName, config, platform)?.Value;
-		}
-
-		// From The Cake Incubator project
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static bool WithConfigCondition(this XElement element, string config = null, string platform = null)
 		{
 			bool? configAttribute = element.Attribute("Condition")?.Value.HasConfigPlatformCondition(config, platform);
@@ -257,11 +253,13 @@ namespace Cake.AddinDiscoverer
 		}
 
 		// From The Cake Incubator project
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static bool HasConfigPlatformCondition(this string condition, string config = null, string platform = null)
 		{
 			return string.IsNullOrEmpty(config) ? condition.StartsWith("'$(Configuration)|$(Platform)'==") : condition.EqualsIgnoreCase("'$(Configuration)|$(Platform)'=='" + config + "|" + platform + "'");
 		}
 
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static bool SetFirstElementValue(this XDocument document, XName elementName, string newValue, string config = null, string platform = "AnyCPU")
 		{
 			var element = document.GetFirstElement(elementName, config, platform);
@@ -271,6 +269,7 @@ namespace Cake.AddinDiscoverer
 			return true;
 		}
 
+		// Can be removed if PR is merged: https://github.com/cake-contrib/Cake.Incubator/pull/271
 		public static bool RemoveElement(this XDocument document, XName elementName, string config = null, string platform = "AnyCPU")
 		{
 			var element = document.GetFirstElement(elementName, config, platform);
@@ -278,13 +277,6 @@ namespace Cake.AddinDiscoverer
 
 			element.Remove();
 			return true;
-		}
-
-		// From The Cake Incubator project
-		public static XName GetXNameWithNamespace(this XNamespace ns, string elementName)
-		{
-			string nsName = ns?.NamespaceName;
-			return (nsName == null) ? XName.Get(elementName) : XName.Get(elementName, nsName);
 		}
 
 		public static IEnumerable<KeyValuePair<string, string>> ParseQuerystring(this Uri uri)
@@ -499,6 +491,39 @@ namespace Cake.AddinDiscoverer
 					}
 				}
 			}
+		}
+
+		public static Issue WithPullRequest(this Issue issue, PullRequest pullRequest)
+		{
+			if (issue == null) throw new ArgumentNullException(nameof(issue));
+
+			return new Issue(
+				issue.Url,
+				issue.HtmlUrl,
+				issue.CommentsUrl,
+				issue.EventsUrl,
+				issue.Number,
+				issue.State.Value,
+				issue.Title,
+				issue.Body,
+				issue.ClosedBy,
+				issue.User,
+				issue.Labels,
+				issue.Assignee,
+				issue.Assignees,
+				issue.Milestone,
+				issue.Comments,
+				pullRequest,
+				issue.ClosedAt,
+				issue.CreatedAt,
+				issue.UpdatedAt,
+				issue.Id,
+				issue.NodeId,
+				issue.Locked,
+				issue.Repository,
+				issue.Reactions,
+				issue.ActiveLockReason?.Value,
+				issue.StateReason?.Value);
 		}
 
 		private static void CheckIsEnum<T>(bool withFlags)
