@@ -271,7 +271,7 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						// Check if an issue already exists
 						var issueTitle = $"Reference to {outdatedReference.Type} {outdatedReference.Reference.Name} in {outdatedReference.Recipe.Name} needs to be updated";
-						var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(Constants.CONTRIBUTORS_SYNCHRONIZATION_ISSUE_TITLE));
+						var issue = issues.FirstOrDefault(i => i.Title.EqualsIgnoreCase(issueTitle));
 						if (issue != null) continue;
 
 						// Create the issue
