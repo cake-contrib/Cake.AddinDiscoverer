@@ -7,6 +7,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -74,6 +75,14 @@ namespace Cake.AddinDiscoverer.Steps
 								// Update all the addins for this repo
 								foreach (AddinMetadata addin in addinsGroup)
 								{
+									if (!string.IsNullOrEmpty(addin.AnalysisResult.Notes))
+									{
+										// Get rid of previous notes regarding Github metadata
+										var oldLines = Regex.Split(addin.AnalysisResult.Notes, "\r\n|\r|\n");
+										var newLines = oldLines.Where(line => !line.StartsWithIgnoreCase("GetGithubMetadata:")).ToArray();
+										addin.AnalysisResult.Notes = string.Join(Environment.NewLine, newLines);
+									}
+
 									addin.AnalysisResult.OpenIssuesCount = issuesCount;
 									addin.AnalysisResult.OpenPullRequestsCount = pullRequestsCount;
 								}
