@@ -2,7 +2,6 @@ using Cake.AddinDiscoverer.Models;
 using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using GraphQL.Client.Http;
-using Octokit;
 using System;
 using System.IO;
 using System.Linq;
@@ -44,6 +43,19 @@ namespace Cake.AddinDiscoverer.Steps
 
 			var graphQLResponse = await context.GraphQLClient.SendQueryAsync<dynamic>(request).ConfigureAwait(false);
 
+			// Check if the response has errors
+			if (graphQLResponse.Errors != null && graphQLResponse.Errors.Length > 0)
+			{
+				throw new Exception($"GraphQL query failed with errors: {string.Join(", ", graphQLResponse.Errors.Select(e => e.Message))}");
+			}
+
+			// Check if data is null (can happen even without explicit errors)
+			if (graphQLResponse.Data == null)
+			{
+				throw new Exception("GraphQL response contains no data");
+			}
+
+			// Now safely access the data
 			var repoNode = ((JsonElement)graphQLResponse.Data).GetProperty("repository");
 			var issuesCount = repoNode.GetProperty("issues").GetProperty("totalCount").GetInt32();
 			var pullRequestsCount = repoNode.GetProperty("pullRequests").GetProperty("totalCount").GetInt32();
@@ -67,6 +79,22 @@ namespace Cake.AddinDiscoverer.Steps
 					{
 						if (!string.IsNullOrEmpty(addinsGroup.Key.RepositoryName) && !string.IsNullOrEmpty(addinsGroup.Key.RepositoryOwner))
 						{
+							foreach (AddinMetadata addin in addinsGroup)
+							{
+								if (!string.IsNullOrEmpty(addin.AnalysisResult.Notes))
+								{
+									// Get rid of previous notes regarding Github metadata
+									// These notes were added until July 25 2026.
+									var oldLines = Regex.Split(addin.AnalysisResult.Notes, "\r\n|\r|\n");
+									var newLines = oldLines.Where(line => !line.StartsWithIgnoreCase("GetGithubMetadata:")).ToArray();
+									addin.AnalysisResult.Notes = string.Join(Environment.NewLine, newLines);
+								}
+
+								// Reset the counts to null before attempting to get the actual counts
+								addin.AnalysisResult.OpenIssuesCount = null;
+								addin.AnalysisResult.OpenPullRequestsCount = null;
+							}
+
 							try
 							{
 								// Get the number of open issues and pull requests
@@ -75,34 +103,14 @@ namespace Cake.AddinDiscoverer.Steps
 								// Update all the addins for this repo
 								foreach (AddinMetadata addin in addinsGroup)
 								{
-									if (!string.IsNullOrEmpty(addin.AnalysisResult.Notes))
-									{
-										// Get rid of previous notes regarding Github metadata
-										var oldLines = Regex.Split(addin.AnalysisResult.Notes, "\r\n|\r|\n");
-										var newLines = oldLines.Where(line => !line.StartsWithIgnoreCase("GetGithubMetadata:")).ToArray();
-										addin.AnalysisResult.Notes = string.Join(Environment.NewLine, newLines);
-									}
-
 									addin.AnalysisResult.OpenIssuesCount = issuesCount;
 									addin.AnalysisResult.OpenPullRequestsCount = pullRequestsCount;
 								}
 							}
-							catch (ApiException e) when (e.ApiError.Message.EqualsIgnoreCase("Issues are disabled for this repo"))
+							catch
 							{
-								// There's a NuGet package with a project URL that points to a fork which doesn't allow issues.
-								// Therefore it's safe to ignore this error.
-							}
-							catch (ApiException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound)
-							{
-								// I know of at least one case where the URL in the NuGet metadata points to a repo that has been deleted.
-								// Therefore it's safe to ignore this error.
-							}
-							catch (Exception e)
-							{
-								foreach (AddinMetadata addin in addinsGroup)
-								{
-									addin.AnalysisResult.Notes += $"GetGithubMetadata: {e.GetBaseException().Message}{Environment.NewLine}";
-								}
+								// It's safe to ignore errors here, as some repos may not allow issues or may have been deleted.
+								// Ideally, we should log these errors for further investigation.
 							}
 							finally
 							{
