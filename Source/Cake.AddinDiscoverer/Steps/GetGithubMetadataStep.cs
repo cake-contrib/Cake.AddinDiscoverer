@@ -3,6 +3,7 @@ using Cake.AddinDiscoverer.Utilities;
 using Cake.Incubator.StringExtensions;
 using GraphQL.Client.Http;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -50,13 +51,13 @@ namespace Cake.AddinDiscoverer.Steps
 			}
 
 			// Check if data is null (can happen even without explicit errors)
-			if (graphQLResponse.Data == null)
+			if (graphQLResponse.Data is not JsonElement jsonDataElement || jsonDataElement.ValueKind == JsonValueKind.Null)
 			{
 				throw new Exception("GraphQL response contains no data");
 			}
 
 			// Now safely access the data
-			var repoNode = ((JsonElement)graphQLResponse.Data).GetProperty("repository");
+			var repoNode = jsonDataElement.GetProperty("repository");
 			var issuesCount = repoNode.GetProperty("issues").GetProperty("totalCount").GetInt32();
 			var pullRequestsCount = repoNode.GetProperty("pullRequests").GetProperty("totalCount").GetInt32();
 
@@ -107,7 +108,7 @@ namespace Cake.AddinDiscoverer.Steps
 									addin.AnalysisResult.OpenPullRequestsCount = pullRequestsCount;
 								}
 							}
-							catch
+							catch (Exception e)
 							{
 								// It's safe to ignore errors here, as some repos may not allow issues or may have been deleted.
 								// Ideally, we should log these errors for further investigation.
